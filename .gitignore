@@ -4,5 +4,3 @@ dist/
 __pycache__/
 *-preview.png
 *.zip
-!youtube-ledger-chrome-0.6.3.zip
-!youtube-ledger-firefox-0.6.3.zip

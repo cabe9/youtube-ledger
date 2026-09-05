@@ -6,7 +6,7 @@ A local YouTube usage tracker for **Chrome and Firefox**. Records video titles, 
 
 ### Chrome
 
-1. Download [the Chrome ZIP](youtube-ledger-chrome-0.6.3.zip) and extract it to a permanent folder.
+1. Download [the Chrome ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.6.3/youtube-ledger-chrome-0.6.3.zip) and extract it to a permanent folder.
 2. Open `chrome://extensions` and enable **Developer mode**.
 3. Click **Load unpacked** and select the extracted folder.
 4. Pin YouTube Ledger, refresh existing YouTube tabs, and click the extension icon for the dashboard.
@@ -15,7 +15,7 @@ Keep the folder in place. The installation survives browser restarts. To update,
 
 ### Firefox
 
-1. Download and extract [the Firefox ZIP](youtube-ledger-firefox-0.6.3.zip).
+1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.6.3/youtube-ledger-firefox-0.6.3.zip).
 2. Open `about:debugging#/runtime/this-firefox`.
 3. Click **Load Temporary Add-on** and select the extracted `manifest.json`.
 4. Refresh YouTube tabs and open YouTube Ledger from the extension toolbar.
@@ -63,6 +63,8 @@ npm run test:ui
 npm run test:recommendations
 npm run test:chrome
 ```
+
+Installable downloads live in [GitHub Releases](https://github.com/cabe9/youtube-ledger/releases/latest); generated ZIPs are not committed to the source tree.
 
 `build.py` produces clean `dist/chrome` and `dist/firefox` folders and browser-specific ZIPs. UI and recommendation checks use installed Google Chrome. The Chrome integration check uses Playwright's Chrome for Testing in a disposable profile, with an actual unpacked extension and controlled YouTube HTML/media fixtures.
 
