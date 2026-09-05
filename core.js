@@ -5,7 +5,7 @@ globalThis.Ledger = (() => {
   const defaults = {theme:'retrowave', hideRecommendations:true, resetOnNavigate:true, showHeaderButton:true, showPausedOnly:false, shortMinutes:3, reviewPreference:''};
   function settings(value = {}) {
     const result = {...defaults};
-    if (['retrowave','classic'].includes(value?.theme)) result.theme=value.theme;
+    if (['retrowave','classic','dark-green'].includes(value?.theme)) result.theme=value.theme;
     for (const key of ['hideRecommendations','resetOnNavigate','showHeaderButton','showPausedOnly']) if (typeof value?.[key] === 'boolean') result[key] = value[key];
     if (Number.isInteger(value?.shortMinutes) && value.shortMinutes>=1 && value.shortMinutes<=30) result.shortMinutes=value.shortMinutes;
     // Clear the former built-in prompt; keep other saved prompts unchanged.

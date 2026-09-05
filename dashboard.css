@@ -42,3 +42,35 @@ input,select,textarea{border:1px solid #634775;border-radius:7px;padding:8px;bac
 :root[data-theme="classic"] .danger:hover{background:#f4e9e3}
 :root[data-theme="classic"] .setting input[type=checkbox]{accent-color:#225d45}
 @media(max-width:760px){:root[data-theme="classic"] main{padding-top:24px}:root[data-theme="classic"] h1{font-size:30px}:root[data-theme="classic"] #pause{align-self:flex-start}}
+
+/* Dark green palette with a compact header. */
+:root[data-theme="dark-green"]{color-scheme:dark;color:#e5eee8;background:#101714;--green:#8fc9a6;--muted:#a5b6aa;--line:#304239;--panel:#19251f}
+:root[data-theme="dark-green"] body{background:#101714}
+:root[data-theme="dark-green"] main{padding-top:48px}
+:root[data-theme="dark-green"] header{min-height:0;padding:0;margin-bottom:36px;background:none;border:0;border-radius:0;overflow:visible}
+:root[data-theme="dark-green"] header>div{background:none;padding:0}
+:root[data-theme="dark-green"] .eyebrow{color:#8fc9a6}
+:root[data-theme="dark-green"] h1{font-size:36px;letter-spacing:0;text-shadow:none}
+:root[data-theme="dark-green"] h1 span{color:#a5b6aa;font-size:19px}
+:root[data-theme="dark-green"] button{background:#27523b;border-color:#49775b;color:#f0f7f2}
+:root[data-theme="dark-green"] button:hover{background:#315b43}
+:root[data-theme="dark-green"] button:focus-visible,:root[data-theme="dark-green"] a:focus-visible,:root[data-theme="dark-green"] input:focus-visible,:root[data-theme="dark-green"] select:focus-visible,:root[data-theme="dark-green"] textarea:focus-visible,:root[data-theme="dark-green"] summary:focus-visible{outline-color:#b6e6c6}
+:root[data-theme="dark-green"] .secondary,:root[data-theme="dark-green"] #pause{background:transparent;color:#8fc9a6;border-color:#8fc9a6}
+:root[data-theme="dark-green"] #pause{align-self:center;font-size:15px}
+:root[data-theme="dark-green"] .secondary:hover,:root[data-theme="dark-green"] #pause:hover{background:#203128}
+:root[data-theme="dark-green"] input,:root[data-theme="dark-green"] select,:root[data-theme="dark-green"] textarea{background:#19251f;color:#e5eee8;border-color:#456050}
+:root[data-theme="dark-green"] textarea::placeholder{color:#a5b6aa}
+:root[data-theme="dark-green"] .card{background:#19251f;border-color:#304239;box-shadow:none}
+:root[data-theme="dark-green"] .card strong{color:#e5eee8}
+:root[data-theme="dark-green"] .card span{color:#a5b6aa}
+:root[data-theme="dark-green"] .review{background:#203128;border-color:#304239}
+:root[data-theme="dark-green"] .review label{color:#e5eee8}
+:root[data-theme="dark-green"] .table-wrap{background:#19251f}
+:root[data-theme="dark-green"] th{background:#22332a;color:#a5b6aa}
+:root[data-theme="dark-green"] td,:root[data-theme="dark-green"] th{border-color:#304239}
+:root[data-theme="dark-green"] tbody tr:hover{background:#101714}
+:root[data-theme="dark-green"] a,:root[data-theme="dark-green"] .recommendation-review summary{color:#8fc9a6}
+:root[data-theme="dark-green"] .danger{background:transparent;border-color:#805c59;color:#e8ada4}
+:root[data-theme="dark-green"] .danger:hover{background:#392824}
+:root[data-theme="dark-green"] .setting input[type=checkbox]{accent-color:#8fc9a6}
+@media(max-width:760px){:root[data-theme="dark-green"] main{padding-top:24px}:root[data-theme="dark-green"] h1{font-size:30px}:root[data-theme="dark-green"] #pause{align-self:flex-start}}

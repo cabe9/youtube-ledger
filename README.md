@@ -6,7 +6,7 @@ A local YouTube usage tracker for **Chrome and Firefox**. Records video titles, 
 
 ### Chrome
 
-1. Download [the Chrome ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.6.5/youtube-ledger-chrome-0.6.5.zip) and extract it to a permanent folder.
+1. Download [the Chrome ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.6.6/youtube-ledger-chrome-0.6.6.zip) and extract it to a permanent folder.
 2. Open `chrome://extensions` and enable **Developer mode**.
 3. Click **Load unpacked** and select the extracted folder.
 4. Pin YouTube Ledger, refresh existing YouTube tabs, and click the extension icon for the dashboard.
@@ -15,7 +15,7 @@ Keep the folder in place. The installation survives browser restarts. To update,
 
 ### Firefox
 
-1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.6.5/youtube-ledger-firefox-0.6.5.zip).
+1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.6.6/youtube-ledger-firefox-0.6.6.zip).
 2. Open `about:debugging#/runtime/this-firefox`.
 3. Click **Load Temporary Add-on** and select the extracted `manifest.json`.
 4. Refresh YouTube tabs and open YouTube Ledger from the extension toolbar.
@@ -78,4 +78,6 @@ Verified: aggregation, paused-tab exclusion, recommendation event storage, UI be
 
 Expand Advanced settings near the bottom of the dashboard to customize the recommendation default, reset-on-navigation behavior, header button visibility, inclusion of paused-only videos, short-video threshold (1–30 minutes), and your optional LLM prompt. Save applies settings to open YouTube tabs without deleting history. Restore defaults restores the original behavior. Automatic default visibility is not counted as a reveal. CSS initially hides recommendations until the saved preference loads.
 
-Choose **Retrowave** or **Light green** under Advanced settings → Dashboard theme, which applies and saves immediately. Other settings still use Save settings. Retrowave remains the default. Light green uses a light background, green accents, and a compact header. Theme selection is saved per browser profile.
+Choose **Retrowave**, **Light green**, or **Dark green** under Advanced settings → Dashboard theme, which applies and saves immediately. Other settings still use Save settings. Retrowave remains the default. Light green uses a light background, green accents, and a compact header. Theme selection is saved per browser profile.
+
+Dark green uses charcoal-green backgrounds, muted green accents, and light text with a compact header.
