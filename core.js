@@ -2,9 +2,10 @@
 globalThis.Ledger = (() => {
   const states = ['foreground', 'backgroundAudio', 'backgroundSilent', 'paused', 'browsing', 'ad'];
   const labels = ['Unsorted', 'Work', 'Learning', 'Leisure', 'Background', 'Unplanned'];
-  const defaults = {hideRecommendations:true, resetOnNavigate:true, showHeaderButton:true, showPausedOnly:false, shortMinutes:3, reviewPreference:'I want to avoid random YouTube recommendations and choose other activities for leisure. Help me be thoughtful about revealing recommendations.'};
+  const defaults = {theme:'retrowave', hideRecommendations:true, resetOnNavigate:true, showHeaderButton:true, showPausedOnly:false, shortMinutes:3, reviewPreference:'I want to avoid random YouTube recommendations and choose other activities for leisure. Help me be thoughtful about revealing recommendations.'};
   function settings(value = {}) {
     const result = {...defaults};
+    if (['retrowave','classic'].includes(value?.theme)) result.theme=value.theme;
     for (const key of ['hideRecommendations','resetOnNavigate','showHeaderButton','showPausedOnly']) if (typeof value?.[key] === 'boolean') result[key] = value[key];
     if (Number.isInteger(value?.shortMinutes) && value.shortMinutes>=1 && value.shortMinutes<=30) result.shortMinutes=value.shortMinutes;
     if (typeof value?.reviewPreference === 'string') result.reviewPreference=value.reviewPreference.slice(0,2000);

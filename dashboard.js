@@ -11,6 +11,7 @@ async function render() {
   if (date.value !== selected) return;
   rows = data['day:'+selected] || []; recommendations = data['recommendations:'+selected] || []; paused = !!data.paused;
   preferences=Ledger.settings(data.settings);
+  document.documentElement.dataset.theme=preferences.theme;
   groupedRows = Ledger.group(rows, data['purposes:'+selected] || {}, preferences);
   $('history-description').textContent=preferences.showPausedOnly ? 'One row per video · includes paused-only videos' : 'One row per video · paused-only videos hidden';
   $('pause').textContent = paused ? 'Resume tracking' : 'Pause tracking';
