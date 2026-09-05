@@ -1,0 +1,31 @@
+const {chromium} = require('playwright');
+const assert = require('node:assert/strict');
+(async()=>{
+  const browser = await chromium.launch({headless:true,channel:'chrome'});
+  try {
+    const page = await browser.newPage({viewport:{width:1280,height:960}});
+    const errors=[]; page.on('pageerror',e=>errors.push(e.message));
+    await page.addInitScript(()=>{
+      const d=new Date(), day=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const data={['day:'+day]:[{id:'demo',title:'Example session — learning something useful',channel:'Example channel',videoId:'demo',url:'https://www.youtube.com/watch?v=demo',start:Date.now()-1800000,end:Date.now(),label:'Learning',seconds:{foreground:1200,backgroundAudio:300,backgroundSilent:0,paused:300,browsing:0,ad:0}}]};
+      data['purposes:'+day]={'video:demo':'Learning'};data['recommendations:'+day]=[{kind:'reveal',at:Date.now(),page:'/'}];
+      window.browser={storage:{local:{get:async keys=>Object.fromEntries(keys.map(k=>[k,data[k]])),set:async x=>Object.assign(data,x)}},runtime:{sendMessage:async m=>{if(m.type==='groupLabel') data['purposes:'+m.day][m.key]=m.label;}}};
+    });
+    await page.goto('file://'+__dirname+'/dashboard.html');
+    await page.getByText('20m 0s',{exact:true}).first().waitFor();
+    await page.getByText(/1 deliberate reveals/).waitFor();
+    await page.getByRole('combobox').selectOption('Work');
+    await page.getByRole('button',{name:'Pause tracking',exact:true}).click();
+    await page.getByRole('button',{name:'Resume tracking',exact:true}).waitFor();
+    await page.locator('#goals').fill('30 minutes of intentional learning.');
+    const downloadPromise=page.waitForEvent('download');
+    await page.getByRole('button',{name:'Export LLM review prompt',exact:true}).click();
+    const download=await downloadPromise;
+    assert.match(download.suggestedFilename(),/^youtube-review-/);
+    assert.deepEqual(errors,[]);
+    await page.screenshot({path:__dirname+'/dashboard-preview.png',fullPage:true});
+    await page.setViewportSize({width:600,height:900});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+    console.log('Dashboard checks passed: render, label, pause, goals, export, narrow layout; no JavaScript errors. Screenshot uses synthetic data.');
+  } finally {await browser.close();}
+})().catch(e=>{console.error(e);process.exit(1);});
