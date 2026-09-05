@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parent
 FILES = ['LICENSE', 'compat.js', 'core.js', 'background.js', 'content.js',
          'recommendations.js', 'recommendations.css', 'dashboard.html',
          'dashboard.css', 'settings.js', 'dashboard.js', 'retrowave.svg', 'retrowave-animated.svg']
+FILES += ['icons/logo.svg'] + [f'icons/icon-{n}.png' for n in [16,32,48,64,128,256]]
 source = json.loads((ROOT / 'manifest.json').read_text())
 for browser in ['chrome', 'firefox']:
     manifest = json.loads(json.dumps(source))
@@ -20,6 +21,7 @@ for browser in ['chrome', 'firefox']:
     folder.mkdir(parents=True, exist_ok=True)
     (folder / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     for name in files:
+        (folder / name).parent.mkdir(parents=True, exist_ok=True)
         (folder / name).write_bytes((ROOT / name).read_bytes())
     install = ('Chrome: unzip this archive into a permanent folder. Open chrome://extensions, '
                'enable Developer mode, click Load unpacked, and select this folder. '
