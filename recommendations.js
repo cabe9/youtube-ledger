@@ -3,13 +3,17 @@
   let preferences = Ledger.settings();
   let route = location.pathname + location.search;
   const surfaces = 'ytd-browse[page-subtype="home"] ytd-rich-item-renderer, ytd-watch-flexy #related ytd-compact-video-renderer, ytd-watch-flexy #related yt-lockup-view-model, ytd-watch-next-secondary-results-renderer ytd-compact-video-renderer, .ytp-endscreen-content a, .ytp-ce-element, ytm-browse[tab-identifier="FEwhat_to_watch"] ytm-video-with-context-renderer, ytm-item-section-renderer[section-identifier="related-items"] ytm-video-with-context-renderer';
-  browser.storage.local.get(['paused','settings']).then(x => {enabled = !x.paused; applySettings(x.settings);});
+  browser.storage.local.get(['paused','settings']).then(x => {enabled = !x.paused; applySettings(x.settings, true);});
   browser.storage.onChanged.addListener(changes => {
     if (changes.paused) enabled = !changes.paused.newValue;
     if (changes.settings) applySettings(changes.settings.newValue);
   });
-  function applySettings(value) {
-    preferences=Ledger.settings(value);shown=!preferences.hideRecommendations;revealId=null;observed=false;
+  function applySettings(value, initial=false) {
+    const next=Ledger.settings(value);
+    if (initial || next.hideRecommendations !== preferences.hideRecommendations) {
+      shown=!next.hideRecommendations;revealId=null;observed=false;
+    }
+    preferences=next;
     mount();sync();
   }
   function resetVisibility() {

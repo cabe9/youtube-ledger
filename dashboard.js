@@ -1,6 +1,7 @@
 const $ = id => document.getElementById(id);
 const date = $('date'); date.value = Ledger.dayKey(Date.now());
 let preferences = Ledger.settings();
+let pendingDashboardTheme = null;
 let rows = [], groupedRows = [], recommendations = [], paused = false;
 const duration = n => n < 60 ? `${Math.round(n)}s` : `${Math.floor(n/60)}m ${Math.round(n%60)}s`;
 const clock = n => new Date(n).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
@@ -11,7 +12,7 @@ async function render() {
   if (date.value !== selected) return;
   rows = data['day:'+selected] || []; recommendations = data['recommendations:'+selected] || []; paused = !!data.paused;
   preferences=Ledger.settings(data.settings);
-  document.documentElement.dataset.theme=preferences.theme;
+  document.documentElement.dataset.theme=pendingDashboardTheme ?? preferences.theme;
   groupedRows = Ledger.group(rows, data['purposes:'+selected] || {}, preferences);
   $('history-description').textContent=preferences.showPausedOnly ? 'One row per video · includes paused-only videos' : 'One row per video · paused-only videos hidden';
   $('pause').textContent = paused ? 'Resume tracking' : 'Pause tracking';

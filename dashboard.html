@@ -11,14 +11,14 @@
 <details class="advanced"><summary>Advanced settings</summary>
 <p class="note">Saved in this browser profile. Changes apply to open YouTube tabs. Your viewing history is kept.</p>
 <form id="settings-form">
-<label class="setting">Dashboard theme <select id="setting-theme"><option value="retrowave">Retrowave</option><option value="classic">Classic · light green</option></select></label>
+<label class="setting">Dashboard theme (saves automatically) <select id="setting-theme"><option value="retrowave">Retrowave</option><option value="classic">Classic · light green</option></select></label>
 <label class="setting"><input type="checkbox" id="setting-hideRecommendations"><span>Hide recommendations by default<small>Turn off to show recommendations when a YouTube tab loads.</small></span></label>
 <label class="setting"><input type="checkbox" id="setting-resetOnNavigate"><span>Restore the default when navigating<small>Turn off to keep your Show/Hide choice in this tab until reload.</small></span></label>
 <label class="setting"><input type="checkbox" id="setting-showHeaderButton"><span>Show the button in YouTube’s header<small>If disabled, use these settings to control recommendation visibility.</small></span></label>
 <label class="setting"><input type="checkbox" id="setting-showPausedOnly"><span>Include paused-only videos in history<small>Shows existing records; paused background tabs still do not generate activity.</small></span></label>
 <label class="setting">Short-video threshold <input id="setting-shortMinutes" type="number" min="1" max="30" step="1" required> minutes</label>
 <label>LLM prompt<textarea id="setting-reviewPreference" maxlength="2000" placeholder="Optional: add instructions for your daily review."></textarea></label>
-<p class="note">Saving reapplies the recommendation default to open tabs. Automatic showing is not counted as a reveal. Other blockers may still hide recommendations.</p>
+<p class="note">Changing the recommendation default applies it to open tabs. Automatic showing is not counted as a reveal. Other blockers may still hide recommendations.</p>
 <div class="actions"><button type="submit">Save settings</button><button type="button" class="secondary" id="settings-reset">Restore defaults</button><span id="settings-status" role="status"></span></div>
 </form></details>
 <footer><span>Playback sampled about once a second. Summaries update every five seconds.</span><button class="danger" id="clear">Delete this day</button></footer>

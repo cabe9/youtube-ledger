@@ -27,6 +27,12 @@ const assert = require('node:assert/strict');
     await page.locator('#setting-hideRecommendations').uncheck();
     await page.locator('#setting-shortMinutes').fill('7');
     await page.locator('#setting-theme').selectOption('classic');
+    assert.equal(await page.locator('html').getAttribute('data-theme'),'classic');
+    await page.getByText('Theme saved. Other changes still need Save settings.',{exact:true}).waitFor();
+    assert.equal(await page.evaluate(async()=>(await browser.storage.local.get(['settings'])).settings.theme),'classic');
+    // A normal dashboard refresh cannot revert the newly selected theme.
+    await page.evaluate(()=>render());
+    assert.equal(await page.locator('html').getAttribute('data-theme'),'classic');
     await page.getByRole('button',{name:'Save settings',exact:true}).click();
     await page.getByText('Settings saved.',{exact:true}).waitFor();
     await page.getByText(/≤7 min today/).waitFor();
