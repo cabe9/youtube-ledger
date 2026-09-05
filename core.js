@@ -61,5 +61,27 @@ globalThis.Ledger = (() => {
       return item;
     });
   }
-  return {states, labels, dayKey, pieces, add, group, defaults, settings};
+  function datesEnding(end, count) {
+    const [y,m,d]=end.split('-').map(Number);
+    const cursor=new Date(y,m-1,d,12);
+    if (!Number.isFinite(cursor.getTime()) || dayKey(cursor)!==end) return [];
+    const days=[];
+    for(let i=0;i<count;i++){days.unshift(dayKey(cursor));cursor.setDate(cursor.getDate()-1);}
+    return days;
+  }
+  function trendReport(data, end, count) {
+    const dates=datesEnding(end,count*2);
+    const days=dates.map(day=>{
+      const rows=group(data['day:'+day] || [],data['purposes:'+day] || {},{showPausedOnly:false});
+      const seconds=Object.fromEntries(states.map(state=>[state,rows.reduce((n,row)=>n+(row.seconds[state] || 0),0)]));
+      const events=data['recommendations:'+day] || [];
+      return {day,foreground:seconds.foreground,backgroundAudio:seconds.backgroundAudio,backgroundSilent:seconds.backgroundSilent,playback:seconds.foreground+seconds.backgroundAudio+seconds.backgroundSilent,browsing:seconds.browsing,reveals:events.filter(e=>e.kind==='reveal').length,recorded:rows.length>0 || events.length>0};
+    });
+    function sum(list) {
+      return {playback:list.reduce((n,d)=>n+d.playback,0),browsing:list.reduce((n,d)=>n+d.browsing,0),reveals:list.reduce((n,d)=>n+d.reveals,0),recordedDays:list.filter(d=>d.recorded).length};
+    }
+    const previous=days.slice(0,count),current=days.slice(count);
+    return {end,dayCount:count,days:current,previousDays:previous,totals:sum(current),previousTotals:sum(previous)};
+  }
+  return {states, labels, dayKey, pieces, add, group, defaults, settings, datesEnding, trendReport};
 })();

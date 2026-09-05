@@ -71,3 +71,21 @@ test('LLM prompt starts blank and preserves custom text while clearing the old d
   assert.equal(Ledger.settings({reviewPreference:"I want to avoid random YouTube recommendations and choose other activities for leisure. Help me be thoughtful about revealing recommendations."}).reviewPreference,'');
   assert.equal(Ledger.settings({reviewPreference:'Focus on my learning goals.'}).reviewPreference,'Focus on my learning goals.');
 });
+
+test('trend ranges cross month, year and daylight-saving boundaries by calendar date',()=>{
+  assert.deepEqual(Ledger.datesEnding('2026-01-02',4),['2025-12-30','2025-12-31','2026-01-01','2026-01-02']);
+  assert.deepEqual(Ledger.datesEnding('2026-03-09',3),['2026-03-07','2026-03-08','2026-03-09']);
+  assert.equal(Ledger.datesEnding('2026-03-01',30).length,30);
+  assert.deepEqual(Ledger.datesEnding('',7),[]);
+});
+test('trends combine repeated video visits, exclude parked tabs, and compare equal periods',()=>{
+  const row=(id,foreground,paused=0)=>({id,videoId:'v',start:0,end:1000,label:'Unsorted',seconds:{foreground,backgroundAudio:10,backgroundSilent:5,browsing:0,paused,ad:0}});
+  const parked={...row('park',0,900),seconds:{foreground:0,backgroundAudio:0,backgroundSilent:0,browsing:0,paused:900,ad:0}};
+  const data={'day:2026-03-09':[row('a',60),row('b',30),parked],'day:2026-03-02':[row('old',30)],'recommendations:2026-03-09':[{kind:'reveal'},{kind:'visible'},{kind:'reveal'}]};
+  const result=Ledger.trendReport(data,'2026-03-09',7);
+  assert.equal(result.days.length,7);assert.equal(result.previousDays.length,7);
+  assert.equal(result.totals.playback,120);assert.equal(result.previousTotals.playback,45);
+  assert.equal(result.totals.reveals,2);assert.equal(result.totals.recordedDays,1);
+  assert.equal(result.days[0].playback,0);assert.equal(result.days.at(-1).foreground,90);
+  assert.equal(result.previousDays.at(-1).day,'2026-03-02');
+});

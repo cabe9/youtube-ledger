@@ -2,6 +2,18 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>YouTube Ledger</title><link rel="icon" type="image/png" href="icons/icon-32.png"><link rel="stylesheet" href="dashboard.css"></head>
 <body><main>
 <header><div><p class="eyebrow">LOCAL / PERSONAL ANALYTICS</p><h1>YouTube Ledger<span>Time, with context.</span></h1></div><button id="pause">Pause tracking</button></header>
+<section class="trends" aria-labelledby="trends-heading">
+<div class="section-title"><div><h2 id="trends-heading">Change over time</h2><p id="trend-range" class="note"></p></div><div class="trend-switch" aria-label="Period"><button type="button" data-period="7" aria-pressed="true">Week</button><button type="button" data-period="30" aria-pressed="false">Month</button></div></div>
+<div class="trend-controls"><button type="button" id="trend-prev" class="secondary" aria-label="Previous period">←</button><label>Ending <input type="date" id="trend-end"></label><button type="button" id="trend-next" class="secondary" aria-label="Next period">→</button><button type="button" id="trend-today" class="secondary">Today</button></div>
+<div id="trend-totals" class="cards"></div>
+<div class="trend-controls metric-controls" aria-label="Chart metric"><button type="button" data-metric="playback" aria-pressed="true">Playback</button><button type="button" data-metric="browsing" aria-pressed="false">Browsing</button><button type="button" data-metric="reveals" aria-pressed="false">Reveals</button><span id="trend-scale" class="note"></span></div>
+<p id="trend-legend" class="trend-legend"></p>
+<div id="trend-chart" class="trend-chart" aria-label="Daily activity chart"></div>
+<p id="trend-coverage" class="note" role="status"></p>
+<p class="note">Select a day to open its history below.</p>
+<details><summary>Daily totals</summary><div class="table-wrap"><table><thead><tr><th>Day</th><th>Playback</th><th>Browsing</th><th>Reveals</th></tr></thead><tbody id="trend-details"></tbody></table></div></details>
+<button type="button" id="trend-export" class="secondary">Export period as JSON</button>
+</section>
 <section class="toolbar"><label>Review a day <input type="date" id="date"></label><span id="status" role="status">Stored only in this browser profile</span></section>
 <section id="cards" class="cards" aria-label="Daily totals"></section>
 <p class="note">Foreground tracks playback while the YouTube page has focus. Background audio tracks unmuted playback in the background.</p>
@@ -23,4 +35,4 @@
 <div class="actions"><button type="submit">Save settings</button><button type="button" class="secondary" id="settings-reset">Restore defaults</button><span id="settings-status" role="status"></span></div>
 </form></details>
 <footer><span>Playback sampled about once a second. Summaries update every five seconds.</span><button class="danger" id="clear">Delete this day</button></footer>
-</main><script src="compat.js"></script><script src="core.js"></script><script src="dashboard.js"></script><script src="settings.js"></script></body></html>
+</main><script src="compat.js"></script><script src="core.js"></script><script src="dashboard.js"></script><script src="settings.js"></script><script src="trends.js"></script></body></html>

@@ -6,7 +6,7 @@ A local YouTube usage tracker for **Chrome and Firefox**. Records video titles, 
 
 ### Chrome
 
-1. Download [the Chrome ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.7.0/youtube-ledger-chrome-0.7.0.zip) and extract it to a permanent folder.
+1. Download [the Chrome ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.8.0/youtube-ledger-chrome-0.8.0.zip) and extract it to a permanent folder.
 2. Open `chrome://extensions` and enable **Developer mode**.
 3. Click **Load unpacked** and select the extracted folder.
 4. Pin YouTube Ledger, refresh existing YouTube tabs, and click the extension icon for the dashboard.
@@ -15,7 +15,7 @@ Keep the folder in place. The installation survives browser restarts. To update,
 
 ### Firefox
 
-1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.7.0/youtube-ledger-firefox-0.7.0.zip).
+1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.8.0/youtube-ledger-firefox-0.8.0.zip).
 2. Open `about:debugging#/runtime/this-firefox`.
 3. Click **Load Temporary Add-on** and select the extracted `manifest.json`.
 4. Refresh YouTube tabs and open YouTube Ledger from the extension toolbar.
@@ -87,3 +87,7 @@ Retrowave includes an animated grid, twinkling stars, and sunset glow. Toggle **
 The animated sun has transparent bands that rise and narrow toward the top, with a gradual pink/coral/lavender/cyan color cycle.
 
 The extension has a green play-and-ledger icon for the toolbar, extension manager, and dashboard tab. Its vector source is `icons/logo.svg`; run `npm run build:icons` to regenerate PNG sizes.
+
+## Change over time
+
+Week and Month show rolling 7-day and 30-day periods ending on a date you choose. View daily playback (foreground, background audio, silent background), browsing, or recommendation reveals. Summary cards compare recorded totals with the preceding equal-length period, with saved-activity day counts for both. Click a chart day to open its daily history. Use Previous/Next or Today to navigate, and Export period as JSON to download both periods and daily totals. Days without saved activity appear as zero; comparisons are based on stored records.
