@@ -4,21 +4,21 @@
 <header><div><p class="eyebrow">LOCAL / PERSONAL ANALYTICS</p><h1>YouTube Ledger<span>Time, with context.</span></h1></div><button id="pause">Pause tracking</button></header>
 <section class="toolbar"><label>Review a day <input type="date" id="date"></label><span id="status" role="status">Stored only in this browser profile</span></section>
 <section id="cards" class="cards" aria-label="Daily totals"></section>
-<p class="note">Foreground means the YouTube page had focus, not proof of attention. Background audio means playback was unmuted. Native Firefox picture-in-picture may appear as background. Simultaneous videos count separately.</p>
+<p class="note">Foreground tracks playback while the YouTube page has focus. Background audio tracks unmuted playback in the background.</p>
 <section class="review"><div><h2>Your daily review</h2><p>Add labels and notes, then export a review prompt for an LLM.</p></div><label>Notes<textarea id="goals" placeholder="Optional: add context, observations, goals, or anything else about your day."></textarea></label><div class="actions"><button id="prompt">Export LLM review prompt</button><button class="secondary" id="export">Export day as JSON</button></div></section>
-<section class="recommendation-review"><h2>Recommendations</h2><p id="recommendation-summary"></p><p class="note">A reveal is a click on “Show recommendations,” not a YouTube network request. Visible reveals require a recommendation in the viewport while YouTube has focus. The short-video threshold is configurable in Advanced settings; they are not automatically wasted time.</p><details><summary>Recommendation timeline</summary><ul id="recommendation-events"></ul></details></section>
+<section class="recommendation-review"><h2>Recommendations</h2><p id="recommendation-summary"></p><p class="note">Reveals count clicks on “Show recommendations.” On-screen detections count recommendations visible while YouTube has focus. Set the short-video threshold in Advanced settings.</p><details><summary>Recommendation timeline</summary><ul id="recommendation-events"></ul></details></section>
 <section><div class="section-title"><h2>Daily history</h2><span id="history-description">What you watched, when, and how you played it</span></div><div class="table-wrap"><table><thead><tr><th>Video / activity</th><th>First–last activity</th><th>Foreground</th><th>Background audio</th><th>Other time</th><th>Purpose</th></tr></thead><tbody id="rows"></tbody></table></div><p id="empty">No playback or browsing activity yet. Paused-only videos are hidden.</p></section>
 <details class="advanced"><summary>Advanced settings</summary>
-<p class="note">Saved in this browser profile. Changes apply to open YouTube tabs. Your viewing history is kept.</p>
+<p class="note">Settings are saved in this browser profile and apply to open YouTube tabs.</p>
 <form id="settings-form">
 <label class="setting">Dashboard theme (saves automatically) <select id="setting-theme"><option value="retrowave">Retrowave</option><option value="classic">Light green</option></select></label>
 <label class="setting"><input type="checkbox" id="setting-hideRecommendations"><span>Hide recommendations by default<small>Turn off to show recommendations when a YouTube tab loads.</small></span></label>
 <label class="setting"><input type="checkbox" id="setting-resetOnNavigate"><span>Restore the default when navigating<small>Turn off to keep your Show/Hide choice in this tab until reload.</small></span></label>
 <label class="setting"><input type="checkbox" id="setting-showHeaderButton"><span>Show the button in YouTube’s header<small>If disabled, use these settings to control recommendation visibility.</small></span></label>
-<label class="setting"><input type="checkbox" id="setting-showPausedOnly"><span>Include paused-only videos in history<small>Shows existing records; paused background tabs still do not generate activity.</small></span></label>
+<label class="setting"><input type="checkbox" id="setting-showPausedOnly"><span>Include paused-only videos in history<small>Includes saved videos with paused time and no playback.</small></span></label>
 <label class="setting">Short-video threshold <input id="setting-shortMinutes" type="number" min="1" max="30" step="1" required> minutes</label>
 <label>LLM prompt<textarea id="setting-reviewPreference" maxlength="2000" placeholder="Optional: add instructions for your daily review."></textarea></label>
-<p class="note">Changing the recommendation default applies it to open tabs. Automatic showing is not counted as a reveal. Other blockers may still hide recommendations.</p>
+<p class="note">The recommendation default applies to open tabs. Reveal counts come from the Show button.</p>
 <div class="actions"><button type="submit">Save settings</button><button type="button" class="secondary" id="settings-reset">Restore defaults</button><span id="settings-status" role="status"></span></div>
 </form></details>
 <footer><span>Playback sampled about once a second. Summaries update every five seconds.</span><button class="danger" id="clear">Delete this day</button></footer>

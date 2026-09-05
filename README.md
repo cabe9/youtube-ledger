@@ -6,7 +6,7 @@ A local YouTube usage tracker for **Chrome and Firefox**. Records video titles, 
 
 ### Chrome
 
-1. Download [the Chrome ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.6.4/youtube-ledger-chrome-0.6.4.zip) and extract it to a permanent folder.
+1. Download [the Chrome ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.6.5/youtube-ledger-chrome-0.6.5.zip) and extract it to a permanent folder.
 2. Open `chrome://extensions` and enable **Developer mode**.
 3. Click **Load unpacked** and select the extracted folder.
 4. Pin YouTube Ledger, refresh existing YouTube tabs, and click the extension icon for the dashboard.
@@ -15,7 +15,7 @@ Keep the folder in place. The installation survives browser restarts. To update,
 
 ### Firefox
 
-1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.6.4/youtube-ledger-firefox-0.6.4.zip).
+1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.6.5/youtube-ledger-firefox-0.6.5.zip).
 2. Open `about:debugging#/runtime/this-firefox`.
 3. Click **Load Temporary Add-on** and select the extracted `manifest.json`.
 4. Refresh YouTube tabs and open YouTube Ledger from the extension toolbar.
@@ -40,15 +40,15 @@ No account, API key or external service is required. Usage data stays in your br
 
 The source and ZIPs contain no viewing history. Your own exports do contain personal history. Export before uninstalling if you want to keep your data.
 
-Add notes about your day, label videos, and export an LLM review prompt to use with your preferred LLM. No automatic LLM connection is configured. The export asks for an explicit scoring rubric and flags uncertain inferences. The optional LLM prompt in Advanced settings starts blank; you can supply your own instructions. The old built-in preference is cleared when settings are read; other custom prompts are preserved.
+Add notes about your day, label videos, and export an LLM review prompt to use with your preferred LLM. No automatic LLM connection is configured. The export asks for an explicit scoring rubric and uses your notes for context. The optional LLM prompt in Advanced settings starts blank; you can supply your own instructions. The old built-in preference is cleared when settings are read; other custom prompts are preserved.
 
-## Accuracy and limitations
+## How tracking works
 
-Foreground focus does not prove watching; unmuted playback does not prove listening. Firefox native picture-in-picture may count as background. Multiple simultaneous videos accumulate independently, so totals are not unique wall-clock time. First/last timestamps can span gaps; use playback totals for duration.
+Foreground records playback while the YouTube page has focus. Background audio records unmuted background playback. Firefox native picture-in-picture may count as background. Multiple simultaneous videos accumulate independently. First/last timestamps can span gaps; use playback totals for duration.
 
-Playback is sampled roughly once a second and saved in batches of five samples. Gaps longer than five seconds are excluded. A sudden close or crash can lose the last unsaved batch. Paused includes buffering and seeking. Old sessions may retain background paused time; original data is preserved as `rawSessions`, while the dashboard uses grouped activity. Do not add raw and grouped totals together.
+Playback is sampled roughly once a second and saved in batches of five samples. Gaps longer than five seconds are excluded. A sudden close or crash can lose the last unsaved batch. Paused includes buffering and seeking. Old sessions may retain background paused time; original data is preserved as `rawSessions`, while the dashboard uses grouped activity. Use grouped activity for totals and raw sessions for detail.
 
-Short-video counts cover unique videos played for up to three minutes that day, including unfinished viewing; they do not establish that recommendations caused those visits. Ads, Shorts metadata, mobile selectors, and recommendation visibility are best-effort and may need adjustment when YouTube changes its layout. The header control waits for a supported desktop header rather than displaying a floating overlay.
+Short-video counts cover videos with playback under the threshold selected in Advanced settings, including videos in progress. Ads, Shorts metadata, mobile selectors, and recommendation visibility are best-effort and may need adjustment when YouTube changes its layout. The header control waits for a supported desktop header rather than displaying a floating overlay.
 
 ## Build and test
 
