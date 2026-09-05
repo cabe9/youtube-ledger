@@ -1,12 +1,13 @@
 {
   "name": "youtube-ledger",
-  "version": "0.6.7",
+  "version": "0.6.8",
   "private": true,
   "scripts": {
     "test": "node --test tests.test.cjs",
     "test:ui": "node ui-check.cjs",
     "test:recommendations": "node recommendations-check.cjs",
-    "test:chrome": "node chrome-check.cjs"
+    "test:chrome": "node chrome-check.cjs",
+    "test:sun": "node sun-check.cjs"
   },
   "devDependencies": {
     "playwright": "1.62.1"
