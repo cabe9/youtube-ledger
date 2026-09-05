@@ -6,7 +6,7 @@ A local YouTube usage tracker for **Chrome and Firefox**. Records video titles, 
 
 ### Chrome
 
-1. Download [the Chrome ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.6.3/youtube-ledger-chrome-0.6.3.zip) and extract it to a permanent folder.
+1. Download [the Chrome ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.6.4/youtube-ledger-chrome-0.6.4.zip) and extract it to a permanent folder.
 2. Open `chrome://extensions` and enable **Developer mode**.
 3. Click **Load unpacked** and select the extracted folder.
 4. Pin YouTube Ledger, refresh existing YouTube tabs, and click the extension icon for the dashboard.
@@ -15,7 +15,7 @@ Keep the folder in place. The installation survives browser restarts. To update,
 
 ### Firefox
 
-1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.6.3/youtube-ledger-firefox-0.6.3.zip).
+1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.6.4/youtube-ledger-firefox-0.6.4.zip).
 2. Open `about:debugging#/runtime/this-firefox`.
 3. Click **Load Temporary Add-on** and select the extracted `manifest.json`.
 4. Refresh YouTube tabs and open YouTube Ledger from the extension toolbar.
@@ -24,7 +24,7 @@ Temporary installations stop at browser restart. A durable Firefox installation 
 
 ## What it does
 
-- Shows one row per video per local day, combining repeat visits and hiding videos with no playback.
+- Records a detailed viewing history: which videos you watched, when you watched them, how long they played, and whether playback was in the foreground, background audio, or silent in the background.
 - Ignores paused background tabs; actual background playback still counts.
 - Lets you assign Work, Learning, Leisure, Background, Unplanned or Unsorted labels to a video's day. Conflicting older labels appear as Mixed until you choose a label.
 - Hides the Home feed, related-video sidebar and matching end-screen suggestions by default. Search and subscriptions remain available.
@@ -40,7 +40,7 @@ No account, API key or external service is required. Usage data stays in your br
 
 The source and ZIPs contain no viewing history. Your own exports do contain personal history. Export before uninstalling if you want to keep your data.
 
-Enter your daily intentions, label videos, and export an LLM review prompt to use with your preferred LLM. No automatic LLM connection is configured. The export asks for an explicit scoring rubric and flags uncertain inferences. The optional LLM prompt in Advanced settings starts blank; you can supply your own instructions. The old built-in preference is cleared when settings are read; other custom prompts are preserved.
+Add notes about your day, label videos, and export an LLM review prompt to use with your preferred LLM. No automatic LLM connection is configured. The export asks for an explicit scoring rubric and flags uncertain inferences. The optional LLM prompt in Advanced settings starts blank; you can supply your own instructions. The old built-in preference is cleared when settings are read; other custom prompts are preserved.
 
 ## Accuracy and limitations
 
@@ -78,4 +78,4 @@ Verified: aggregation, paused-tab exclusion, recommendation event storage, UI be
 
 Expand Advanced settings near the bottom of the dashboard to customize the recommendation default, reset-on-navigation behavior, header button visibility, inclusion of paused-only videos, short-video threshold (1–30 minutes), and your optional LLM prompt. Save applies settings to open YouTube tabs without deleting history. Restore defaults restores the original behavior. Automatic default visibility is not counted as a reveal. CSS initially hides recommendations until the saved preference loads.
 
-Choose **Retrowave** or **Classic · light green** under Advanced settings → Dashboard theme, which applies and saves immediately. Other settings still use Save settings. Retrowave remains the default. The Classic option restores the original light green palette and compact header. Theme selection is saved per browser profile.
+Choose **Retrowave** or **Light green** under Advanced settings → Dashboard theme, which applies and saves immediately. Other settings still use Save settings. Retrowave remains the default. Light green uses a light background, green accents, and a compact header. Theme selection is saved per browser profile.
