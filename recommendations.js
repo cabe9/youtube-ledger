@@ -38,7 +38,7 @@
     if (button) {
       button.textContent = shown ? 'Hide recommendations' : 'Show recommendations';
       button.setAttribute('aria-pressed',String(shown));
-      setNote(shown ? (preferences.resetOnNavigate ? 'Recommendations shown. Your default is restored on navigation.' : 'Recommendations shown. This choice stays for this tab until reload.') : 'Recommendations hidden · choose deliberately');
+      setNote(shown ? (preferences.resetOnNavigate ? 'Recommendations shown. Your default is restored on navigation.' : 'Recommendations shown. This choice stays for this tab until reload.') : 'Recommendations hidden');
     }
   }
   function setNote(text) {

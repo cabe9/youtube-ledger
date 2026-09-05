@@ -65,3 +65,9 @@ test('settings preserve defaults, validate input and optionally include parked h
   assert.equal(Ledger.group([parked]).length,0);
   assert.equal(Ledger.group([parked],{},Ledger.settings({showPausedOnly:true})).length,1);
 });
+
+test('LLM prompt starts blank and preserves custom text while clearing the old default',()=>{
+  assert.equal(Ledger.settings().reviewPreference,'');
+  assert.equal(Ledger.settings({reviewPreference:"I want to avoid random YouTube recommendations and choose other activities for leisure. Help me be thoughtful about revealing recommendations."}).reviewPreference,'');
+  assert.equal(Ledger.settings({reviewPreference:'Focus on my learning goals.'}).reviewPreference,'Focus on my learning goals.');
+});
