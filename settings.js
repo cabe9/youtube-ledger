@@ -24,6 +24,31 @@ document.getElementById('setting-theme').addEventListener('change',event=>{
     document.getElementById('settings-status').textContent='Could not save theme. Please try again.';
   });
 });
+let motionRevision=0;
+document.getElementById('setting-animateRetrowave').addEventListener('change',event=>{
+  const animateRetrowave=event.target.checked;
+  const revision=++motionRevision;
+  pendingDashboardMotion=animateRetrowave;
+  document.documentElement.dataset.motion=animateRetrowave ? 'on' : 'off';
+  document.getElementById('settings-status').textContent='Saving animation setting…';
+  // Serialize with theme saves so quick appearance changes preserve both choices.
+  themeSaveQueue=themeSaveQueue.then(async()=>{
+    const data=await browser.storage.local.get('settings');
+    await browser.storage.local.set({settings:{...Ledger.settings(data.settings),animateRetrowave}});
+    if (revision===motionRevision) {
+      pendingDashboardMotion=null;
+      document.getElementById('settings-status').textContent='Animation setting saved.';
+    }
+  }).catch(async()=>{
+    if (revision!==motionRevision) return;
+    pendingDashboardMotion=null;
+    const data=await browser.storage.local.get('settings').catch(()=>({}));
+    const saved=Ledger.settings(data.settings).animateRetrowave;
+    document.documentElement.dataset.motion=saved ? 'on' : 'off';
+    document.getElementById('setting-animateRetrowave').checked=saved;
+    document.getElementById('settings-status').textContent='Could not save animation setting. Please try again.';
+  });
+});
 function fillSettings(value) {
   const settings=Ledger.settings(value);
   for (const key of settingsFields) {

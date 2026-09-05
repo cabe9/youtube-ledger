@@ -53,6 +53,15 @@ async function until(page, predicate) {
     await dashboard.getByRole('button',{name:'Save settings',exact:true}).click();
     await dashboard.getByText('Settings saved.',{exact:true}).waitFor();
     await until(dashboard,async()=>!(await chrome.storage.local.get('settings')).settings.hideRecommendations);
+    await dashboard.emulateMedia({reducedMotion:'no-preference'});
+    await dashboard.locator('#setting-animateRetrowave').uncheck();
+    assert.doesNotMatch(await dashboard.locator('header').evaluate(el=>getComputedStyle(el).backgroundImage),/retrowave-animated/);
+    await dashboard.getByText('Animation setting saved.',{exact:true}).waitFor();
+    await dashboard.evaluate(()=>render());
+    const still1=await dashboard.locator('header').screenshot();
+    await dashboard.waitForTimeout(1200);
+    const still2=await dashboard.locator('header').screenshot();
+    assert.equal(still1.equals(still2),true,'animation off must produce identical header frames');
     await context.close();context=await launch();
     const restored=await context.newPage();
     await restored.goto(`chrome-extension://${id}/dashboard.html`);
@@ -60,6 +69,8 @@ async function until(page, predicate) {
     assert.equal(await restored.getByRole('combobox').inputValue(),'Learning');
     const saved=await restored.evaluate(()=>chrome.storage.local.get(null));
     assert.ok(Object.keys(saved).some(k=>k.startsWith('day:')));
+    assert.equal(saved.settings.animateRetrowave,false);
+    assert.doesNotMatch(await restored.locator('header').evaluate(el=>getComputedStyle(el).backgroundImage),/retrowave-animated/);
     assert.equal(saved.settings.hideRecommendations,false);assert.equal(saved.settings.shortMinutes,7);
     // A dashboard message after restart must wake the service worker and respond.
     await restored.getByRole('combobox').selectOption('Work');

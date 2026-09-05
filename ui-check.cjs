@@ -67,6 +67,8 @@ const assert = require('node:assert/strict');
     assert.doesNotMatch(await page.locator('header').evaluate(el=>getComputedStyle(el).backgroundImage),/retrowave-animated.svg/);
     await page.emulateMedia({reducedMotion:'no-preference'});
     await page.locator('#setting-animateRetrowave').uncheck();
+    assert.doesNotMatch(await page.locator('header').evaluate(el=>getComputedStyle(el).backgroundImage),/retrowave-animated.svg/);
+    await page.getByText('Animation setting saved.',{exact:true}).waitFor();
     await page.getByRole('button',{name:'Save settings',exact:true}).click();
     await page.getByText('Settings saved.',{exact:true}).waitFor();
     assert.doesNotMatch(await page.locator('header').evaluate(el=>getComputedStyle(el).backgroundImage),/retrowave-animated.svg/);

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YouTube Ledger",
-  "version": "0.6.8",
+  "version": "0.6.9",
   "description": "Local YouTube playback history with foreground, background and idle time.",
   "permissions": [
     "storage"

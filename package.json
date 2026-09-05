@@ -1,6 +1,6 @@
 {
   "name": "youtube-ledger",
-  "version": "0.6.8",
+  "version": "0.6.9",
   "private": true,
   "scripts": {
     "test": "node --test tests.test.cjs",
