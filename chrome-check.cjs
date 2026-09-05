@@ -47,6 +47,12 @@ async function until(page, predicate) {
     await dashboard.getByRole('button',{name:'Pause tracking',exact:true}).click();
     await dashboard.getByRole('button',{name:'Resume tracking',exact:true}).waitFor();
     await until(dashboard,async()=>Object.entries(await chrome.storage.local.get(null)).some(([k,v])=>k.startsWith('purposes:') && v['video:chrome-fixture']==='Learning'));
+    await dashboard.getByText('Advanced settings',{exact:true}).click();
+    await dashboard.locator('#setting-hideRecommendations').uncheck();
+    await dashboard.locator('#setting-shortMinutes').fill('7');
+    await dashboard.getByRole('button',{name:'Save settings',exact:true}).click();
+    await dashboard.getByText('Settings saved.',{exact:true}).waitFor();
+    await until(dashboard,async()=>!(await chrome.storage.local.get('settings')).settings.hideRecommendations);
     await context.close();context=await launch();
     const restored=await context.newPage();
     await restored.goto(`chrome-extension://${id}/dashboard.html`);
@@ -54,6 +60,7 @@ async function until(page, predicate) {
     assert.equal(await restored.getByRole('combobox').inputValue(),'Learning');
     const saved=await restored.evaluate(()=>chrome.storage.local.get(null));
     assert.ok(Object.keys(saved).some(k=>k.startsWith('day:')));
+    assert.equal(saved.settings.hideRecommendations,false);assert.equal(saved.settings.shortMinutes,7);
     // A dashboard message after restart must wake the service worker and respond.
     await restored.getByRole('combobox').selectOption('Work');
     await until(restored,async()=>Object.entries(await chrome.storage.local.get(null)).some(([k,v])=>k.startsWith('purposes:') && v['video:chrome-fixture']==='Work'));

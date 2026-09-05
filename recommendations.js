@@ -1,9 +1,21 @@
 (() => {
   let shown = false, revealId = null, observed = false, enabled = false, host, button, note;
+  let preferences = Ledger.settings();
   let route = location.pathname + location.search;
   const surfaces = 'ytd-browse[page-subtype="home"] ytd-rich-item-renderer, ytd-watch-flexy #related ytd-compact-video-renderer, ytd-watch-flexy #related yt-lockup-view-model, ytd-watch-next-secondary-results-renderer ytd-compact-video-renderer, .ytp-endscreen-content a, .ytp-ce-element, ytm-browse[tab-identifier="FEwhat_to_watch"] ytm-video-with-context-renderer, ytm-item-section-renderer[section-identifier="related-items"] ytm-video-with-context-renderer';
-  browser.storage.local.get('paused').then(x => {enabled = !x.paused;});
-  browser.storage.onChanged.addListener(changes => {if (changes.paused) enabled = !changes.paused.newValue;});
+  browser.storage.local.get(['paused','settings']).then(x => {enabled = !x.paused; applySettings(x.settings);});
+  browser.storage.onChanged.addListener(changes => {
+    if (changes.paused) enabled = !changes.paused.newValue;
+    if (changes.settings) applySettings(changes.settings.newValue);
+  });
+  function applySettings(value) {
+    preferences=Ledger.settings(value);shown=!preferences.hideRecommendations;revealId=null;observed=false;
+    mount();sync();
+  }
+  function resetVisibility() {
+    if (!preferences.resetOnNavigate) return;
+    shown=!preferences.hideRecommendations;revealId=null;observed=false;sync();
+  }
   function emit(kind) {
     if (!enabled) return;
     const u = new URL(location.href);
@@ -26,7 +38,7 @@
     if (button) {
       button.textContent = shown ? 'Hide recommendations' : 'Show recommendations';
       button.setAttribute('aria-pressed',String(shown));
-      setNote(shown ? 'Showing for this page. Hidden again when you navigate.' : 'Recommendations hidden · choose deliberately');
+      setNote(shown ? (preferences.resetOnNavigate ? 'Recommendations shown. Your default is restored on navigation.' : 'Recommendations shown. This choice stays for this tab until reload.') : 'Recommendations hidden · choose deliberately');
     }
   }
   function setNote(text) {
@@ -40,6 +52,7 @@
     sync();
   }
   function mount() {
+    if (!preferences.showHeaderButton) {host?.remove();return;}
     const center = document.querySelector('ytd-masthead #center');
     const search = center?.querySelector('yt-searchbox, ytd-searchbox, #search-form');
     const target = center || document.querySelector('ytd-masthead #start');
@@ -78,19 +91,19 @@
   function navigation() {
     const next=location.pathname+location.search;
     if (next===route) return;
-    route=next; shown=false; revealId=null; observed=false;sync();
+    route=next; resetVisibility();
   }
   function check() {
     navigation(); mount();
-    if (shown && !observed && enabled && document.hasFocus() && document.visibilityState==='visible' && visibleRecommendations()) {
+    if (shown && revealId && !observed && enabled && document.hasFocus() && document.visibilityState==='visible' && visibleRecommendations()) {
       observed=true;emit('visible');
-      setNote('Recommendations visible. Hidden again when you navigate.');
-    } else if (shown && !observed) {
+      setNote('Recommendations detected on screen.');
+    } else if (shown && revealId && !observed) {
       setNote('No visible recommendations detected. Another blocker may still be hiding them, or they may be loading/off-screen.');
     }
   }
   // This extension owns its switch, not DF YouTube's internal settings.
-  document.addEventListener('yt-navigate-start',()=>{shown=false;revealId=null;observed=false;sync();});
+  document.addEventListener('yt-navigate-start',resetVisibility);
   document.addEventListener('yt-navigate-finish',navigation);
   document.addEventListener('DOMContentLoaded',mount,{once:true});
   setInterval(check,1000); mount();sync();

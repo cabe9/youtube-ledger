@@ -6,7 +6,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 ROOT = Path(__file__).resolve().parent
 FILES = ['LICENSE', 'compat.js', 'core.js', 'background.js', 'content.js',
          'recommendations.js', 'recommendations.css', 'dashboard.html',
-         'dashboard.css', 'dashboard.js', 'retrowave.svg']
+         'dashboard.css', 'settings.js', 'dashboard.js', 'retrowave.svg']
 source = json.loads((ROOT / 'manifest.json').read_text())
 for browser in ['chrome', 'firefox']:
     manifest = json.loads(json.dumps(source))

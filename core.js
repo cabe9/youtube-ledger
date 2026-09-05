@@ -2,6 +2,14 @@
 globalThis.Ledger = (() => {
   const states = ['foreground', 'backgroundAudio', 'backgroundSilent', 'paused', 'browsing', 'ad'];
   const labels = ['Unsorted', 'Work', 'Learning', 'Leisure', 'Background', 'Unplanned'];
+  const defaults = {hideRecommendations:true, resetOnNavigate:true, showHeaderButton:true, showPausedOnly:false, shortMinutes:3, reviewPreference:'I want to avoid random YouTube recommendations and choose other activities for leisure. Help me be thoughtful about revealing recommendations.'};
+  function settings(value = {}) {
+    const result = {...defaults};
+    for (const key of ['hideRecommendations','resetOnNavigate','showHeaderButton','showPausedOnly']) if (typeof value?.[key] === 'boolean') result[key] = value[key];
+    if (Number.isInteger(value?.shortMinutes) && value.shortMinutes>=1 && value.shortMinutes<=30) result.shortMinutes=value.shortMinutes;
+    if (typeof value?.reviewPreference === 'string') result.reviewPreference=value.reviewPreference.slice(0,2000);
+    return result;
+  }
   function dayKey(ms) {
     const d = new Date(ms);
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -28,11 +36,11 @@ globalThis.Ledger = (() => {
     if (e.channel) row.channel = e.channel;
     row.seconds[e.state] += (e.end-e.start)/1000;
   }
-  function group(rows, purposes = {}) {
+  function group(rows, purposes = {}, options = {}) {
     const groups = new Map();
     for (const row of rows) {
       const playback = row.seconds.foreground + row.seconds.backgroundAudio + row.seconds.backgroundSilent;
-      if (row.videoId ? playback <= 0 : row.seconds.browsing <= 0) continue;
+      if (row.videoId ? (playback <= 0 && !options.showPausedOnly) : row.seconds.browsing <= 0) continue;
       const key = row.videoId ? 'video:'+row.videoId : 'browsing';
       let item = groups.get(key);
       if (!item) {
@@ -50,5 +58,5 @@ globalThis.Ledger = (() => {
       return item;
     });
   }
-  return {states, labels, dayKey, pieces, add, group};
+  return {states, labels, dayKey, pieces, add, group, defaults, settings};
 })();

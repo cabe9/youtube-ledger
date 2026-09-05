@@ -6,7 +6,7 @@ A local YouTube usage tracker for **Chrome and Firefox**. Records video titles, 
 
 ### Chrome
 
-1. Download [the Chrome ZIP](youtube-ledger-chrome-0.5.0.zip) and extract it to a permanent folder.
+1. Download [the Chrome ZIP](youtube-ledger-chrome-0.6.0.zip) and extract it to a permanent folder.
 2. Open `chrome://extensions` and enable **Developer mode**.
 3. Click **Load unpacked** and select the extracted folder.
 4. Pin YouTube Ledger, refresh existing YouTube tabs, and click the extension icon for the dashboard.
@@ -15,7 +15,7 @@ Keep the folder in place. The installation survives browser restarts. To update,
 
 ### Firefox
 
-1. Download and extract [the Firefox ZIP](youtube-ledger-firefox-0.5.0.zip).
+1. Download and extract [the Firefox ZIP](youtube-ledger-firefox-0.6.0.zip).
 2. Open `about:debugging#/runtime/this-firefox`.
 3. Click **Load Temporary Add-on** and select the extracted `manifest.json`.
 4. Refresh YouTube tabs and open YouTube Ledger from the extension toolbar.
@@ -40,7 +40,7 @@ No account, API key or external service is required. Usage data stays in your br
 
 The source and ZIPs contain no viewing history. Your own exports do contain personal history. Export before uninstalling if you want to keep your data.
 
-Enter your daily intentions, label videos, and export an LLM review prompt to use with your preferred LLM. No automatic LLM connection is configured. The prompt includes the preference to avoid random recommendation browsing and choose other leisure activities, asks for an explicit scoring rubric, and flags uncertain inferences. You can edit that preference in `dashboard.js`.
+Enter your daily intentions, label videos, and export an LLM review prompt to use with your preferred LLM. No automatic LLM connection is configured. The prompt includes the preference to avoid random recommendation browsing and choose other leisure activities, asks for an explicit scoring rubric, and flags uncertain inferences. You can edit that preference in Advanced settings.
 
 ## Accuracy and limitations
 
@@ -71,3 +71,7 @@ Verified: aggregation, paused-tab exclusion, recommendation event storage, UI be
 ## License
 
 [MIT](LICENSE). You may use, modify and share the code under the license terms.
+
+## Advanced settings
+
+Expand Advanced settings near the bottom of the dashboard to customize the recommendation default, reset-on-navigation behavior, header button visibility, inclusion of paused-only videos, short-video threshold (1–30 minutes), and your LLM review preference. Save applies settings to open YouTube tabs without deleting history. Restore defaults restores the original behavior. Automatic default visibility is not counted as a deliberate reveal. CSS initially hides recommendations until the saved preference loads.

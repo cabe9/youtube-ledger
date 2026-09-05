@@ -54,3 +54,14 @@ test('content collector distinguishes playback, seeking, background, pause and s
   assert.ok(sent.some(e=>e.state==='backgroundAudio')); assert.ok(sent.some(e=>e.state==='backgroundSilent'));
   assert.ok(sent.every(e=>e.end-e.start<=5000));
 });
+
+test('settings preserve defaults, validate input and optionally include parked history',()=>{
+  assert.equal(Ledger.settings().hideRecommendations,true);
+  assert.equal(Ledger.settings({hideRecommendations:false,shortMinutes:7}).shortMinutes,7);
+  assert.equal(Ledger.settings({hideRecommendations:false}).hideRecommendations,false);
+  assert.equal(Ledger.settings({shortMinutes:-1}).shortMinutes,3);
+  assert.equal(Ledger.settings({shortMinutes:1.5}).shortMinutes,3);
+  const parked={id:'parked',videoId:'v',start:1,end:2,label:'Unsorted',seconds:{foreground:0,backgroundAudio:0,backgroundSilent:0,paused:10,browsing:0,ad:0}};
+  assert.equal(Ledger.group([parked]).length,0);
+  assert.equal(Ledger.group([parked],{},Ledger.settings({showPausedOnly:true})).length,1);
+});
