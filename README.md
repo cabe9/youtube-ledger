@@ -36,6 +36,8 @@ DF YouTube or another blocker can still hide recommendations after you click Sho
 
 ## Privacy and daily review
 
+Read the [privacy policy](https://cabe9.github.io/youtube-ledger/privacy.html) for information about local data handling, permissions, exports, retention, and deletion.
+
 No account, API key or external service is required. Usage data stays in your browser profile. The extension does not upload history, record screenshots/audio, or read unrelated websites. Private/incognito use is disabled. Chrome and Firefox histories are separate; synchronization and migration are not implemented.
 
 The source and ZIPs contain no viewing history. Your own exports do contain personal history. Export before uninstalling if you want to keep your data.

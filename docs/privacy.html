@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Privacy policy for YouTube Ledger, a local YouTube activity tracker for Chrome and Firefox.">
+  <meta name="referrer" content="no-referrer">
+  <title>Privacy Policy · YouTube Ledger</title>
+  <link rel="canonical" href="https://cabe9.github.io/youtube-ledger/privacy.html">
+  <style>
+    :root{color-scheme:light;font:16px/1.75 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#263a2d;background:#f7f8f3}
+    *{box-sizing:border-box}body{margin:0}main{max-width:800px;margin:auto;padding:52px 28px 72px}
+    header{padding-bottom:28px;border-bottom:1px solid #d5dfcf;margin-bottom:30px}.brand{font-size:13px;letter-spacing:.04em;font-weight:650}
+    h1{font:normal 44px/1.15 Georgia,serif;letter-spacing:-1px;margin:24px 0 12px}h2{font-size:20px;line-height:1.4;margin:32px 0 12px}
+    p{margin:12px 0}li{margin:8px 0}ul{padding-left:24px}a{color:#285e40;text-underline-offset:3px}a:focus-visible{outline:2px solid #285e40;outline-offset:4px}
+    .date,footer{font-size:13px;color:#536652}.summary{background:#eaf0e2;border-left:3px solid #628653;padding:16px 20px;margin:28px 0}.summary p{margin:0}
+    code{font-size:.9em;overflow-wrap:anywhere}footer{border-top:1px solid #d5dfcf;margin-top:36px;padding-top:20px}
+    @media(max-width:480px){main{padding:32px 20px 48px}h1{font-size:36px}}
+    @media print{:root{background:white;color:black}main{max-width:none;padding:0}a{color:inherit}.summary{background:none}}
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <a class="brand" href="https://github.com/cabe9/youtube-ledger">YouTube Ledger</a>
+    <h1>Privacy policy</h1>
+    <p class="date">Effective and last updated: September 5, 2026</p>
+    <p>This policy describes how YouTube Ledger, the Chrome and Firefox extension maintained by <a href="https://github.com/cabe9">cabe9</a>, handles information.</p>
+  </header>
+
+  <div class="summary"><p><strong>Your activity stays in your browser profile.</strong> YouTube Ledger processes and stores YouTube activity locally. The extension does not automatically send that activity to the developer, an analytics service, or an AI provider. No account is required.</p></div>
+
+  <h2>Information the extension handles</h2>
+  <p>When tracking is enabled, the extension reads information from supported YouTube pages and stores the following in your browser profile:</p>
+  <ul>
+    <li><strong>Viewing activity:</strong> video titles, channel names, video IDs and video URLs; first and last activity timestamps; locally generated session identifiers; and elapsed time for foreground playback, background audio, silent background playback, paused or buffering activity, browsing, and detected ads.</li>
+    <li><strong>Recommendation activity:</strong> actions such as showing or hiding recommendations, detections of recommendations visible while YouTube has focus, timestamps, locally generated event identifiers, and the relevant YouTube page path or video ID.</li>
+    <li><strong>Information you enter:</strong> purpose labels, daily notes, and optional instructions for exported review prompts.</li>
+    <li><strong>Preferences:</strong> settings such as the dashboard theme, animation preference, recommendation visibility, short-video threshold, and whether tracking is paused.</li>
+  </ul>
+  <p>The extension also reads playback position, playback speed, audio status, and page focus to calculate activity durations. It does not record video, audio, screenshots, passwords, cookies, or activity on unrelated websites. Private or incognito use is disabled.</p>
+
+  <h2>How the information is used</h2>
+  <p>Information is used to provide the local viewing history, daily and period summaries, recommendation controls and activity counts, labels, notes, and exports you request. The extension does not use your information for advertising, profiling for third parties, or selling data.</p>
+
+  <h2>Storage and retention</h2>
+  <p>Records and preferences are stored using the browser's local extension storage (<code>storage.local</code>). The extension does not send them to a developer-operated server or use browser sync storage. Chrome and Firefox profiles keep separate histories.</p>
+  <p>There is no automatic expiration schedule. Records remain in that profile until you delete them, remove the extension's stored data, or uninstall the extension. Storage is managed by your browser and device; this policy does not describe any separate device backup or browser service you use.</p>
+
+  <h2>Your controls and deletion</h2>
+  <ul>
+    <li><strong>Pause tracking</strong> stops saving new activity and recommendation events. It does not delete existing records.</li>
+    <li><strong>Delete this day</strong> removes that day's recorded activity, recommendation events, and purpose labels. It currently does not remove the day's notes; erase those in the Notes field separately.</li>
+    <li>You can edit or clear notes and custom review instructions in the dashboard. Restoring default settings does not delete viewing history or daily notes.</li>
+    <li>To remove all local extension data, remove its stored data through your browser's available controls or uninstall the extension. Files you previously exported remain wherever you saved them until you delete those files yourself.</li>
+  </ul>
+  <p>The developer cannot access or delete records that remain only in your browser profile.</p>
+
+  <h2>Exports and third-party services</h2>
+  <p>JSON exports and LLM review-prompt exports are created locally as downloadable files. Depending on the export, they can include viewing activity, recommendation events, labels, notes, preferences, dates, and the time zone reported by your browser.</p>
+  <p>No automatic LLM or AI service connection is included. If you choose to upload, paste, or send an export to an AI provider or anyone else, that recipient receives the information you share and handles it under its own policies. Exporting a file by itself does not send it to the developer.</p>
+
+  <h2>Permissions</h2>
+  <p>The <strong>storage</strong> permission saves your records and preferences locally. Access to <strong>www.youtube.com</strong> and <strong>m.youtube.com</strong> allows the extension to observe supported playback and page activity and show or hide recommendation elements. It does not request access to unrelated websites, your general browser history, your microphone, or your camera.</p>
+
+  <h2>This policy page and external websites</h2>
+  <p>This policy page is hosted on GitHub Pages. GitHub processes requests to serve the page under its <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">privacy statement</a>. This page contains no analytics scripts, remote fonts, or embedded trackers. Visiting it does not give GitHub or the developer access to the extension's locally stored history.</p>
+  <p>YouTube, your browser provider, and other websites or services you choose to use operate separately under their own policies.</p>
+
+  <h2>Changes to this policy</h2>
+  <p>This page will be updated when the extension's information-handling practices change. The date at the top identifies the latest policy update. Its source and revision history are available in the <a href="https://github.com/cabe9/youtube-ledger/blob/main/docs/privacy.html">project repository</a>.</p>
+
+  <h2>Contact</h2>
+  <p>For privacy questions, contact the maintainer through the <a href="https://github.com/cabe9/youtube-ledger/issues">YouTube Ledger issue tracker</a>. Issues are public, so do not include private viewing history, notes, exports, or other sensitive information.</p>
+
+  <footer><a href="https://github.com/cabe9/youtube-ledger">View the project on GitHub</a></footer>
+</main>
+</body>
+</html>
