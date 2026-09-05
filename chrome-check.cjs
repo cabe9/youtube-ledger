@@ -53,6 +53,8 @@ async function until(page, predicate) {
     await dashboard.getByRole('button',{name:'Save settings',exact:true}).click();
     await dashboard.getByText('Settings saved.',{exact:true}).waitFor();
     await until(dashboard,async()=>!(await chrome.storage.local.get('settings')).settings.hideRecommendations);
+    await dashboard.locator('#setting-theme').selectOption('retrowave');
+    await dashboard.getByText('Theme saved. Other changes still need Save settings.',{exact:true}).waitFor();
     await dashboard.emulateMedia({reducedMotion:'no-preference'});
     await dashboard.locator('#setting-animateRetrowave').uncheck();
     assert.doesNotMatch(await dashboard.locator('header').evaluate(el=>getComputedStyle(el).backgroundImage),/retrowave-animated/);

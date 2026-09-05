@@ -2,7 +2,7 @@
 globalThis.Ledger = (() => {
   const states = ['foreground', 'backgroundAudio', 'backgroundSilent', 'paused', 'browsing', 'ad'];
   const labels = ['Unsorted', 'Work', 'Learning', 'Leisure', 'Background', 'Unplanned'];
-  const defaults = {theme:'retrowave', animateRetrowave:true, hideRecommendations:true, resetOnNavigate:true, showHeaderButton:true, showPausedOnly:false, shortMinutes:3, reviewPreference:''};
+  const defaults = {theme:'dark-green', animateRetrowave:true, hideRecommendations:true, resetOnNavigate:true, showHeaderButton:true, showPausedOnly:false, shortMinutes:3, reviewPreference:''};
   function settings(value = {}) {
     const result = {...defaults};
     if (['retrowave','classic','dark-green'].includes(value?.theme)) result.theme=value.theme;

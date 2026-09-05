@@ -89,3 +89,9 @@ test('trends combine repeated video visits, exclude parked tabs, and compare equ
   assert.equal(result.days[0].playback,0);assert.equal(result.days.at(-1).foreground,90);
   assert.equal(result.previousDays.at(-1).day,'2026-03-02');
 });
+
+test('dark green is the default while saved theme choices are preserved',()=>{
+  assert.equal(Ledger.settings().theme,'dark-green');
+  assert.equal(Ledger.settings({theme:'retrowave'}).theme,'retrowave');
+  assert.equal(Ledger.settings({theme:'classic'}).theme,'classic');
+});
