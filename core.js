@@ -2,11 +2,11 @@
 globalThis.Ledger = (() => {
   const states = ['foreground', 'backgroundAudio', 'backgroundSilent', 'paused', 'browsing', 'ad'];
   const labels = ['Unsorted', 'Work', 'Learning', 'Leisure', 'Background', 'Unplanned'];
-  const defaults = {theme:'retrowave', hideRecommendations:true, resetOnNavigate:true, showHeaderButton:true, showPausedOnly:false, shortMinutes:3, reviewPreference:''};
+  const defaults = {theme:'retrowave', animateRetrowave:true, hideRecommendations:true, resetOnNavigate:true, showHeaderButton:true, showPausedOnly:false, shortMinutes:3, reviewPreference:''};
   function settings(value = {}) {
     const result = {...defaults};
     if (['retrowave','classic','dark-green'].includes(value?.theme)) result.theme=value.theme;
-    for (const key of ['hideRecommendations','resetOnNavigate','showHeaderButton','showPausedOnly']) if (typeof value?.[key] === 'boolean') result[key] = value[key];
+    for (const key of ['animateRetrowave','hideRecommendations','resetOnNavigate','showHeaderButton','showPausedOnly']) if (typeof value?.[key] === 'boolean') result[key] = value[key];
     if (Number.isInteger(value?.shortMinutes) && value.shortMinutes>=1 && value.shortMinutes<=30) result.shortMinutes=value.shortMinutes;
     // Clear the former built-in prompt; keep other saved prompts unchanged.
     const legacyPrompt='I want to avoid random YouTube recommendations and choose other activities for leisure. Help me be thoughtful about revealing recommendations.';

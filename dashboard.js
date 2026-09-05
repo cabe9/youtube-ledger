@@ -13,6 +13,7 @@ async function render() {
   rows = data['day:'+selected] || []; recommendations = data['recommendations:'+selected] || []; paused = !!data.paused;
   preferences=Ledger.settings(data.settings);
   document.documentElement.dataset.theme=pendingDashboardTheme ?? preferences.theme;
+  document.documentElement.dataset.motion=preferences.animateRetrowave ? 'on' : 'off';
   groupedRows = Ledger.group(rows, data['purposes:'+selected] || {}, preferences);
   $('history-description').textContent=preferences.showPausedOnly ? 'Viewing history · includes paused-only videos' : 'What you watched, when, and how you played it';
   $('pause').textContent = paused ? 'Resume tracking' : 'Pause tracking';
