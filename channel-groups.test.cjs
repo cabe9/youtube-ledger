@@ -1,0 +1,92 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const crypto=require('node:crypto');
+require('./core.js');
+require('./group-icons.js');
+require('./channel-groups.js');
+const {animatedGif}=require('./icon-fixtures.cjs');
+const A={id:'UC'+'a'.repeat(22),name:'Alpha & friends'}, B={id:'UC'+'b'.repeat(22),name:'Beta'};
+const V='v'.repeat(11);
+test('image icons accept local raster data, preserve GIF bytes, and bound storage without changing memberships',()=>{
+  const gif='data:image/gif;base64,'+animatedGif().toString('base64'),icon={kind:'image',value:gif};
+  let state=ChannelGroups.change(undefined,{action:'create',name:'Podcasts',channel:A,icon},()=> 'podcasts');
+  assert.deepEqual(state.groups[0].icon,icon);
+  for(const value of ['https://example.com/icon.png','data:image/svg+xml;base64,PHN2Zy8+','data:image/png;base64,'+animatedGif().toString('base64'),'data:image/gif;base64,AA==','data:image/gif;base64,!'])assert.throws(()=>GroupIcons.normalize({kind:'image',value}));
+  const large=Buffer.alloc(512*1024);animatedGif().copy(large);
+  const full={kind:'image',value:'data:image/gif;base64,'+large.toString('base64')};
+  assert.deepEqual(GroupIcons.normalize(full),full);
+  assert.throws(()=>GroupIcons.normalize({kind:'image',value:'data:image/gif;base64,'+Buffer.concat([large,Buffer.from([0])]).toString('base64')}),/512 KB/);
+  state=ChannelGroups.change(state,{action:'icon',groupId:'podcasts',icon:full});
+  state=ChannelGroups.change(state,{action:'create',name:'Music',icon:full},()=> 'music');
+  const before=JSON.stringify(state);
+  assert.throws(()=>ChannelGroups.change(state,{action:'create',name:'Relax',icon:full}),/too much storage/);
+  assert.equal(JSON.stringify(state),before);
+  state=ChannelGroups.change(state,{action:'icon',groupId:'podcasts',icon:{kind:'symbol',value:'folder'}});
+  state=ChannelGroups.change(state,{action:'create',name:'Relax',icon:full},()=> 'relax');
+  assert.deepEqual(state.groups[0].channelIds,[A.id]);assert.equal(state.groups.length,3);
+});
+test('group icons default safely, validate symbols and single emoji, and preserve memberships',()=>{
+  const original=ChannelGroups.change(undefined,{action:'create',name:'Podcasts',channel:A},()=> 'podcasts',1000);
+  assert.deepEqual(GroupIcons.normalize(original.groups[0].icon),{kind:'symbol',value:'folder'});
+  for(const icon of [{kind:'symbol',value:'headphones'},{kind:'emoji',value:'🎧'},{kind:'emoji',value:'🇯🇵'},{kind:'emoji',value:'👩🏽‍💻'},{kind:'emoji',value:'1️⃣'}]){
+    const updated=ChannelGroups.change(original,{action:'icon',groupId:'podcasts',icon},undefined,2000);
+    assert.deepEqual(updated.groups[0].icon,icon);
+    assert.deepEqual(updated.groups[0].channelIds,original.groups[0].channelIds);assert.equal(updated.groups[0].name,'Podcasts');
+    assert.deepEqual(updated.channels,original.channels);assert.equal(updated.groups[0].updatedAt,2000);assert.equal(original.groups[0].icon,undefined);
+    assert.deepEqual(ChannelGroups.change(updated,{action:'rename',groupId:'podcasts',name:'Episodes'}).groups[0].icon,icon);
+  }
+  for(const icon of [{kind:'symbol',value:'missing'},{kind:'emoji',value:'Podcasts'},{kind:'emoji',value:'🎧🎵'},{kind:'emoji',value:'<img>'},{kind:'emoji',value:'1'},{kind:'url',value:'https://example.com/icon.svg'}])assert.throws(()=>ChannelGroups.change(original,{action:'icon',groupId:'podcasts',icon}),/single emoji/);
+  assert.throws(()=>ChannelGroups.change(original,{action:'icon',groupId:'deleted',icon:null}),/no longer exists/);
+});
+test('group memberships use stable IDs, support overlap, and preserve unrelated groups',()=>{
+  let n=0;const apply=(state,msg)=>ChannelGroups.change(state,msg,()=>String(++n),1000);
+  let s=apply(undefined,{action:'create',name:' Learn   JP ',channel:A});
+  assert.equal(s.groups[0].name,'Learn JP');const before=JSON.stringify(s);
+  s=apply(s,{action:'create',name:'Leisure',channel:A});
+  assert.equal(JSON.parse(before).groups.length,1);
+  s=apply(s,{action:'membership',groupId:'1',channel:{...A,name:'Renamed creator'},member:true});
+  assert.equal(s.groups[0].channelIds.length,1);assert.equal(s.channels[A.id].name,'Renamed creator');
+  s=apply(s,{action:'membership',groupId:'1',channel:B,member:true});
+  s=apply(s,{action:'membership',groupId:'1',channel:A,member:false});
+  assert.deepEqual(s.groups[0].channelIds,[B.id]);assert.deepEqual(s.groups[1].channelIds,[A.id]);
+  s=apply(s,{action:'rename',groupId:'1',name:'Japanese'});assert.equal(s.groups[0].id,'1');
+  assert.throws(()=>apply(s,{action:'create',name:' leisure '}),/already exists/);
+  assert.throws(()=>apply(s,{action:'create',groupId:'2',name:'Leisure'}),/already exists/);
+  s=apply(s,{action:'delete',groupId:'1'});assert.deepEqual(Object.keys(s.channels),[A.id]);assert.equal(s.groups[0].id,'2');
+  assert.throws(()=>apply(s,{action:'membership',groupId:'missing',channel:B,member:true}),/no longer exists/);
+});
+test('channel inputs are restricted to supported YouTube targets',()=>{
+  assert.equal(ChannelGroups.target('@alpha/videos').url,'https://www.youtube.com/@alpha');
+  assert.equal(ChannelGroups.target(A.id).url,'https://www.youtube.com/channel/'+A.id);
+  assert.equal(ChannelGroups.target('https://m.youtube.com/watch?v='+V+'&list=test').videoId,V);
+  for(const input of ['https://youtube.com.attacker.test/@alpha','https://evil.test','http://youtube.com/@alpha','https://youtube.com:8443/@alpha','https://name:password@youtube.com/@alpha','https://youtube.com/feed/subscriptions','javascript:alert(1)','']) assert.throws(()=>ChannelGroups.target(input));
+});
+test('channel resolution uses page canonical identity and verifies the current video',()=>{
+  const html=`<head><script>var recommendations={"channelId":"${B.id}"};</script><meta property="og:title" content="Alpha &amp; friends"><link href="https://www.youtube.com/channel/${A.id}" rel="canonical"></head>`;
+  assert.equal(ChannelGroups.parsePage(html,ChannelGroups.target('@alpha')).id,A.id);
+  assert.equal(ChannelGroups.parsePage(html,ChannelGroups.target('@alpha')).name,A.name);
+  const trailing=`<head><script>const related='<link rel="canonical" href="https://www.youtube.com/channel/${B.id}">';</script></head><body><link rel="canonical" href="https://www.youtube.com/channel/${A.id}"><meta property="og:title" content="Alpha &amp; friends"></body>`;
+  assert.equal(ChannelGroups.parsePage(trailing,ChannelGroups.target('@alpha')).id,A.id);
+  assert.throws(()=>ChannelGroups.parsePage(html,ChannelGroups.target(B.id)),/resolve/);
+  const watch=`<script>var related={"channelId":"${B.id}"}; var ytInitialPlayerResponse = ${JSON.stringify({videoDetails:{videoId:V,channelId:A.id,author:'Creator with } braces "'}})};</script>`;
+  assert.equal(ChannelGroups.parsePage(watch,{videoId:V}).id,A.id);
+  assert.throws(()=>ChannelGroups.parsePage(watch,{videoId:'z'.repeat(11)}),/identify/);
+  assert.throws(()=>ChannelGroups.parsePage('<head><meta property="og:title" content="YouTube"></head>',ChannelGroups.target('@missing')));
+});
+test('concurrent tab changes are serialized and unauthorized/incognito callers cannot edit groups',async()=>{
+  const data={'day:keep':[{videoId:V}]};
+  const sandbox={URL,Date,Map,Set,structuredClone,crypto,GroupIcons,Ledger,browser:{runtime:{getURL:p=>'chrome-extension://ledger/'+p},tabs:{create:async()=>{}},storage:{local:{get:async key=>({[key]:structuredClone(data[key])}),set:async value=>{await new Promise(r=>setTimeout(r,5));Object.assign(data,structuredClone(value));}}}}};
+  vm.runInNewContext(fs.readFileSync(__dirname+'/channel-groups.js','utf8'),sandbox);
+  const api=sandbox.ChannelGroups,sender={url:'chrome-extension://ledger/dashboard.html#groups',tab:{id:1}};
+  await api.handle({type:'channelGroups:change',action:'create',name:'Learn JP'},sender);
+  const id=data[api.key].groups[0].id;
+  await Promise.all([A,B].map(channel=>api.handle({type:'channelGroups:change',action:'membership',groupId:id,channel,member:true},sender)));
+  assert.equal(data[api.key].groups[0].channelIds.length,2);
+  const before=JSON.stringify(data);
+  for(const bad of [{url:'https://evil.test',tab:{id:2}},{url:'chrome-extension://other/dashboard.html',tab:{id:2}},{url:'https://www.youtube.com/',tab:{id:2,incognito:true}}])await assert.rejects(api.handle({type:'channelGroups:change',action:'delete',groupId:id},bad),/cannot edit/);
+  assert.equal(JSON.stringify(data),before);
+  await api.handle({type:'channelGroups:change',action:'delete',groupId:id},sender);
+  assert.equal(data['day:keep'][0].videoId,V);
+});

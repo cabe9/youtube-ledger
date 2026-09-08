@@ -16,7 +16,8 @@ test('recommendation records persist once, honor pause and delete with the day',
   const data={};let listener;
   const extensionURL='moz-extension://test/dashboard.html';
   const sandbox={Ledger,console,browser:{action:{onClicked:{addListener:()=>{}}},tabs:{create:()=>{}},runtime:{getURL:()=>extensionURL,onMessage:{addListener:fn=>listener=fn}},storage:{local:{get:async keys=>Object.fromEntries((Array.isArray(keys)?keys:[keys]).map(k=>[k,data[k]])),set:async x=>Object.assign(data,x),remove:async keys=>{for(const k of Array.isArray(keys)?keys:[keys]) delete data[k];}}}}};
-  vm.runInNewContext(fs.readFileSync(__dirname+'/background.js','utf8'),sandbox);
+  vm.createContext(sandbox);vm.runInContext(fs.readFileSync(__dirname+'/ledger-storage.js','utf8'),sandbox);
+  vm.runInContext(fs.readFileSync(__dirname+'/background.js','utf8'),sandbox);
   const at=new Date(2026,8,4,12).getTime();
   const sender={tab:{id:1,incognito:false},url:'https://www.youtube.com/'};
   const message={type:'recommendation',event:{id:'one',revealId:'r',kind:'reveal',at,page:'/'}};
@@ -41,15 +42,16 @@ test('invalid durations and sleep gaps do not inflate totals',()=>{
   const rows=[]; for(const end of [NaN,0,-1,6000]) Ledger.add(rows,{id:'s',start:0,end,state:'foreground'});
   assert.equal(rows.length,0);
 });
-test('content collector distinguishes playback, seeking, background, pause and sleep',()=>{
+test('content collector distinguishes playback, seeking, background, pause and sleep',async()=>{
   let ms=100000, interval, focused=true; const sent=[];
   const video={currentTime:0,paused:false,ended:false,seeking:false,readyState:4,playbackRate:1,muted:false,volume:1};
   const events={};
-  const document={visibilityState:'visible',title:'Test - YouTube',hasFocus:()=>focused,querySelector:s=>s==='video'?video:null,addEventListener:(name,fn)=>events[name]=fn};
-  const sandbox={URL,crypto:{randomUUID:()=> 'session'},Date:{now:()=>ms},performance:{now:()=>ms},document,location:{href:'https://www.youtube.com/watch?v=test'},window:{addEventListener:(name,fn)=>events[name]=fn},setInterval:fn=>interval=fn,browser:{storage:{local:{get:()=>Promise.resolve({})},onChanged:{addListener:()=>{}}},runtime:{sendMessage:msg=>{sent.push(...msg.events); return Promise.resolve();}}}};
-  vm.runInNewContext(fs.readFileSync(__dirname+'/content.js','utf8'),sandbox);
+  const document={dispatchEvent:()=>{},getElementById:()=>null,removeEventListener:()=>{},visibilityState:'visible',title:'Test - YouTube',hasFocus:()=>focused,querySelector:s=>s==='video'?video:null,addEventListener:(name,fn)=>events[name]=fn};
+  const sandbox={Ledger,URL,Event,clearInterval:()=>{},crypto:{randomUUID:()=> 'session'},Date:{now:()=>ms},performance:{now:()=>ms},document,location:{href:'https://www.youtube.com/watch?v=test'},window:{addEventListener:(name,fn)=>events[name]=fn},setInterval:fn=>interval=fn,browser:{storage:{local:{get:()=>Promise.resolve({})},onChanged:{addListener:()=>{}}},runtime:{sendMessage:msg=>{sent.push(...msg.events); return Promise.resolve({ok:true});}}}};
+  vm.createContext(sandbox);vm.runInContext(fs.readFileSync(__dirname+'/recording-buffer.js','utf8'),sandbox);
+  vm.runInContext(fs.readFileSync(__dirname+'/content.js','utf8'),sandbox);
   function step(delta=1,elapsed=1000){ms+=elapsed;video.currentTime+=delta;interval();}
-  focused=false;video.paused=true;events.blur();step(0);step(0);events.pagehide();assert.equal(sent.length,0);focused=true;video.paused=false;step(0);sent.length=0;step(); step(100); video.paused=true;step(0);step(0);video.paused=false;focused=false;step(0);step();video.muted=true;step();step();step(100,60000);events.pagehide();
+  focused=false;video.paused=true;events.blur();step(0);step(0);events.pagehide();assert.equal(sent.length,0);focused=true;video.paused=false;step(0);sent.length=0;step(); step(100); video.paused=true;step(0);step(0);video.paused=false;focused=false;step(0);step();video.muted=true;step();step();step(100,60000);events.pagehide();await new Promise(resolve=>setImmediate(resolve));
   assert.equal(sent[0].state,'foreground'); assert.equal(sent[1].state,'paused');
   assert.ok(sent.some(e=>e.state==='backgroundAudio')); assert.ok(sent.some(e=>e.state==='backgroundSilent'));
   assert.ok(sent.every(e=>e.end-e.start<=5000));
@@ -57,10 +59,8 @@ test('content collector distinguishes playback, seeking, background, pause and s
 
 test('settings preserve defaults, validate input and optionally include parked history',()=>{
   assert.equal(Ledger.settings().hideRecommendations,true);
-  assert.equal(Ledger.settings({hideRecommendations:false,shortMinutes:7}).shortMinutes,7);
+  assert.equal(Object.hasOwn(Ledger.settings({hideRecommendations:false,shortMinutes:7}),'shortMinutes'),false);
   assert.equal(Ledger.settings({hideRecommendations:false}).hideRecommendations,false);
-  assert.equal(Ledger.settings({shortMinutes:-1}).shortMinutes,3);
-  assert.equal(Ledger.settings({shortMinutes:1.5}).shortMinutes,3);
   const parked={id:'parked',videoId:'v',start:1,end:2,label:'Unsorted',seconds:{foreground:0,backgroundAudio:0,backgroundSilent:0,paused:10,browsing:0,ad:0}};
   assert.equal(Ledger.group([parked]).length,0);
   assert.equal(Ledger.group([parked],{},Ledger.settings({showPausedOnly:true})).length,1);
@@ -94,4 +94,25 @@ test('dark green is the default while saved theme choices are preserved',()=>{
   assert.equal(Ledger.settings().theme,'dark-green');
   assert.equal(Ledger.settings({theme:'retrowave'}).theme,'retrowave');
   assert.equal(Ledger.settings({theme:'classic'}).theme,'classic');
+});
+
+test('dashboard view URLs can label and clear activity without widening tab authorization',async()=>{
+  const day='2026-09-04', data={['day:'+day]:[],['goals:'+day]:'Keep my notes',['recommendations:'+day]:[{kind:'reveal'}]};
+  let listener;
+  const extensionURL='chrome-extension://test/dashboard.html';
+  const sandbox={Ledger,console,browser:{action:{onClicked:{addListener:()=>{}}},tabs:{create:()=>{}},runtime:{getURL:()=>extensionURL,onMessage:{addListener:fn=>listener=fn}},storage:{local:{get:async keys=>Object.fromEntries((Array.isArray(keys)?keys:[keys]).map(k=>[k,data[k]])),set:async value=>Object.assign(data,value),remove:async keys=>{for(const key of keys) delete data[key];}}}}};
+  vm.createContext(sandbox);vm.runInContext(fs.readFileSync(__dirname+'/ledger-storage.js','utf8'),sandbox);
+  vm.runInContext(fs.readFileSync(__dirname+'/background.js','utf8'),sandbox);
+  const label={type:'groupLabel',day,key:'video:demo',label:'Learning'};
+  await listener(label,{tab:{id:1},url:extensionURL+'#review?date='+day});
+  assert.equal(data['purposes:'+day]['video:demo'],'Learning');
+  for(const url of ['https://www.youtube.com/#review',extensionURL+'.other#review','chrome-extension://other/dashboard.html#review']) {
+    await listener({...label,label:'Work'},{tab:{id:2},url});
+    await listener({type:'clear',day},{tab:{id:2},url});
+    assert.equal(data['purposes:'+day]['video:demo'],'Learning');
+    assert.ok(data['day:'+day]);
+  }
+  await listener({type:'clear',day},{tab:{id:1},url:extensionURL+'#history?date='+day});
+  for(const prefix of ['day:','purposes:','recommendations:']) assert.equal(data[prefix+day],undefined);
+  assert.equal(data['goals:'+day],'Keep my notes');
 });

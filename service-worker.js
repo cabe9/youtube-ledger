@@ -1,1 +1,1 @@
-importScripts('compat.js', 'core.js', 'background.js');
+importScripts('compat.js','core.js','ledger-storage.js','ledger-undo.js','watch-status.js','group-icons.js','youtube-requests.js','channel-groups.js','group-sharing.js','group-feeds.js','feed-library.js','group-queue.js','source-contexts.js','backup.js','recording.js','background.js');

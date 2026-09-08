@@ -7,6 +7,7 @@ if (typeof globalThis.browser === 'undefined') {
     tabs: api.tabs,
     action: api.action,
     runtime: {
+      getManifest: api.runtime.getManifest.bind(api.runtime),
       getURL: api.runtime.getURL.bind(api.runtime),
       sendMessage: async message => {
         const response = await api.runtime.sendMessage(message);

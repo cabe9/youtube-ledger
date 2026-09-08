@@ -1,0 +1,3 @@
+# Preserve upstream formatting in the generated GIF bundle and license text.
+gif-codec.js -whitespace
+THIRD-PARTY-LICENSES.txt -whitespace

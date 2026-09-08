@@ -4,3 +4,13 @@ dist/
 __pycache__/
 *-preview.png
 *.zip
+
+# Local exports, investigation notes, and browser test captures
+/exports/
+/reviews/
+/experiments/
+/discovery-firefox-live.png
+/example-data-1280x800.png
+.env
+.env.*
+!.env.example

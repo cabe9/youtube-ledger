@@ -1,4 +1,6 @@
 /* Hide before YouTube renders. Search results and subscriptions stay available. */
+html[data-ledger-home]:not([data-ledger-recommendations="shown"]) ytd-page-manager > ytd-browse,
+html[data-ledger-home]:not([data-ledger-recommendations="shown"]) ytm-browse,
 html:not([data-ledger-recommendations="shown"]) ytd-browse[page-subtype="home"],
 html:not([data-ledger-recommendations="shown"]) ytd-watch-next-secondary-results-renderer,
 html:not([data-ledger-recommendations="shown"]) ytd-watch-flexy #related,

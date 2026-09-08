@@ -1,6 +1,16 @@
 let pending = Promise.resolve();
 browser.action.onClicked.addListener(() => browser.tabs.create({url:browser.runtime.getURL('dashboard.html')}));
 browser.runtime.onMessage.addListener((message, sender) => {
+  // Channel lookups must not block playback writes while waiting on YouTube.
+  if (typeof message?.type === 'string' && message.type.startsWith('channelGroups:')) return ChannelGroups.handle(message,sender).catch(error=>({channelGroupError:String(error.message || error)}));
+  if (typeof message?.type === 'string' && message.type.startsWith('groupFeed:')) return GroupFeeds.handle(message,sender).catch(error=>({groupFeedError:String(error.message || error)}));
+  if(message?.type==='ledger:undo')return LedgerUndo.handle(message,sender);
+  if(message?.type?.startsWith('feedLibrary:'))return FeedLibrary.handle(message,sender);
+  if(message?.type?.startsWith('groupQueue:'))return GroupQueue.handle(message,sender);
+  if(message?.type==='watchStatus:set')return WatchStatus.handle(message,sender).catch(error=>({groupFeedError:String(error.message)}));
+  if(message?.type?.startsWith('backup:'))return LedgerBackup.handle(message,sender).catch(error=>({error:String(error.message)}));
+  if(message?.type?.startsWith('sourceContext:'))return SourceContexts.handle(message,sender).catch(()=>null);
+  if(message?.type?.startsWith('recording:'))return LedgerRecording.handle(message,sender);
   const task = async () => {
     if (message.type === 'recommendation') {
       if (!sender.tab || sender.tab.incognito || !/^https:\/\/(www|m)\.youtube\.com\//.test(sender.url || '')) return;
@@ -11,23 +21,10 @@ browser.runtime.onMessage.addListener((message, sender) => {
       const data=await browser.storage.local.get(key);
       const events=data[key] || [];
       if (!events.some(x=>x.id===e.id)) events.push({id:e.id,revealId:e.revealId,kind:e.kind,at:e.at,page:String(e.page).slice(0,300)});
-      await browser.storage.local.set({[key]:events});
+      try{await LedgerStorage.saveHistory({[key]:events});}catch(error){await LedgerRecording.problem(error);}
     } else if (message.type === 'events') {
-      if (!sender.tab || sender.tab.incognito || !/^https:\/\/(www|m)\.youtube\.com\//.test(sender.url || '')) return;
-      if ((await browser.storage.local.get('paused')).paused) return;
-      const grouped = {};
-      for (const event of (message.events || []).slice(0,100)) {
-        if (!Number.isFinite(event.start) || !Number.isFinite(event.end) || event.end-event.start > 5000 || event.end <= event.start) continue;
-        for (const e of Ledger.pieces(event)) (grouped['day:'+e.day] ||= []).push(e);
-      }
-      const stored = await browser.storage.local.get(Object.keys(grouped));
-      for (const [key, events] of Object.entries(grouped)) {
-        const rows = stored[key] || [];
-        for (const e of events) Ledger.add(rows,e);
-        stored[key] = rows;
-      }
-      await browser.storage.local.set(stored);
-    } else if (!sender.tab || sender.url === browser.runtime.getURL('dashboard.html')) {
+      return LedgerRecording.events(message,sender);
+    } else if (!sender.tab || (sender.url || '').split('#')[0] === browser.runtime.getURL('dashboard.html')) {
       if (message.type === 'groupLabel' && Ledger.labels.includes(message.label) && typeof message.key === 'string') {
         const key='purposes:'+message.day;
         const data=await browser.storage.local.get(key);
@@ -42,7 +39,7 @@ browser.runtime.onMessage.addListener((message, sender) => {
       }
     }
   };
-  const result = pending.then(task);
+  const result = globalThis.LedgerStorage?LedgerStorage.write(task):pending.then(task);
   pending = result.catch(console.error);
   return result;
 });

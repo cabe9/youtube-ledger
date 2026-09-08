@@ -1,0 +1,173 @@
+/* User-supplied scenery stays local. Decorative motion uses CSS layers. */
+.aero-scene{display:none}
+:root[data-theme="frutiger-aero"]{
+  color-scheme:light;
+  font-family:"Segoe UI","Avenir Next",Avenir,sans-serif;
+  --page-bg:#b9eaf1;--ink:#073e65;--quiet:#35617a;--accent:#0066b7;--line:#97c9d6;--panel:#e5f7fb;
+  --button-ink:#fff;--accent-hover:#00579b;--control-border:#88c2dc;--control-hover:#eafaff;--control-hover-border:#398eb9;
+  --tracking:#17644b;--segmented-bg:#b9e3ef;--field-bg:#f3fcff;--field-border:#87baca;--placeholder:#506e80;--card-label:#25516f;
+  --foreground:#0589ed;--audio:#21a97d;--silent:#86c8df;--reveals:#b97a06;
+  --tooltip-bg:#f4fdff;--tooltip-border:#529aba;--thead-bg:#d1eff6;--thead-ink:#25516f;--row-hover:#e9faff;
+  --purpose-border:#7cb9ce;--purpose-bg:#e5f8fa;--recommendation-ink:#174d70;--setting-divider:#acd1dd;
+  --danger-border:#bf8f83;--danger-ink:#973c29;--danger-hover:#fff0e9;--danger-hover-border:#ac6656;
+  --aero-landscape:url(assets/frutiger-aero/water-desktop.png);
+  /* Track the shoreline as the fixed background scales with cover. */
+  --aero-horizon-y:max(16vw,25.5vh);
+  --aero-skyline-height:clamp(160px,calc(var(--aero-horizon-y) - 18px),360px);
+  --aero-glass:linear-gradient(135deg,#ffffffb8,#e2f8f5ad 55%,#d6f3ffc2);
+  --aero-shadow:inset 0 1px 0 #fff,inset 0 -2px 5px #67bfce30,0 3px 3px #438a9c13,0 12px 30px #186d9124;
+}
+:root[data-theme="frutiger-aero"] body{
+  position:relative;isolation:isolate;
+  background-color:var(--page-bg);
+  background-image:var(--aero-landscape),radial-gradient(ellipse 75% 160px at 15% 0,#f2ffffc9,transparent),linear-gradient(180deg,#40b3e5 0,#89d8f2 160px,#d0f6f7 235px,#5ec4df 290px,#b9eaf1 660px);
+  background-size:cover,100% 100%,100% 100%;background-position:center top;background-repeat:no-repeat;background-attachment:fixed;
+}
+:root[data-theme="frutiger-aero"] main{position:relative;z-index:1;max-width:1260px;padding:44px 48px 28px}
+:root[data-theme="frutiger-aero"] .aero-scene{display:block;position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+/* Fit the separate skyline to the sky without enlarging or distorting its pixels. */
+:root[data-theme="frutiger-aero"] .aero-skyline{position:absolute;left:64%;top:calc(var(--aero-horizon-y) - var(--aero-skyline-height) + 4px);height:var(--aero-skyline-height);aspect-ratio:1672 / 941;transform:translateX(-50%);background:url(assets/frutiger-aero/skyline-desktop.png) center / contain no-repeat}
+:root[data-theme="frutiger-aero"] .aero-horizon{position:absolute;top:calc(var(--aero-horizon-y) - 32px);left:-10%;width:120%;height:65px;background:radial-gradient(ellipse at center,#f2ffffbd,transparent 68%);opacity:.4}
+:root[data-theme="frutiger-aero"] .aero-caustics{
+  position:absolute;inset:calc(var(--aero-horizon-y) + 12px) -5% -8%;opacity:.18;
+  background-image:radial-gradient(ellipse at 30% 40%,transparent 44%,#efffffb3 49%,transparent 55%),radial-gradient(ellipse at 70% 65%,transparent 42%,#e6ffffa6 48%,transparent 56%),radial-gradient(ellipse at 45% 60%,#fff9,transparent 58%);
+  background-size:560px 270px,720px 340px,480px 360px;background-position:0 0,180px 70px,40% 80%;
+}
+:root[data-theme="frutiger-aero"] .aero-bubble{
+  position:absolute;width:55px;height:55px;left:2%;top:38%;border:1px solid #f5ffffb3;border-radius:50%;opacity:.65;
+  background:radial-gradient(ellipse at 28% 22%,#fffd 0,transparent 24%),radial-gradient(ellipse at 65% 78%,#65caed55,transparent 58%);
+  box-shadow:inset 2px 3px 5px #ffffffa6,inset -3px -5px 8px #078bba38,0 2px 4px #25699012;
+}
+:root[data-theme="frutiger-aero"] .aero-bubble:nth-of-type(2){left:auto;right:2%;top:66%;width:82px;height:82px}
+:root[data-theme="frutiger-aero"] .aero-bubble:nth-of-type(3){left:55%;top:36px;width:66px;height:66px}
+:root[data-theme="frutiger-aero"] .aero-bubble:nth-of-type(4){left:5%;top:86%;width:22px;height:22px}
+/* Bottom pivots keep the supplied rocks grounded; the scene stays behind all UI. */
+:root[data-theme="frutiger-aero"] .aero-foliage{position:absolute;bottom:-18px;aspect-ratio:1386 / 1135;background-size:contain;background-repeat:no-repeat;transform:rotate(0deg)}
+:root[data-theme="frutiger-aero"] .aero-foliage-left{left:-28px;width:min(46vw,840px);background-image:url(assets/frutiger-aero/foliage-left.png);transform-origin:left bottom}
+:root[data-theme="frutiger-aero"] .aero-foliage-right{right:-28px;width:min(39vw,700px);background-image:url(assets/frutiger-aero/foliage-right.png);transform-origin:right bottom}
+:root[data-theme="frutiger-aero"] .masthead{display:block;position:relative;margin-bottom:24px}
+:root[data-theme="frutiger-aero"] header{min-height:max(100px,calc(var(--aero-horizon-y) - 92px));margin-bottom:28px;align-items:flex-start}
+:root[data-theme="frutiger-aero"] .brand{gap:16px;padding-top:5px}
+:root[data-theme="frutiger-aero"] .brand-mark{width:58px;height:58px;filter:drop-shadow(0 3px 4px #167cad40) hue-rotate(88deg) saturate(1.6)}
+:root[data-theme="frutiger-aero"] .eyebrow{display:none}
+:root[data-theme="frutiger-aero"] h1{font-size:36px;font-weight:600;letter-spacing:-1.2px;color:#fff;text-shadow:0 2px 3px #166c9ca6}
+:root[data-theme="frutiger-aero"] h1 span{display:block;font:500 14px/1.5 "Segoe UI","Avenir Next",sans-serif;letter-spacing:.4px;margin-top:5px}
+:root[data-theme="frutiger-aero"] .tracking-controls{align-items:center;flex-shrink:0;gap:14px;margin:0 14px 0 auto;min-height:32px;padding:0;border:0;border-radius:0;background:none;box-shadow:none}
+:root[data-theme="frutiger-aero"] .tracking-indicator{font:600 11px/1.5 "Segoe UI",sans-serif;color:var(--ink)}
+:root[data-theme="frutiger-aero"] .tracking-indicator::before{box-shadow:0 0 0 3px #6cd9b726}
+:root[data-theme="frutiger-aero"] .dashboard-nav{gap:6px;padding:6px;margin:0;border:1px solid #f6ffff;border-radius:16px;background:linear-gradient(180deg,#f3ffffb8,#b7e6efad);box-shadow:var(--aero-shadow);backdrop-filter:blur(4px)}
+:root[data-theme="frutiger-aero"] .dashboard-nav a{padding:11px 24px;font-size:13px;font-weight:650;border:1px solid transparent;border-radius:11px;color:#11517b}
+:root[data-theme="frutiger-aero"] .dashboard-nav a:hover{background:#ffffff70}
+:root[data-theme="frutiger-aero"] .dashboard-nav a[aria-current="page"]{color:#0061aa;background:linear-gradient(#fff,#d5f4ff);border-color:#fff;box-shadow:0 2px 5px #3483a32b,inset 0 -1px 2px #2c9ee13b}
+:root[data-theme="frutiger-aero"] .dashboard-nav a[aria-current="page"]::after{display:none}
+:root[data-theme="frutiger-aero"] .privacy-note{display:none}
+:root[data-theme="frutiger-aero"] :is(.trends,[data-view="history"],[data-view="review"],[data-view="groups"],[data-view="settings"],.day-summary){
+  padding:24px;border:1px solid #f3ffff;border-radius:20px;background:var(--aero-glass);box-shadow:var(--aero-shadow);backdrop-filter:blur(4px);
+}
+:root[data-theme="frutiger-aero"] .trends{margin-bottom:18px}
+:root[data-theme="frutiger-aero"] :is(#trends-heading,#daily-heading,#review-heading,#settings-heading){font-family:inherit;font-size:29px;font-weight:650;letter-spacing:-.8px}
+:root[data-theme="frutiger-aero"] .section-index{font-size:8px;letter-spacing:1px;margin-bottom:4px;color:var(--quiet)}
+:root[data-theme="frutiger-aero"] h2{font-weight:650}
+:root[data-theme="frutiger-aero"] #trend-range{margin-top:6px}
+:root[data-theme="frutiger-aero"] .period-navigation{gap:8px}
+:root[data-theme="frutiger-aero"] .cards{gap:12px}
+:root[data-theme="frutiger-aero"] #trend-totals{padding:8px 0 18px;margin:0}
+:root[data-theme="frutiger-aero"] .card{padding:18px;border:1px solid #fff;border-radius:14px;background:linear-gradient(125deg,#faffffb8,#e9fbff73);box-shadow:inset 0 -1px 3px #9cdae157,0 3px 6px #32889d12}
+:root[data-theme="frutiger-aero"] .card>span{font:500 11px/1.5 "Segoe UI","Avenir Next",sans-serif;letter-spacing:0;text-transform:none}
+:root[data-theme="frutiger-aero"] .card strong{font-size:34px;font-weight:650;letter-spacing:-1px;margin-top:9px}
+:root[data-theme="frutiger-aero"] #trend-totals .card:first-child strong{color:var(--ink)}
+:root[data-theme="frutiger-aero"] #trend-totals .card small{margin-top:7px}
+:root[data-theme="frutiger-aero"] .chart-panel{padding:14px 18px 16px;border:1px solid #fff;border-radius:15px;background:linear-gradient(135deg,#f3fdffb3,#daf1f5a3);box-shadow:0 3px 8px #2b86921a,inset 0 1px 0 #fff}
+:root[data-theme="frutiger-aero"] .chart-heading{border:0;margin-bottom:26px}
+:root[data-theme="frutiger-aero"] :is(.metric-controls,.trend-switch){gap:3px;padding:3px;border:1px solid #b4dfea;border-radius:10px;background:linear-gradient(#c6e7ef,#d6f0f5);box-shadow:inset 0 1px 3px #448caa1a}
+:root[data-theme="frutiger-aero"] .metric-controls button{padding:7px 13px;border:1px solid transparent;border-radius:7px;font-size:11px}
+:root[data-theme="frutiger-aero"] .metric-controls button[aria-pressed="true"]{background:linear-gradient(#44baff 0,#1197ed 48%,#0077d8 49%,#0989e4 100%)!important;border-color:#1886c8;color:#fff;text-shadow:0 1px 1px #07569ba6;box-shadow:inset 0 1px 1px #ffffff80,0 1px 3px #075da54d}
+:root[data-theme="frutiger-aero"] .metric-controls button[aria-pressed="true"]::after{display:none}
+:root[data-theme="frutiger-aero"] :is(button:not(.secondary):not(.danger):not(#pause):not(.trend-day):not(.source-segment):not(.trend-date):not([aria-pressed="false"])){background:linear-gradient(#45baff,#168ce0 48%,#0875c8 49%,#078bdd);border-color:#258bc8;box-shadow:inset 0 1px 1px #ffffff9c,0 2px 4px #09598c26;text-shadow:0 1px 1px #00477d70}
+:root[data-theme="frutiger-aero"] :is(button:not(.secondary):not(.danger):not(#pause):not(.trend-day):not(.source-segment):not(.trend-date):not([aria-pressed="false"])):hover{filter:brightness(1.07)}
+:root[data-theme="frutiger-aero"] :is(.secondary,#pause){background:linear-gradient(#f4fdff,#cdeef7);box-shadow:inset 0 1px 0 #fff;border-color:#99c9d9;color:#155077}
+:root[data-theme="frutiger-aero"] :is(.secondary,#pause):hover{background:linear-gradient(#fff,#def7ff);border-color:#61a9c5}
+:root[data-theme="frutiger-aero"] #pause{padding:4px 0 4px 14px;border:0;border-left:1px solid var(--line);border-radius:0;background:none;box-shadow:none;color:var(--ink);font-size:11px}
+:root[data-theme="frutiger-aero"] #pause:hover{background:none;border-color:#fff;text-decoration:underline;text-underline-offset:3px}
+:root[data-theme="frutiger-aero"] #trend-export{background:transparent;border:0;box-shadow:none}
+:root[data-theme="frutiger-aero"] :is(input,select,textarea){box-shadow:inset 0 1px 3px #32657916;border-radius:7px}
+:root[data-theme="frutiger-aero"] .trend-legend{gap:12px;font-size:10px}
+:root[data-theme="frutiger-aero"] .legend-item i{width:8px;height:8px;box-shadow:inset 0 1px 1px #fff9}
+:root[data-theme="frutiger-aero"] .trend-stack{border-radius:4px 4px 1px 1px;box-shadow:1px 0 3px #0468a426}
+:root[data-theme="frutiger-aero"] :is(.bar-foreground,.bar-browsing){background:linear-gradient(90deg,#42baff,#0989ed);box-shadow:inset 0 1px 1px #fff6,inset 1px 0 1px #fff6}
+:root[data-theme="frutiger-aero"] .bar-audio{background:linear-gradient(90deg,#5bcca2,#179a72)}
+:root[data-theme="frutiger-aero"] .bar-reveals{background:linear-gradient(90deg,#edbd43,#be850d)}
+:root[data-theme="frutiger-aero"] .chart-caption>span:last-child{font-family:inherit;letter-spacing:0}
+:root[data-theme="frutiger-aero"] .day-summary{position:relative;overflow:hidden;margin-top:18px;padding:22px 24px}
+:root[data-theme="frutiger-aero"] .day-summary::after{content:"";pointer-events:none;position:absolute;inset:0;background:linear-gradient(115deg,transparent 40%,#ffffff52 49%,#ffffff66 50%,transparent 59%);background-size:300% 100%;background-position:100% 0;opacity:0}
+:root[data-theme="frutiger-aero"] #day-summary{margin-top:8px}
+:root[data-theme="frutiger-aero"] #cards{padding:0;background:none;border:0;border-radius:0}
+:root[data-theme="frutiger-aero"] #cards .card{padding:16px}
+:root[data-theme="frutiger-aero"] :is(.review,.recommendation-review){padding:22px;border:1px solid #fff;border-radius:14px;background:#effcff7a;box-shadow:inset 0 1px 0 #fff}
+:root[data-theme="frutiger-aero"] .review-grid{gap:18px;margin-top:24px}
+:root[data-theme="frutiger-aero"] .table-wrap{background:#f4fdff85;border-color:#b4d5df;border-radius:12px}
+:root[data-theme="frutiger-aero"] .settings-panel{margin-top:18px;border:0;padding:0}
+:root[data-theme="frutiger-aero"] .settings-panel .note{margin-top:0}
+:root[data-theme="frutiger-aero"] footer{padding:14px 20px;border:1px solid #ffffffa6;border-radius:14px;background:#eafaffb8;color:var(--quiet)}
+@media(min-width:1100px){
+  :root[data-theme="frutiger-aero"] .retrowave-tagline{display:block;position:absolute;right:18px;top:70px;margin:0;color:#175777;font:italic 14px/1.3 "Bradley Hand","Segoe Print",cursive;transform:rotate(-5deg)}
+}
+/* Animate only decorative layers; chart values and text remain stationary. */
+@media(prefers-reduced-motion:no-preference){
+  :root[data-theme="frutiger-aero"][data-motion="on"] .aero-caustics{animation:aero-caustics 24s ease-in-out infinite alternate}
+  :root[data-theme="frutiger-aero"][data-motion="on"] .aero-horizon{animation:aero-horizon 12s ease-in-out infinite alternate}
+  :root[data-theme="frutiger-aero"][data-motion="on"] .aero-bubble{animation:aero-float 11s ease-in-out infinite alternate}
+  :root[data-theme="frutiger-aero"][data-motion="on"] .aero-bubble:nth-of-type(2){animation-duration:15s;animation-delay:-6s}
+  :root[data-theme="frutiger-aero"][data-motion="on"] .aero-bubble:nth-of-type(3){animation-duration:13s;animation-delay:-3s}
+  :root[data-theme="frutiger-aero"][data-motion="on"] .aero-bubble:nth-of-type(4){animation-duration:17s;animation-delay:-10s}
+  :root[data-theme="frutiger-aero"][data-motion="on"] .day-summary::after{animation:aero-reflection 24s ease-in-out infinite}
+  :root[data-theme="frutiger-aero"][data-motion="on"] .aero-foliage{animation:aero-foliage-sway 17s ease-in-out infinite alternate}
+  :root[data-theme="frutiger-aero"][data-motion="on"] .aero-foliage-right{animation-duration:21s;animation-delay:-8s;animation-direction:alternate-reverse}
+}
+@keyframes aero-caustics{from{transform:translate3d(-1%,0,0) scale(1);background-position:0 0,180px 70px,40% 80%;opacity:.12}to{transform:translate3d(1%,-12px,0) scale(1.03);background-position:60px 30px,130px 100px,55% 65%;opacity:.24}}
+@keyframes aero-horizon{from{transform:scaleX(.93);opacity:.25}to{transform:scaleX(1.05);opacity:.5}}
+@keyframes aero-float{from{transform:translateY(8px) scale(.97);opacity:.38}to{transform:translateY(-20px) scale(1.03);opacity:.72}}
+@keyframes aero-reflection{0%,65%{background-position:100% 0;opacity:0}70%{opacity:.35}92%{background-position:0 0;opacity:.3}100%{background-position:0 0;opacity:0}}
+@keyframes aero-foliage-sway{from{transform:rotate(-.65deg)}to{transform:rotate(.65deg)}}
+@media(max-width:1000px){
+  :root[data-theme="frutiger-aero"] main{padding:30px 26px}
+  :root[data-theme="frutiger-aero"] h1{font-size:30px}
+  :root[data-theme="frutiger-aero"] .tracking-controls{gap:10px}
+  :root[data-theme="frutiger-aero"] .card{padding:16px}
+}
+@media(max-width:760px){
+  :root[data-theme="frutiger-aero"]{--aero-landscape:url(assets/frutiger-aero/landscape-mobile.png);--aero-horizon-y:max(40vw,22.5vh)}
+  :root[data-theme="frutiger-aero"] .aero-skyline{display:none}
+  :root[data-theme="frutiger-aero"] main{padding:24px 14px}
+  :root[data-theme="frutiger-aero"] header{flex-wrap:wrap;align-content:space-between;min-height:max(124px,calc(var(--aero-horizon-y) - 58px));gap:18px;margin-bottom:18px}
+  :root[data-theme="frutiger-aero"] .brand{gap:12px}
+  :root[data-theme="frutiger-aero"] .brand-mark{width:44px;height:44px}
+  :root[data-theme="frutiger-aero"] h1{font-size:28px}
+  :root[data-theme="frutiger-aero"] h1 span{font-size:12px}
+  :root[data-theme="frutiger-aero"] .tracking-controls{flex-direction:row;justify-content:space-between;flex-basis:100%;margin:4px 0 0;padding:8px 10px 4px;border-top:1px solid #ffffff80}
+  :root[data-theme="frutiger-aero"] #pause{padding:4px 0;border-left:0}
+  :root[data-theme="frutiger-aero"] .dashboard-nav{flex-wrap:wrap;gap:3px;border-radius:13px}
+  :root[data-theme="frutiger-aero"] .dashboard-nav a{flex:1;text-align:center;padding:10px 6px;font-size:11px;border-radius:8px}
+  :root[data-theme="frutiger-aero"] :is(.trends,[data-view="history"],[data-view="review"],[data-view="groups"],[data-view="settings"],.day-summary){padding:18px 14px;border-radius:16px}
+  :root[data-theme="frutiger-aero"] :is(#trends-heading,#daily-heading,#review-heading,#settings-heading){font-size:27px}
+  :root[data-theme="frutiger-aero"] .period-navigation{margin-top:10px;gap:10px}
+  :root[data-theme="frutiger-aero"] .period-controls{gap:4px}
+  :root[data-theme="frutiger-aero"] .period-controls button{padding:5px 8px}
+  :root[data-theme="frutiger-aero"] #trend-totals{gap:9px;padding:6px 0 16px}
+  :root[data-theme="frutiger-aero"] .card{padding:13px 11px;border-radius:11px}
+  :root[data-theme="frutiger-aero"] .card strong{font-size:29px}
+  :root[data-theme="frutiger-aero"] .chart-panel{padding:10px 10px 14px}
+  :root[data-theme="frutiger-aero"] .chart-heading{padding-bottom:0}
+  :root[data-theme="frutiger-aero"] .metric-controls{gap:2px}
+  :root[data-theme="frutiger-aero"] .metric-controls button{padding:7px 10px}
+  :root[data-theme="frutiger-aero"] .trend-legend{gap:10px;font-size:9px}
+  :root[data-theme="frutiger-aero"] #cards{gap:10px}
+  :root[data-theme="frutiger-aero"] #cards .card{padding:12px}
+  :root[data-theme="frutiger-aero"] :is(.review,.recommendation-review){padding:16px}
+  :root[data-theme="frutiger-aero"] .setting:has(#setting-theme){align-items:flex-start;flex-direction:column;gap:8px}
+  :root[data-theme="frutiger-aero"] .settings-panel .actions{flex-wrap:wrap}
+  :root[data-theme="frutiger-aero"] .aero-bubble:nth-of-type(3){left:auto;right:6%;top:94px;width:28px;height:28px}
+  :root[data-theme="frutiger-aero"] .aero-foliage{bottom:-10px}
+  :root[data-theme="frutiger-aero"] .aero-foliage-left{left:-16px;width:min(48vw,260px)}
+  :root[data-theme="frutiger-aero"] .aero-foliage-right{right:-16px;width:min(42vw,230px)}
+}
