@@ -9,9 +9,12 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   const worker=context.serviceWorkers()[0]||await context.waitForEvent('serviceworker');
   await worker.evaluate(ids=>{
    const now=Date.now(),[a,b,c]=ids;
-   globalThis.refreshRequests=[];globalThis.requestTimes=[];globalThis.blockAll=false;
+   globalThis.refreshRequests=[];globalThis.requestTimes=[];globalThis.blockAll=false;globalThis.channelRequests=[];globalThis.refuseChannels=false;
    globalThis.fetch=async url=>{
-    const id=new URL(url).searchParams.get('channel_id');if(!id)return new Response('',{status:404});
+    const id=new URL(url).searchParams.get('channel_id');if(!id){
+     channelRequests.push(String(url));requestTimes.push(Date.now());
+     const response=new Response(`<link rel="canonical" href="${url}"><meta property="og:title" content="Added channel">`,{status:refuseChannels?403:200});Object.defineProperty(response,'url',{value:String(url)});return response;
+    }
     refreshRequests.push(id);requestTimes.push(Date.now());const status=blockAll||id===c?404:200;
     const xml=`<feed xmlns="http://www.w3.org/2005/Atom"><yt:channelId>${id}</yt:channelId><title>Test channel</title></feed>`;
     const result=new Response(xml,{status});Object.defineProperty(result,'url',{value:String(url)});return result;
@@ -43,6 +46,22 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   assert.equal(await feed.locator('article').count(),3);assert.match(await feed.locator('.status').textContent(),/YouTube checks are paused until/);
   assert.equal((await worker.evaluate(()=>refreshRequests)).length,total);
   await feed.locator('.status').screenshot({path:'/tmp/ledger-refresh-controls.png'});
-  assert.deepEqual(errors,[]);console.log('PASS: paced refreshes, respected cooldowns, cached image stability, global pause, and immediate cached reload.');
+  const dashboard=await context.newPage();await dashboard.goto(new URL('dashboard.html#groups',worker.url()).href);
+  const manager=dashboard.locator('#channel-groups-manager');
+  await manager.getByRole('textbox',{name:'Channel address',exact:true}).fill('https://www.youtube.com/channel/UC'+'d'.repeat(22));
+  await manager.getByRole('button',{name:'Add channel',exact:true}).click();
+  await manager.getByRole('link',{name:'Added channel',exact:true}).waitFor();
+  assert.equal((await worker.evaluate(()=>channelRequests)).length,1,'An explicit addition works during a feed pause');
+  assert.equal((await worker.evaluate(()=>YouTubeRequests.status())).pauseScope,'automatic');
+  await worker.evaluate(()=>{refuseChannels=true;});
+  await manager.getByRole('textbox',{name:'Channel address',exact:true}).fill('https://www.youtube.com/channel/UC'+'e'.repeat(22));
+  await manager.getByRole('button',{name:'Add channel',exact:true}).click();
+  await manager.getByRole('status').filter({hasText:'HTTP 403'}).waitFor();
+  await manager.getByRole('textbox',{name:'Channel address',exact:true}).fill('https://www.youtube.com/channel/UC'+'f'.repeat(22));
+  await manager.getByRole('button',{name:'Add channel',exact:true}).click();
+  await manager.getByRole('status').filter({hasText:/YouTube checks are paused until .*HTTP 403/}).waitFor();
+  assert.equal((await worker.evaluate(()=>channelRequests)).length,2,'A server refusal blocks subsequent additions');
+  const allTimes=await worker.evaluate(()=>requestTimes);assert.ok(allTimes.slice(1).every((at,i)=>at-allTimes[i]>=1950));
+  assert.deepEqual(errors,[]);console.log('PASS: paced refreshes, cached image stability, immediate cached reload, manual additions during feed pauses, and server refusals shown in the group editor.');
  }finally{await context?.close();fs.rmSync(profile,{recursive:true,force:true});}
 })().catch(error=>{console.error(error);process.exitCode=1;});

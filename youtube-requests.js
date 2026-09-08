@@ -2,16 +2,27 @@
 globalThis.YouTubeRequests = (() => {
   const key='youtubeRequests:v1',queue=[];
   let state,loading,busy=false,timer;
-  const cooldownError=()=>Object.assign(new Error('YouTube checks are cooling down. Cached videos are still available.'),{name:'YouTubeCooldownError',retryAfter:state.pausedUntil});
+  function pauseInfo(){
+    const pausedUntil=state.pausedUntil>Date.now()?state.pausedUntil:0;
+    if(!pausedUntil)return {pausedUntil:0,pauseScope:'all',pauseReason:'unknown',pauseMessage:''};
+    const time=new Date(pausedUntil).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+    const reason={'feed-failures':'Several channel upload feeds failed.','http-403':'YouTube returned HTTP 403.','http-429':'YouTube returned HTTP 429.','retry-after':'YouTube asked Ledger to wait before retrying.'}[state.pauseReason]||'A previous cooldown is still active.';
+    const pauseMessage=(state.pauseScope==='automatic'?'Automatic ':'')+'YouTube checks are paused until '+time+'. '+reason+(state.pauseScope==='automatic'?' You can still add channels manually.':'');
+    return {pausedUntil,pauseScope:state.pauseScope,pauseReason:state.pauseReason,pauseMessage};
+  }
+  const cooldownError=()=>Object.assign(new Error(pauseInfo().pauseMessage+' Cached videos are still available.'),{name:'YouTubeCooldownError',retryAfter:state.pausedUntil});
   async function ready(){
     if(!loading)loading=(async()=>{
       const saved=(await browser.storage.local.get(key))[key]||{},now=Date.now();
       const time=value=>Number.isFinite(value)&&value>=0?Math.min(value,now+86400000):0;
       state={lastStartedAt:Math.min(time(saved.lastStartedAt),now),pausedUntil:time(saved.pausedUntil),level:Math.min(4,Math.max(0,Number(saved.level)||0)),failures:Array.isArray(saved.failures)?saved.failures.filter(v=>typeof v.id==='string'&&Number.isFinite(v.at)&&now-v.at<300000).slice(-3):[],successes:0};
+      state.pauseReason=['feed-failures','http-403','http-429','retry-after'].includes(saved.pauseReason)?saved.pauseReason:'unknown';
+      // Older cooldowns have no recorded cause, so keep their original scope.
+      state.pauseScope=saved.pauseScope==='automatic'&&state.pauseReason==='feed-failures'?'automatic':'all';
     })();
     await loading;
   }
-  const save=()=>browser.storage.local.set({[key]:state});
+  const save=()=>browser.storage.local.set({[key]:{...state,...pauseInfo()}});
   function checkResponse(response){
     if(response.ok)return;
     const raw=response.headers?.get('Retry-After'),now=Date.now();
@@ -31,6 +42,9 @@ globalThis.YouTubeRequests = (() => {
       const delay=Math.min(2*3600000,15*60000*2**state.level);
       state.level=Math.min(4,state.level+1);
       state.pausedUntil=Math.max(now+delay,error.retryAfter||0);
+      const serverPause=error.youtubeStatus===403||error.youtubeStatus===429||error.retryAfter>now;
+      state.pauseScope=serverPause?'all':'automatic';
+      state.pauseReason=error.youtubeStatus===403?'http-403':error.youtubeStatus===429?'http-429':serverPause?'retry-after':'feed-failures';
       state.failures=[];error.retryAfter=state.pausedUntil;
     }
   }
@@ -44,10 +58,13 @@ globalThis.YouTubeRequests = (() => {
     try{
       await ready();
       if(state.pausedUntil>Date.now()){
-        for(const job of queue.splice(0))job.reject(cooldownError());
-        return;
-      }
-      state.pausedUntil=0;
+        // Ordinary feed failures stop automatic work, not an explicit channel
+        // addition. Server refusals and Retry-After still stop every lookup.
+        for(let i=queue.length-1;i>=0;i--){
+          const job=queue[i],manual=job.options.kind==='channel'&&job.options.priority>=3;
+          if(state.pauseScope!=='automatic'||!manual){queue.splice(i,1);job.reject(cooldownError());}
+        }
+      }else{state.pausedUntil=0;state.pauseReason='unknown';state.pauseScope='all';}
       queue.sort((a,b)=>(b.options.priority||0)-(a.options.priority||0));
       const job=queue[0];if(!job)return;
       // Foreground work can move ahead of background work even during a wait.
@@ -68,5 +85,5 @@ globalThis.YouTubeRequests = (() => {
   function run(operation,options={}){
     return new Promise((resolve,reject)=>{queue.push({operation,options,resolve,reject});wake();});
   }
-  return {key,run,wake,checkResponse,async status(){await ready();return {pausedUntil:state.pausedUntil>Date.now()?state.pausedUntil:0};}};
+  return {key,run,wake,checkResponse,async status(){await ready();return pauseInfo();}};
 })();

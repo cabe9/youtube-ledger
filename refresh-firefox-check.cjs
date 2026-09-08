@@ -16,7 +16,7 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
     const channelId=u.searchParams.get('channel_id'),videoId=u.searchParams.get('v');let body,status=200;
     if(channelId){status=mode==='failure'?404:200;body='<feed xmlns="http://www.w3.org/2005/Atom"><yt:channelId>'+channelId+'</yt:channelId><title>Fixture</title></feed>';}
     else if(videoId)body='<script>var ytInitialPlayerResponse = '+JSON.stringify({videoDetails:{videoId,channelId:ids[0],lengthSeconds:'120',viewCount:'42'},microformat:{playerMicroformatRenderer:{isShortsEligible:false}}})+';</script>';
-    else body='<link rel="canonical" href="'+url+'"><meta property="og:title" content="Fixture channel">';
+    else {body='<link rel="canonical" href="'+url+'"><meta property="og:title" content="Fixture channel">';if(mode==='refusal')status=403;}
     const response=new Response(body,{status});Object.defineProperty(response,'url',{value:url});return response;
    };
    await browser.storage.local.set({paused:true,'channelGroups:v1':{version:1,groups:[{id:'g',name:'Large group',channelIds:ids}],channels:Object.fromEntries(ids.map(id=>[id,{id,name:id,url:'https://www.youtube.com/channel/'+id}]))},'channelUploads:v1':{version:1,channels:Object.fromEntries(ids.map((id,i)=>[id,{fetchedAt:1,attemptedAt:1,viewsAttemptedAt:1,entries:[{videoId:String(i).repeat(11),channelId:id,title:'Cached video',publishedAt:now,views:{count:42,checkedAt:now}}]}]))}});
@@ -32,6 +32,14 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
    verify(calls.length===8,'Failed feeds should each get only one attempt');
    const paused=await GroupFeeds.handle({type:'groupFeed:get',groupId:'g'},sender);verify(paused.pausedUntil>Date.now()&&paused.entries.length===3,'Cooldown must preserve cached feed');
    await GroupFeeds.handle({type:'groupFeed:refresh',groupId:'g',force:true},sender);verify(calls.length===8,'Manual refresh must respect cooldown');
+   verify(paused.pauseScope==='automatic'&&paused.pauseMessage.includes('Several channel upload feeds failed'),'Feed pause must explain its scope');
+   const channel=await ChannelGroups.handle({type:'channelGroups:resolve',input:'https://www.youtube.com/channel/UC'+'d'.repeat(22)},sender);
+   const groups=await ChannelGroups.handle({type:'channelGroups:change',action:'membership',groupId:'g',channel,member:true},sender);
+   verify(groups.groups[0].channelIds.includes(channel.id)&&calls.length===9,'Manual addition must resolve and save during a feed pause');
+   verify((await YouTubeRequests.status()).pausedUntil===paused.pausedUntil,'Manual addition must not reset the automatic pause');
+   mode='refusal';try{await ChannelGroups.handle({type:'channelGroups:resolve',input:'https://www.youtube.com/channel/UC'+'e'.repeat(22)},sender);throw Error('Expected a refusal');}catch(error){verify(error.youtubeStatus===403,'Server refusal must reach caller');}
+   try{await ChannelGroups.handle({type:'channelGroups:resolve',input:'https://www.youtube.com/channel/UC'+'f'.repeat(22)},sender);throw Error('Expected a cooldown');}catch(error){verify(error.name==='YouTubeCooldownError'&&error.message.includes('HTTP 403'),'Cooldown must explain the server refusal');}
+   verify(calls.length===10&&(await YouTubeRequests.status()).pauseScope==='all','Server refusal must stop subsequent manual requests');
    verify(peak===1&&calls.slice(1).every((call,i)=>call.at-calls[i].at>=1950),'Requests must not overlap or start too closely');
    await browser.storage.local.set({'test:result':{ok:true,requests:calls.length,peak,cachedVideos:paused.entries.length}});
   }catch(error){await browser.storage.local.set({'test:result':{ok:false,error:String(error.message||error)+' '+String(error.stack||'')}});}
@@ -50,6 +58,6 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   assert.ok(page,'Background checks must finish');
   const result=await send('script.evaluate',{expression:'(async()=>JSON.stringify((await browser.storage.local.get("test:result"))["test:result"]))()',target:{context:page.context},awaitPromise:true});
   assert.equal(result.type,'success',JSON.stringify(result));const report=JSON.parse(result.result.value);assert.equal(report.ok,true,report.error);
-  console.log('PASS: Firefox '+session.capabilities.browserVersion+' shared pacing, deduplication, cooldown and immediate cached reads; '+report.requests+' synthetic requests.');
+  console.log('PASS: Firefox '+session.capabilities.browserVersion+' shared pacing, cached reads, manual additions during feed pauses and server cooldowns; '+report.requests+' synthetic requests.');
  }finally{socket?.close();firefox.kill();await sleep(500);fs.rmSync(temporary,{recursive:true,force:true});}
 })().catch(error=>{console.error(error);process.exitCode=1;});

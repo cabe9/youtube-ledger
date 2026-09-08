@@ -611,7 +611,7 @@
       const members=renderMembers(root,group,sameView);
       if(members.isConnected){retainedMembers=members;membersSlot=el('div');content.append(membersSlot);}else content.append(members);
       const failed=data.channels.filter(c=>c.error).length,missing=data.channels.filter(c=>!c.fetchedAt).length,paused=data.pausedUntil>Date.now();
-      status.textContent=paused?'YouTube checks are paused until '+new Date(data.pausedUntil).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'. Cached videos are still available.':refreshing?'Checking uploads in the background…':failed?failed+' '+(failed===1?'channel could':'channels could')+' not refresh. Available cached videos are shown. Ledger will retry automatically.':missing?'Some channels have not loaded yet.':'';
+      status.textContent=paused?(data.pauseMessage||'YouTube checks are paused until '+new Date(data.pausedUntil).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'.')+' Cached videos are still available.':refreshing?'Checking uploads in the background…':failed?failed+' '+(failed===1?'channel could':'channels could')+' not refresh. Available cached videos are shown. Ledger will retry automatically.':missing?'Some channels have not loaded yet.':'';
       if(failed)status.classList.add('error');
       if(failed&&!refreshing&&!paused)status.append(
         button('Retry failed channels',()=>load(true,true,true),{'data-focus':'retry-failed',title:'Retry affected channels. Recent attempts and YouTube’s retry limits are respected.'}),
@@ -691,7 +691,7 @@
   }
   function storageChanged(changes,area){
     if(disposed||area!=='local')return;
-    if(changes['youtubeRequests:v1']&&data){const until=changes['youtubeRequests:v1'].newValue?.pausedUntil||0;if(until!==(data.pausedUntil||0)){data.pausedUntil=until;render();}}
+    if(changes['youtubeRequests:v1']&&data){const next=changes['youtubeRequests:v1'].newValue||{},until=next.pausedUntil||0,message=next.pauseMessage||'';if(until!==(data.pausedUntil||0)||message!==(data.pauseMessage||'')){Object.assign(data,{pausedUntil:until,pauseMessage:message});render();}}
     if(changes['videoProgress:v1']&&data){data.progress=changes['videoProgress:v1'].newValue||{version:1,videos:{}};render();}
     if(changes[FeedLibrary.key]){library=changes[FeedLibrary.key].newValue||{version:1,groups:{}};updateNavigation();render();}
     if(changes.settings){theme=Ledger.settings(changes.settings.newValue).theme;settingsReady=true;mount();}
