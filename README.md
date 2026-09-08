@@ -4,24 +4,13 @@ A local YouTube usage tracker for **Chrome and Firefox**. Records video titles, 
 
 ## Install
 
-The current source is **0.16.18**. The downloadable release packages linked below
-are still **0.8.1**. To install the current version on another computer, clone
-this repository (or extract its source ZIP), then run from its folder:
-
-```sh
-python3 build.py
-```
-
-On Windows, use `py -3 build.py` if Python is available through the Python
-launcher. No Node.js dependencies are needed just to build the extension.
-In Chrome, use **Load unpacked** with `dist/chrome`. In Firefox, use
-**Load Temporary Add-on** with `dist/firefox/manifest.json`. Follow the browser
-setup steps below, using those build folders instead of the older downloads.
-
+Download the **0.16.18** package for your browser below. These ZIPs are ready
+to install; no build tools are needed. For development, clone the repository
+and follow [Build and test](#build-and-test).
 
 ### Chrome
 
-1. Download [the Chrome ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.8.1/youtube-ledger-chrome-0.8.1.zip) and extract it to a permanent folder.
+1. Download [the Chrome ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.18/youtube-ledger-chrome-store-0.16.18.zip) and extract it to a permanent folder.
 2. Open `chrome://extensions` and enable **Developer mode**.
 3. Click **Load unpacked** and select the extracted folder.
 4. Pin YouTube Ledger, refresh existing YouTube tabs, and click the extension icon for the dashboard.
@@ -30,7 +19,7 @@ Keep the folder in place. The installation survives browser restarts. To update,
 
 ### Firefox
 
-1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.8.1/youtube-ledger-firefox-0.8.1.zip).
+1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.18/youtube-ledger-firefox-store-0.16.18.zip).
 2. Open `about:debugging#/runtime/this-firefox`.
 3. Click **Load Temporary Add-on** and select the extracted `manifest.json`.
 4. Refresh YouTube tabs and open YouTube Ledger from the extension toolbar.
@@ -110,7 +99,7 @@ This feature is physically absent from standard/store extension packages: no rea
 
 ## Build and test
 
-Requires Python 3 for packaging and Node.js 22 or later for the full test tooling. The extension makes no runtime package downloads. The pinned GIF codecs are bundled locally with their licenses; `python3 scripts/build-gif-codec.py` reproduces that bundle from integrity-checked source packages.
+Requires Python 3 for packaging and Node.js 22 or later for the full test tooling. On Windows, use `py -3` instead of `python3` when using the Python launcher. No Node.js dependencies are needed just to build the extension. The extension makes no runtime package downloads. The pinned GIF codecs are bundled locally with their licenses; `python3 scripts/build-gif-codec.py` reproduces that bundle from integrity-checked source packages.
 
 ```sh
 python3 build.py
