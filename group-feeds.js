@@ -39,7 +39,18 @@ globalThis.GroupFeeds = (() => {
     }else for(const field of ['failures','retryAfter','retryAt'])delete cache.channels[channelId][field];
     if(!error){
       const combined=new Map((old.entries||[]).map(v=>[v.videoId,v]));
-      for(const entry of entries){const previous=combined.get(entry.videoId),details=previous?.details,views=entry.views||previous?.views;combined.set(entry.videoId,{...entry,...(views?{views}:{}),...(details?{details}:{})});}
+      for(const entry of entries){
+        const previous=combined.get(entry.videoId);
+        const classificationUpgrade=typeof entry.details?.shorts==='boolean'&&previous?.details?.shorts==='unknown';
+        let details=previous?.details&&!classificationUpgrade&&!globalThis.Ledger?.videoDetailsDue(previous.details,at)?previous.details:entry.details||previous?.details;
+        if(details&&typeof previous?.details?.shorts==='boolean'&&details.shorts==='unknown')details={...details,shorts:previous.details.shorts};
+        const views=entry.views?.approximate&&previous?.views&&!previous.views.approximate&&!globalThis.Ledger?.videoViewsDue(previous,at)?previous.views:entry.views||previous?.views;
+        const next={...entry,...(views?{views}:{}),...(details?{details}:{})};
+        // Never replace exact RSS dates with rounded ages, or let repeated
+        // "3 days ago" labels move an already discovered upload forward in time.
+        if(entry.publishedAtEstimated&&previous){next.publishedAt=previous.publishedAtEstimated?Math.min(previous.publishedAt,entry.publishedAt):previous.publishedAt;next.publishedAtEstimated=previous.publishedAtEstimated===true;}
+        combined.set(entry.videoId,next);
+      }
       cache.channels[channelId].entries=[...combined.values()].sort((a,b)=>b.publishedAt-a.publishedAt||a.videoId.localeCompare(b.videoId)).slice(0,250);
       cache.channels[channelId].fetchedAt=at;
     }
@@ -136,25 +147,38 @@ globalThis.GroupFeeds = (() => {
       if(!background){job.options.priority=2;globalThis.YouTubeRequests?.wake();}
       return job.promise;
     }
-    const version=epoch,options={priority:background?0:2,kind:'feed',reason:background?'background-refresh':force?'manual-refresh':'group-refresh',id:channelId,cancelled:()=>version!==epoch};
+    const version=epoch,options={priority:background?0:2,kind:'feed',reason:background?'background-refresh':force?'manual-refresh':'group-refresh',id:channelId,deferFeedFailure:!!globalThis.UploadsPage,cancelled:()=>version!==epoch};
     const task=(async()=>{
       const stored=(await browser.storage.local.get(key))[key]?.channels[channelId];
       if(version!==epoch)return;
-      const now=Date.now(),due=stored?.error?Math.max(stored.retryAt||0,(stored.attemptedAt||0)+(options.priority>=2?15*60000:backgroundTTL)):(stored?.attemptedAt||0)+(options.priority>=2?ttl:backgroundTTL);
+      const now=Date.now(),due=stored?.error?Math.max(stored.retryAt||0,(stored.attemptedAt||0)+(options.priority>=2?15*60000:backgroundTTL)):(stored?.attemptedAt||0)+(options.priority>=2&&stored?.feedSource!=='uploads-page'?ttl:backgroundTTL);
       // Manual refresh may update healthy feeds sooner, but never bypass failure cooldowns.
       if(stored&&(stored.error?now<Math.max(due,stored.retryAfter||0):force?now<(stored.attemptedAt||0)+60000:!needsViewUpgrade(stored)&&now<due)){globalThis.YouTubeRequestLog?.skip(options,stored.error?'cooldown':'cache');return;}
-      let entries,error='',retryAfter=0;
+      let entries,error='',retryAfter=0,feedSource='rss';
+      const page=async()=>{
+        feedSource='uploads-page';
+        Object.assign(options,{reason:'uploads-page-fallback',minSpacing:10000,deferFeedFailure:false});
+        return network(async fetchRequest=>{
+          const response=await fetchRequest(UploadsPage.url(channelId),{credentials:'omit',signal:AbortSignal.timeout(15000)});
+          globalThis.YouTubeRequests?.checkResponse(response);
+          const final=new URL(response.url);
+          if(!response.ok||final.origin!=='https://www.youtube.com'||final.pathname!=='/playlist'||final.searchParams.get('list')!=='UU'+channelId.slice(2))throw Error('YouTube could not load this channel’s uploads page.');
+          return UploadsPage.parse(await UploadsPage.read(response),channelId);
+        },options);
+      };
       try{
-        entries=await network(async(fetchRequest)=>{
+        if(globalThis.UploadsPage&&stored?.feedSource==='uploads-page'&&stored.rssRetryAt>now)entries=await page();
+        else try{entries=await network(async(fetchRequest)=>{
           const response=await fetchRequest('https://www.youtube.com/feeds/videos.xml?channel_id='+channelId,{credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(15000)});
           try{globalThis.YouTubeRequests?.checkResponse(response);}catch(e){
             const message=response.status===429?'YouTube is limiting upload checks':response.status>=500?'YouTube’s upload feed is temporarily unavailable':response.status===404?'YouTube could not find this upload feed':response.status===403?'YouTube refused this upload feed':'YouTube could not refresh this channel';
             e.message=message+' (HTTP '+response.status+').';throw e;
           }
-          if(!response.ok)throw new Error('YouTube could not refresh this channel (HTTP '+response.status+').');
+          if(!response.ok)throw Object.assign(new Error('YouTube could not refresh this channel (HTTP '+response.status+').'),{youtubeStatus:response.status});
           if(new URL(response.url).origin!=='https://www.youtube.com')throw new Error('YouTube redirected this upload feed.');
           return parse(await response.text(),channelId);
-        },options);
+        },options);}
+        catch(failure){if(!globalThis.UploadsPage?.eligible(failure)||version!==epoch)throw failure;entries=await page();}
       }catch(e){
         // A queued channel was not contacted. Do not mark it as a failed channel.
         if(e.name==='YouTubeCooldownError')return;
@@ -162,7 +186,12 @@ globalThis.GroupFeeds = (() => {
         error=e.name==='TimeoutError'||e.name==='AbortError'?'This channel took too long to respond.':e.name==='TypeError'?'Could not connect to YouTube’s upload feed.':String(e.message||'Could not refresh this channel.');
       }
       if(version!==epoch||!entries&&!error)return;
-      await changeCache(cache=>version===epoch?merge(cache,channelId,entries,Date.now(),error,retryAfter):cache||{version:1,channels:{}});
+      await changeCache(cache=>{
+        if(version!==epoch)return cache||{version:1,channels:{}};
+        const next=merge(cache,channelId,entries,Date.now(),error,retryAfter),channel=next.channels[channelId];
+        if(!error){channel.feedSource=feedSource;if(feedSource==='uploads-page')channel.rssRetryAt=stored?.rssRetryAt>now?stored.rssRetryAt:Date.now()+86400000;else delete channel.rssRetryAt;}
+        return next;
+      });
     })();
     inFlight.set(channelId,{promise:task,options});try{return await task;}finally{if(inFlight.get(channelId)?.promise===task)inFlight.delete(channelId);}
   }
@@ -212,7 +241,7 @@ globalThis.GroupFeeds = (() => {
     }
     if(message.type!=='groupFeed:get')throw new Error('Unknown feed request.');
     const cache=data[key]?.channels||{}, entries=[...new Map(ids.flatMap(id=>cache[id]?.entries||[]).map(v=>[v.videoId,v])).values()].sort((a,b)=>b.publishedAt-a.publishedAt||a.videoId.localeCompare(b.videoId));
-    return {...(await globalThis.YouTubeRequests?.status()),progress:globalThis.WatchStatus?await WatchStatus.read():{version:1,videos:{}},group,channels:ids.map(id=>({...groups.channels[id],id,fetchedAt:cache[id]?.fetchedAt||null,error:cache[id]?.error||'',retryAt:cache[id]?.retryAt||0})),entries,launchToken:entries.length?await launchContext(group,entries):null};
+    return {...(await globalThis.YouTubeRequests?.status()),progress:globalThis.WatchStatus?await WatchStatus.read():{version:1,videos:{}},group,channels:ids.map(id=>({...groups.channels[id],id,fetchedAt:cache[id]?.fetchedAt||null,error:cache[id]?.error||'',retryAt:cache[id]?.retryAt||0,feedSource:cache[id]?.feedSource||'rss'})),entries,launchToken:entries.length?await launchContext(group,entries):null};
   }
   return {invalidate(){epoch++;inFlight.clear();},key,parse,parseVideoDetails,readPlayer,merge,getChannelUploads,handle,prune};
 })();

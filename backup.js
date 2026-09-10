@@ -63,6 +63,8 @@ globalThis.LedgerBackup=(()=>{
           if(!channel(id)||!Array.isArray(c.entries)||c.entries.length>250||c.entries.some(e=>!video(e.videoId)||e.channelId!==id||!text(e.title,500)||!text(e.channel,200)||!number(e.publishedAt)))fail();count+=c.entries.length;
           if(c.entries.some(e=>e.details!==undefined&&!Ledger.validVideoDetails(e.details)))fail();
           if(c.entries.some(e=>e.views!==undefined&&!Ledger.validVideoViews(e.views)))fail();
+          if(c.entries.some(e=>e.publishedAtEstimated!==undefined&&typeof e.publishedAtEstimated!=='boolean'||e.views?.approximate!==undefined&&typeof e.views.approximate!=='boolean'))fail();
+          if(c.feedSource!==undefined&&!['rss','uploads-page'].includes(c.feedSource)||c.rssRetryAt!==undefined&&!number(c.rssRetryAt))fail();
           if(c.fetchedAt!==undefined&&!number(c.fetchedAt)||c.attemptedAt!==undefined&&!number(c.attemptedAt)||c.viewsAttemptedAt!==undefined&&!number(c.viewsAttemptedAt)||c.error!==undefined&&!text(c.error,2000))fail();
           if(c.retryAt!==undefined&&!number(c.retryAt)||c.retryAfter!==undefined&&!number(c.retryAfter)||c.failures!==undefined&&(!Number.isInteger(c.failures)||c.failures<1||c.failures>8))fail();
         }if(count>5000)fail();

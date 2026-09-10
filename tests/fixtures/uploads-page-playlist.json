@@ -1,0 +1,316 @@
+{
+  "header": {
+    "playlistHeaderRenderer": {
+      "playlistId": "UUlZbO3wehSIsPUKLx_X5caw",
+      "title": {}
+    }
+  },
+  "sidebar": {
+    "playlistSidebarRenderer": {
+      "items": [
+        {},
+        {
+          "playlistSidebarSecondaryInfoRenderer": {
+            "videoOwner": {
+              "videoOwnerRenderer": {
+                "title": {
+                  "runs": [
+                    {
+                      "text": "CarlSagan42",
+                      "navigationEndpoint": {
+                        "browseEndpoint": {
+                          "browseId": "UClZbO3wehSIsPUKLx_X5caw"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "navigationEndpoint": {
+                  "browseEndpoint": {
+                    "browseId": "UClZbO3wehSIsPUKLx_X5caw"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "contents": {
+    "twoColumnBrowseResultsRenderer": {
+      "tabs": [
+        {
+          "tabRenderer": {
+            "selected": true,
+            "content": {
+              "sectionListRenderer": {
+                "contents": [
+                  {
+                    "itemSectionRenderer": {
+                      "contents": [
+                        {
+                          "lockupViewModel": {
+                            "contentImage": {
+                              "thumbnailViewModel": {
+                                "overlays": [
+                                  {
+                                    "thumbnailBottomOverlayViewModel": {
+                                      "badges": [
+                                        {
+                                          "thumbnailBadgeViewModel": {
+                                            "text": "38:22",
+                                            "rendererContext": {}
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  {}
+                                ]
+                              }
+                            },
+                            "metadata": {
+                              "lockupMetadataViewModel": {
+                                "title": {
+                                  "content": "Larl plays everything Twice Twice"
+                                },
+                                "metadata": {
+                                  "contentMetadataViewModel": {
+                                    "metadataRows": [
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "CarlSagan42",
+                                              "commandRuns": [
+                                                {
+                                                  "onTap": {
+                                                    "innertubeCommand": {
+                                                      "browseEndpoint": {
+                                                        "browseId": "UClZbO3wehSIsPUKLx_X5caw"
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "113K views"
+                                            }
+                                          },
+                                          {
+                                            "text": {
+                                              "content": "3 days ago"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            },
+                            "contentId": "K3M4Mel84sE",
+                            "contentType": "LOCKUP_CONTENT_TYPE_VIDEO",
+                            "rendererContext": {
+                              "commandContext": {
+                                "onTap": {
+                                  "innertubeCommand": {
+                                    "watchEndpoint": {
+                                      "videoId": "K3M4Mel84sE",
+                                      "playlistId": "UUlZbO3wehSIsPUKLx_X5caw"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "lockupViewModel": {
+                            "contentImage": {
+                              "thumbnailViewModel": {
+                                "overlays": [
+                                  {
+                                    "thumbnailBottomOverlayViewModel": {
+                                      "badges": [
+                                        {
+                                          "thumbnailBadgeViewModel": {
+                                            "text": "31:19",
+                                            "rendererContext": {}
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  {}
+                                ]
+                              }
+                            },
+                            "metadata": {
+                              "lockupMetadataViewModel": {
+                                "title": {
+                                  "content": "Trolls but the fiddles keep getting louder"
+                                },
+                                "metadata": {
+                                  "contentMetadataViewModel": {
+                                    "metadataRows": [
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "CarlSagan42",
+                                              "commandRuns": [
+                                                {
+                                                  "onTap": {
+                                                    "innertubeCommand": {
+                                                      "browseEndpoint": {
+                                                        "browseId": "UClZbO3wehSIsPUKLx_X5caw"
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "122K views"
+                                            }
+                                          },
+                                          {
+                                            "text": {
+                                              "content": "11 days ago"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            },
+                            "contentId": "SswFG4YT2-Q",
+                            "contentType": "LOCKUP_CONTENT_TYPE_VIDEO",
+                            "rendererContext": {
+                              "commandContext": {
+                                "onTap": {
+                                  "innertubeCommand": {
+                                    "watchEndpoint": {
+                                      "videoId": "SswFG4YT2-Q",
+                                      "playlistId": "UUlZbO3wehSIsPUKLx_X5caw"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "lockupViewModel": {
+                            "contentImage": {
+                              "thumbnailViewModel": {
+                                "overlays": [
+                                  {
+                                    "thumbnailBottomOverlayViewModel": {
+                                      "badges": [
+                                        {
+                                          "thumbnailBadgeViewModel": {
+                                            "text": "39:51",
+                                            "rendererContext": {}
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  {}
+                                ]
+                              }
+                            },
+                            "metadata": {
+                              "lockupMetadataViewModel": {
+                                "title": {
+                                  "content": "This Troll World Took Years to Make"
+                                },
+                                "metadata": {
+                                  "contentMetadataViewModel": {
+                                    "metadataRows": [
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "CarlSagan42",
+                                              "commandRuns": [
+                                                {
+                                                  "onTap": {
+                                                    "innertubeCommand": {
+                                                      "browseEndpoint": {
+                                                        "browseId": "UClZbO3wehSIsPUKLx_X5caw"
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "83K views"
+                                            }
+                                          },
+                                          {
+                                            "text": {
+                                              "content": "2 weeks ago"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            },
+                            "contentId": "8rENhWURz7Q",
+                            "contentType": "LOCKUP_CONTENT_TYPE_VIDEO",
+                            "rendererContext": {
+                              "commandContext": {
+                                "onTap": {
+                                  "innertubeCommand": {
+                                    "watchEndpoint": {
+                                      "videoId": "8rENhWURz7Q",
+                                      "playlistId": "UUlZbO3wehSIsPUKLx_X5caw"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "header": {}
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

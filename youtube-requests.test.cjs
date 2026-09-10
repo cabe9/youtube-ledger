@@ -78,7 +78,7 @@ test('three initial missing feeds stop automatic work and preserve that scope af
  s.load('youtube-requests.js');
  await s.finish(Promise.allSettled(Array.from({length:5},(_,i)=>request(String(i+2)))));
  assert.equal(calls.length,3);
- const status=await s.box.YouTubeRequests.status();assert.equal(status.pauseReason,'feed-not-found');assert.equal(status.pauseScope,'automatic');assert.match(status.pauseMessage,/Three channel upload feeds returned HTTP 404/);
+ const status=await s.box.YouTubeRequests.status();assert.equal(status.pauseReason,'feed-not-found');assert.equal(status.pauseScope,'automatic');assert.match(status.pauseMessage,/Three channel upload checks returned HTTP 404/);
  s.load('youtube-requests.js');await s.finish(s.box.YouTubeRequests.run(()=>calls.push('manual'),{kind:'channel',priority:3}));
  assert.equal(calls.length,4);assert.equal((await s.box.YouTubeRequests.status()).pausedUntil,status.pausedUntil);
  await assert.rejects(s.finish(request('blocked')),{name:'YouTubeCooldownError'});assert.equal(calls.length,4);

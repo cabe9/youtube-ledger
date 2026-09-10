@@ -5,12 +5,13 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
  const ids=['a','b','c'].map(c=>'UC'+c.repeat(22));
  try{
   const extension=path.join(__dirname,'dist/chrome');context=await chromium.launchPersistentContext(profile,{channel:'chromium',headless:true,viewport:{width:1440,height:1000},args:[`--disable-extensions-except=${extension}`,`--load-extension=${extension}`]});
-  context.on('page',page=>page.on('pageerror',e=>errors.push(e.message)));
+  context.setDefaultTimeout(60000);context.on('page',page=>page.on('pageerror',e=>errors.push(e.message)));
   const worker=context.serviceWorkers()[0]||await context.waitForEvent('serviceworker');
   await worker.evaluate(ids=>{
    const now=Date.now(),[a,b,c]=ids;
    globalThis.refreshRequests=[];globalThis.requestTimes=[];globalThis.blockAll=false;globalThis.channelRequests=[];globalThis.refuseChannels=false;
    globalThis.fetch=async url=>{
+    if(new URL(url).pathname==='/playlist'){requestTimes.push(Date.now());const response=new Response('Unavailable',{status:404});Object.defineProperty(response,'url',{value:String(url)});return response;}
     const id=new URL(url).searchParams.get('channel_id');if(!id){
      channelRequests.push(String(url));requestTimes.push(Date.now());
      const response=new Response(`<link rel="canonical" href="${url}"><meta property="og:title" content="Added channel">`,{status:refuseChannels?403:200});Object.defineProperty(response,'url',{value:String(url)});return response;
@@ -38,15 +39,15 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   assert.equal(await page.evaluate(()=>retainedImage.isConnected),true);
   await worker.evaluate(async ids=>{blockAll=404;const key='channelUploads:v1',cache=(await chrome.storage.local.get(key))[key];for(const id of ids){cache.channels[id].attemptedAt=Date.now()-16*60000;cache.channels[id].retryAt=Date.now()-1;cache.channels[id].error='Previous failure';}await chrome.storage.local.set({[key]:cache});},ids);
   await feed.getByRole('button',{name:'Retry failed channels',exact:true}).click();
-  await page.waitForFunction(()=>/Three channel upload feeds returned HTTP 404/.test(document.querySelector('#ledger-group-feed')?.shadowRoot.querySelector('.status')?.textContent));
-  const failedRequests=await worker.evaluate(()=>refreshRequests);assert.equal(failedRequests.length,4,'The three consecutive 404s stop the run');assert.equal(new Set(failedRequests.slice(1)).size,3);
+  await page.waitForFunction(()=>/Three channel upload checks returned HTTP 404/.test(document.querySelector('#ledger-group-feed')?.shadowRoot.querySelector('.status')?.textContent));
+  const failedRequests=await worker.evaluate(()=>refreshRequests);assert.equal(failedRequests.length,5,'Three failed channel checks stop the run after their fallbacks');assert.equal(new Set(failedRequests.slice(1)).size,3);
   await page.waitForFunction(()=>/YouTube checks are paused until/.test(document.querySelector('#ledger-group-feed')?.shadowRoot.querySelector('.status')?.textContent));
   assert.equal(await page.evaluate(()=>retainedImage.isConnected),true);assert.equal(await feed.locator('article').count(),3);
   assert.equal(await feed.getByRole('button',{name:'Refresh uploads',exact:true}).isDisabled(),true);
   const times=await worker.evaluate(()=>requestTimes);assert.ok(times.slice(1).every((at,i)=>at-times[i]>=1950));
   const total=times.length;await page.reload();await feed.locator('article').first().waitFor();
   assert.equal(await feed.locator('article').count(),3);assert.match(await feed.locator('.status').textContent(),/YouTube checks are paused until/);
-  assert.equal((await worker.evaluate(()=>refreshRequests)).length,total);
+  assert.equal((await worker.evaluate(()=>requestTimes)).length,total);
   await feed.locator('.status').screenshot({path:'/tmp/ledger-refresh-controls.png'});
   const dashboard=await context.newPage();await dashboard.goto(new URL('dashboard.html#groups',worker.url()).href);
   const manager=dashboard.locator('#channel-groups-manager');
@@ -66,16 +67,16 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   const allTimes=await worker.evaluate(()=>requestTimes);assert.ok(allTimes.slice(1).every((at,i)=>at-allTimes[i]>=1950));
   const diagnostic=await worker.evaluate(()=>YouTubeRequestLog.snapshot());
   assert.equal(diagnostic.recent.length,allTimes.length,'Only real fetch attempts count');
-  assert.equal(diagnostic.recent.filter(e=>e.status===404).length,3);assert.equal(diagnostic.recent.filter(e=>e.status===403).length,1);
+  assert.equal(diagnostic.recent.filter(e=>e.status===404).length,8);assert.equal(diagnostic.recent.filter(e=>e.status===403).length,1);
   const attemptsBefore=allTimes.length;
   await dashboard.goto(new URL('dashboard.html#settings',worker.url()).href);
   const log=dashboard.locator('#request-log');await log.getByRole('heading',{name:'YouTube requests'}).waitFor();
-  await dashboard.waitForFunction(()=>document.querySelector('#request-log-stats strong')?.textContent==='6');
-  assert.equal(await log.locator('#request-log-rows tr').count(),6);assert.match(await log.locator('#request-log-results').textContent(),/HTTP 404 × 3/);
-  const downloadPromise=dashboard.waitForEvent('download');await log.getByRole('button',{name:'Export request log'}).click();const exported=JSON.parse(fs.readFileSync(await (await downloadPromise).path(),'utf8'));assert.equal(exported.recent.length,6);
+  await dashboard.waitForFunction(()=>document.querySelector('#request-log-stats strong')?.textContent==='11');
+  assert.equal(await log.locator('#request-log-rows tr').count(),11);assert.match(await log.locator('#request-log-results').textContent(),/HTTP 404 × 8/);
+  const downloadPromise=dashboard.waitForEvent('download');await log.getByRole('button',{name:'Export request log'}).click();const exported=JSON.parse(fs.readFileSync(await (await downloadPromise).path(),'utf8'));assert.equal(exported.recent.length,11);
   await dashboard.setViewportSize({width:1200,height:1000});await log.scrollIntoViewIfNeeded();await log.screenshot({path:'/tmp/ledger-request-log-desktop.png'});
   await dashboard.setViewportSize({width:390,height:844});await log.screenshot({path:'/tmp/ledger-request-log-mobile.png'});assert.equal(await dashboard.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Log must not widen the mobile page');
-  await dashboard.reload();await dashboard.waitForFunction(()=>document.querySelector('#request-log-stats strong')?.textContent==='6');
+  await dashboard.reload();await dashboard.waitForFunction(()=>document.querySelector('#request-log-stats strong')?.textContent==='11');
   const pauseBefore=await worker.evaluate(async()=> (await YouTubeRequests.status()).pausedUntil);
   await log.getByRole('button',{name:'Clear request log'}).click();await dashboard.waitForFunction(()=>document.querySelector('#request-log-stats strong')?.textContent==='0');
   assert.equal(await worker.evaluate(async()=> (await YouTubeRequests.status()).pausedUntil),pauseBefore);assert.equal((await worker.evaluate(()=>requestTimes)).length,attemptsBefore,'Viewing/exporting/clearing diagnostics never contacts YouTube');

@@ -149,8 +149,8 @@
 --- a/service-worker.js
 +++ b/service-worker.js
 @@ -1 +1 @@
--importScripts('compat.js','core.js','ledger-storage.js','ledger-undo.js','watch-status.js','group-icons.js','request-log.js','youtube-requests.js','channel-groups.js','group-sharing.js','group-feeds.js','feed-library.js','group-queue.js','source-contexts.js','backup.js','recording.js','background.js');
-+importScripts('compat.js','core.js','ledger-storage.js','ledger-undo.js','watch-status.js','group-icons.js','request-log.js','youtube-requests.js','channel-groups.js','group-sharing.js','group-feeds.js','feed-library.js','group-queue.js','source-contexts.js','backup.js','recording.js','account-history.js','account-history-parser.js','account-history-rpc.js','account-history-source.js','account-history-sync.js','background.js');
+-importScripts('compat.js','core.js','ledger-storage.js','ledger-undo.js','watch-status.js','group-icons.js','request-log.js','youtube-requests.js','channel-groups.js','group-sharing.js','uploads-page.js','group-feeds.js','feed-library.js','group-queue.js','source-contexts.js','backup.js','recording.js','background.js');
++importScripts('compat.js','core.js','ledger-storage.js','ledger-undo.js','watch-status.js','group-icons.js','request-log.js','youtube-requests.js','channel-groups.js','group-sharing.js','uploads-page.js','group-feeds.js','feed-library.js','group-queue.js','source-contexts.js','backup.js','recording.js','account-history.js','account-history-parser.js','account-history-rpc.js','account-history-source.js','account-history-sync.js','background.js');
 --- a/trends.js
 +++ b/trends.js
 @@ -22,7 +22,7 @@

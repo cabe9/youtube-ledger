@@ -1,0 +1,315 @@
+{
+  "header": {
+    "playlistHeaderRenderer": {
+      "playlistId": "UUgG7oz-Oq-7Etn0_bz0WimQ",
+      "title": {}
+    }
+  },
+  "sidebar": {
+    "playlistSidebarRenderer": {
+      "items": [
+        {},
+        {
+          "playlistSidebarSecondaryInfoRenderer": {
+            "videoOwner": {
+              "videoOwnerRenderer": {
+                "title": {
+                  "runs": [
+                    {
+                      "text": "いろいろな日本語",
+                      "navigationEndpoint": {
+                        "browseEndpoint": {
+                          "browseId": "UCgG7oz-Oq-7Etn0_bz0WimQ"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "navigationEndpoint": {
+                  "browseEndpoint": {
+                    "browseId": "UCgG7oz-Oq-7Etn0_bz0WimQ"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "contents": {
+    "twoColumnBrowseResultsRenderer": {
+      "tabs": [
+        {
+          "tabRenderer": {
+            "selected": true,
+            "content": {
+              "sectionListRenderer": {
+                "contents": [
+                  {
+                    "itemSectionRenderer": {
+                      "contents": [
+                        {
+                          "lockupViewModel": {
+                            "contentImage": {
+                              "thumbnailViewModel": {
+                                "overlays": [
+                                  {
+                                    "thumbnailBottomOverlayViewModel": {
+                                      "badges": [
+                                        {
+                                          "thumbnailBadgeViewModel": {
+                                            "text": "33:28",
+                                            "rendererContext": {}
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  {}
+                                ]
+                              }
+                            },
+                            "metadata": {
+                              "lockupMetadataViewModel": {
+                                "title": {
+                                  "content": "Bad Apple!! (part 2) but it's intermediate-level japanese comprehensible input,  like N3"
+                                },
+                                "metadata": {
+                                  "contentMetadataViewModel": {
+                                    "metadataRows": [
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "いろいろな日本語",
+                                              "commandRuns": [
+                                                {
+                                                  "onTap": {
+                                                    "innertubeCommand": {
+                                                      "browseEndpoint": {
+                                                        "browseId": "UCgG7oz-Oq-7Etn0_bz0WimQ"
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "3.1K views"
+                                            }
+                                          },
+                                          {
+                                            "text": {
+                                              "content": "6 days ago"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            },
+                            "contentId": "2T7vJ40pCeE",
+                            "contentType": "LOCKUP_CONTENT_TYPE_VIDEO",
+                            "rendererContext": {
+                              "commandContext": {
+                                "onTap": {
+                                  "innertubeCommand": {
+                                    "watchEndpoint": {
+                                      "videoId": "2T7vJ40pCeE",
+                                      "playlistId": "UUgG7oz-Oq-7Etn0_bz0WimQ"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "lockupViewModel": {
+                            "contentImage": {
+                              "thumbnailViewModel": {
+                                "overlays": [
+                                  {
+                                    "thumbnailBottomOverlayViewModel": {
+                                      "badges": [
+                                        {
+                                          "thumbnailBadgeViewModel": {
+                                            "text": "36:07",
+                                            "rendererContext": {}
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  {}
+                                ]
+                              }
+                            },
+                            "metadata": {
+                              "lockupMetadataViewModel": {
+                                "title": {
+                                  "content": "Bad Apple!! but it's intermediate-level japanese comprehensible input,  like N3 or something idk"
+                                },
+                                "metadata": {
+                                  "contentMetadataViewModel": {
+                                    "metadataRows": [
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "いろいろな日本語",
+                                              "commandRuns": [
+                                                {
+                                                  "onTap": {
+                                                    "innertubeCommand": {
+                                                      "browseEndpoint": {
+                                                        "browseId": "UCgG7oz-Oq-7Etn0_bz0WimQ"
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "5.1K views"
+                                            }
+                                          },
+                                          {
+                                            "text": {
+                                              "content": "2 weeks ago"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            },
+                            "contentId": "dNF1ycNTCMY",
+                            "contentType": "LOCKUP_CONTENT_TYPE_VIDEO",
+                            "rendererContext": {
+                              "commandContext": {
+                                "onTap": {
+                                  "innertubeCommand": {
+                                    "watchEndpoint": {
+                                      "videoId": "dNF1ycNTCMY",
+                                      "playlistId": "UUgG7oz-Oq-7Etn0_bz0WimQ"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "lockupViewModel": {
+                            "contentImage": {
+                              "thumbnailViewModel": {
+                                "overlays": [
+                                  {
+                                    "thumbnailBottomOverlayViewModel": {
+                                      "badges": [
+                                        {
+                                          "thumbnailBadgeViewModel": {
+                                            "text": "23:25",
+                                            "rendererContext": {}
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  {}
+                                ]
+                              }
+                            },
+                            "metadata": {
+                              "lockupMetadataViewModel": {
+                                "title": {
+                                  "content": "日本語 not じょうず? I got ya. [JAPANESE COMPREHENSIBLE INPUT for TOTAL BEGINNERS]"
+                                },
+                                "metadata": {
+                                  "contentMetadataViewModel": {
+                                    "metadataRows": [
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "いろいろな日本語",
+                                              "commandRuns": [
+                                                {
+                                                  "onTap": {
+                                                    "innertubeCommand": {
+                                                      "browseEndpoint": {
+                                                        "browseId": "UCgG7oz-Oq-7Etn0_bz0WimQ"
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "2.9K views"
+                                            }
+                                          },
+                                          {
+                                            "text": {
+                                              "content": "1 month ago"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            },
+                            "contentId": "D8Gjurx18Ds",
+                            "contentType": "LOCKUP_CONTENT_TYPE_VIDEO",
+                            "rendererContext": {
+                              "commandContext": {
+                                "onTap": {
+                                  "innertubeCommand": {
+                                    "watchEndpoint": {
+                                      "videoId": "D8Gjurx18Ds",
+                                      "playlistId": "UUgG7oz-Oq-7Etn0_bz0WimQ"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

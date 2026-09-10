@@ -1,0 +1,316 @@
+{
+  "header": {
+    "playlistHeaderRenderer": {
+      "playlistId": "UUbk8eZJU-lrSV3v7R1Gim2A",
+      "title": {}
+    }
+  },
+  "sidebar": {
+    "playlistSidebarRenderer": {
+      "items": [
+        {},
+        {
+          "playlistSidebarSecondaryInfoRenderer": {
+            "videoOwner": {
+              "videoOwnerRenderer": {
+                "title": {
+                  "runs": [
+                    {
+                      "text": "Yuri Shizu",
+                      "navigationEndpoint": {
+                        "browseEndpoint": {
+                          "browseId": "UCbk8eZJU-lrSV3v7R1Gim2A"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "navigationEndpoint": {
+                  "browseEndpoint": {
+                    "browseId": "UCbk8eZJU-lrSV3v7R1Gim2A"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "contents": {
+    "twoColumnBrowseResultsRenderer": {
+      "tabs": [
+        {
+          "tabRenderer": {
+            "selected": true,
+            "content": {
+              "sectionListRenderer": {
+                "contents": [
+                  {
+                    "itemSectionRenderer": {
+                      "contents": [
+                        {
+                          "lockupViewModel": {
+                            "contentImage": {
+                              "thumbnailViewModel": {
+                                "overlays": [
+                                  {
+                                    "thumbnailBottomOverlayViewModel": {
+                                      "badges": [
+                                        {
+                                          "thumbnailBadgeViewModel": {
+                                            "text": "4:23",
+                                            "rendererContext": {}
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  {}
+                                ]
+                              }
+                            },
+                            "metadata": {
+                              "lockupMetadataViewModel": {
+                                "title": {
+                                  "content": "Azusa Breaks Every DBZ Fan’s Brain Part 2【Eng Sub / DBZ Kakarot / Specialite】"
+                                },
+                                "metadata": {
+                                  "contentMetadataViewModel": {
+                                    "metadataRows": [
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "Yuri Shizu",
+                                              "commandRuns": [
+                                                {
+                                                  "onTap": {
+                                                    "innertubeCommand": {
+                                                      "browseEndpoint": {
+                                                        "browseId": "UCbk8eZJU-lrSV3v7R1Gim2A"
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "1.1K views"
+                                            }
+                                          },
+                                          {
+                                            "text": {
+                                              "content": "12 hours ago"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            },
+                            "contentId": "I4S0wR5asxE",
+                            "contentType": "LOCKUP_CONTENT_TYPE_VIDEO",
+                            "rendererContext": {
+                              "commandContext": {
+                                "onTap": {
+                                  "innertubeCommand": {
+                                    "watchEndpoint": {
+                                      "videoId": "I4S0wR5asxE",
+                                      "playlistId": "UUbk8eZJU-lrSV3v7R1Gim2A"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "lockupViewModel": {
+                            "contentImage": {
+                              "thumbnailViewModel": {
+                                "overlays": [
+                                  {
+                                    "thumbnailBottomOverlayViewModel": {
+                                      "badges": [
+                                        {
+                                          "thumbnailBadgeViewModel": {
+                                            "text": "13:26",
+                                            "rendererContext": {}
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  {}
+                                ]
+                              }
+                            },
+                            "metadata": {
+                              "lockupMetadataViewModel": {
+                                "title": {
+                                  "content": "Nui's Reaction: DBZ’s 10-Year Timeskip【Eng Sub / DBZ Kakarot / Nijisanji】"
+                                },
+                                "metadata": {
+                                  "contentMetadataViewModel": {
+                                    "metadataRows": [
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "Yuri Shizu",
+                                              "commandRuns": [
+                                                {
+                                                  "onTap": {
+                                                    "innertubeCommand": {
+                                                      "browseEndpoint": {
+                                                        "browseId": "UCbk8eZJU-lrSV3v7R1Gim2A"
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "2.2K views"
+                                            }
+                                          },
+                                          {
+                                            "text": {
+                                              "content": "14 hours ago"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            },
+                            "contentId": "4KNedOlkkEY",
+                            "contentType": "LOCKUP_CONTENT_TYPE_VIDEO",
+                            "rendererContext": {
+                              "commandContext": {
+                                "onTap": {
+                                  "innertubeCommand": {
+                                    "watchEndpoint": {
+                                      "videoId": "4KNedOlkkEY",
+                                      "playlistId": "UUbk8eZJU-lrSV3v7R1Gim2A"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "lockupViewModel": {
+                            "contentImage": {
+                              "thumbnailViewModel": {
+                                "overlays": [
+                                  {
+                                    "thumbnailBottomOverlayViewModel": {
+                                      "badges": [
+                                        {
+                                          "thumbnailBadgeViewModel": {
+                                            "text": "22:52",
+                                            "rendererContext": {}
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  {}
+                                ]
+                              }
+                            },
+                            "metadata": {
+                              "lockupMetadataViewModel": {
+                                "title": {
+                                  "content": "Lulu's 1st Reaction: Frieza Saga【Eng Sub / DBZ Kakarot / Nijisanji】"
+                                },
+                                "metadata": {
+                                  "contentMetadataViewModel": {
+                                    "metadataRows": [
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "Yuri Shizu",
+                                              "commandRuns": [
+                                                {
+                                                  "onTap": {
+                                                    "innertubeCommand": {
+                                                      "browseEndpoint": {
+                                                        "browseId": "UCbk8eZJU-lrSV3v7R1Gim2A"
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "2.5K views"
+                                            }
+                                          },
+                                          {
+                                            "text": {
+                                              "content": "1 day ago"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            },
+                            "contentId": "nRz_wquDlh8",
+                            "contentType": "LOCKUP_CONTENT_TYPE_VIDEO",
+                            "rendererContext": {
+                              "commandContext": {
+                                "onTap": {
+                                  "innertubeCommand": {
+                                    "watchEndpoint": {
+                                      "videoId": "nRz_wquDlh8",
+                                      "playlistId": "UUbk8eZJU-lrSV3v7R1Gim2A"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "header": {}
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

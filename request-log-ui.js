@@ -12,14 +12,14 @@
     <p class="note">Keeps 7 days of totals and up to 1,000 recent requests locally. Firefox and Chrome have separate logs. Logs are excluded from profile backups; exported logs include the public channel and video addresses requested.</p>
     <div class="actions"><button type="button" class="secondary" id="request-log-export">Export request log</button><button type="button" class="secondary" id="request-log-clear">Clear request log</button><span id="request-log-message" role="status"></span></div><p id="request-log-warning" role="status"></p>`;
   document.querySelector('[data-view="settings"]').append(section);
-  const byId=id=>section.querySelector('#request-log-'+id),names={feed:'Upload feeds',video:'Video details and views',channel:'Channel lookups',other:'Other lookups'};
-  const reasons={'group-refresh':'Group uploads','background-refresh':'Background uploads','manual-refresh':'Manual upload refresh',shorts:'Shorts check','video-details':'Video details','views-and-details':'Views / video details','channel-lookup':'Channel lookup','channel-portrait':'Channel portrait lookup'};
+  const byId=id=>section.querySelector('#request-log-'+id),names={feed:'Upload checks',video:'Video details and views',channel:'Channel lookups',other:'Other lookups'};
+  const reasons={'group-refresh':'Group uploads','background-refresh':'Background uploads','manual-refresh':'Manual upload refresh','uploads-page-fallback':'Uploads-page fallback',shorts:'Shorts check','video-details':'Video details','views-and-details':'Views / video details','channel-lookup':'Channel lookup','channel-portrait':'Channel portrait lookup'};
   let latest,channels={},videos=new Map(),revision=0,timer;
   const count=value=>(value||0).toLocaleString(),empty=()=>({started:0,failed:0,background:0,cache:0,cooldown:0,reused:0,cancelled:0,statuses:{}});
   function add(total,value){for(const k of Object.keys(empty()))if(k!=='statuses')total[k]+=value[k]||0;for(const [status,n]of Object.entries(value.statuses||{}))total.statuses[status]=(total.statuses[status]||0)+n;return total;}
   function cell(row,text){const td=document.createElement('td');td.textContent=text;row.append(td);return td;}
   function row(body,values){const tr=document.createElement('tr');for(const value of values)cell(tr,value);body.append(tr);return tr;}
-  function target(entry){try{const u=new URL(entry.url),id=u.searchParams.get('channel_id')||u.pathname.match(/^\/channel\/(UC[^/]+)$/)?.[1],video=u.searchParams.get('v');return channels[id]?.name||videos.get(video)||id||video||decodeURI(u.pathname);}catch{return 'Lookup';}}
+  function target(entry){try{const u=new URL(entry.url),id=u.searchParams.get('channel_id')||(/^UU[A-Za-z0-9_-]{22}$/.test(u.searchParams.get('list')||'')?'UC'+u.searchParams.get('list').slice(2):null)||u.pathname.match(/^\/channel\/(UC[^/]+)$/)?.[1],video=u.searchParams.get('v');return channels[id]?.name||videos.get(video)||id||video||decodeURI(u.pathname);}catch{return 'Lookup';}}
   function render(){
     if(!latest)return;const today=Ledger.dayKey(Date.now()),selected=Object.entries(latest.days).filter(([day])=>byId('period').value==='week'||day===today),total=empty(),types={};
     for(const [,values]of selected)for(const [kind,value]of Object.entries(values)){add(total,value);add(types[kind]||(types[kind]=empty()),value);}

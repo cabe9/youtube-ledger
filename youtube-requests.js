@@ -6,7 +6,7 @@ globalThis.YouTubeRequests = (() => {
     const pausedUntil=state.pausedUntil>Date.now()?state.pausedUntil:0;
     if(!pausedUntil)return {pausedUntil:0,pauseScope:'all',pauseReason:'unknown',pauseMessage:''};
     const time=new Date(pausedUntil).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
-    const reason={'feed-failures':'Several channel upload feeds failed.','feed-not-found':'Three channel upload feeds returned HTTP 404 without a successful feed check.','http-403':'YouTube returned HTTP 403.','http-429':'YouTube returned HTTP 429.','retry-after':'YouTube asked Ledger to wait before retrying.'}[state.pauseReason]||'A previous cooldown is still active.';
+    const reason={'feed-failures':'Several channel upload feeds failed.','feed-not-found':'Three channel upload checks returned HTTP 404 without a successful upload check.','http-403':'YouTube returned HTTP 403.','http-429':'YouTube returned HTTP 429.','retry-after':'YouTube asked Ledger to wait before retrying.'}[state.pauseReason]||'A previous cooldown is still active.';
     const pauseMessage=(state.pauseScope==='automatic'?'Automatic ':'')+'YouTube checks are paused until '+time+'. '+reason+(state.pauseScope==='automatic'?' You can still add channels manually.':'');
     return {pausedUntil,pauseScope:state.pauseScope,pauseReason:state.pauseReason,pauseMessage};
   }
@@ -45,6 +45,9 @@ globalThis.YouTubeRequests = (() => {
       }
       return;
     }
+    // An eligible RSS failure has one paced uploads-page fallback. Count the
+    // completed channel check toward the failure guard; explicit refusals still stop immediately.
+    if(options.deferFeedFailure&&globalThis.UploadsPage?.eligible(error))return;
     state.successes=0;
     if(options.kind==='feed'&&typeof options.id==='string')state.failures.push({id:options.id,at:now,status:error.youtubeStatus||0});
     const missingFeeds=state.failures.filter(v=>v.status===404).length;
@@ -79,7 +82,7 @@ globalThis.YouTubeRequests = (() => {
       queue.sort((a,b)=>(b.options.priority||0)-(a.options.priority||0));
       const job=queue[0];if(!job)return;
       // Foreground work can move ahead of background work even during a wait.
-      const spacing=job.options.priority>=2?2000:10000;
+      const spacing=Math.max(job.options.priority>=2?2000:10000,job.options.minSpacing||0);
       const wait=state.lastStartedAt+spacing-Date.now();
       if(wait>0){timer=setTimeout(()=>{timer=null;wake();},wait);return;}
       queue.shift();

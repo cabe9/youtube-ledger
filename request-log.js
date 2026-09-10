@@ -1,7 +1,7 @@
 /* Local diagnostics for Ledger lookups only. No telemetry or extra network calls. */
 globalThis.YouTubeRequestLog=(()=>{
   const key='youtubeRequestLog:v1',limit=1000,retention=7;
-  const kinds=['feed','video','channel'],reasons=['group-refresh','background-refresh','manual-refresh','shorts','video-details','views-and-details','channel-lookup','channel-portrait'];
+  const kinds=['feed','video','channel'],reasons=['group-refresh','background-refresh','manual-refresh','uploads-page-fallback','shorts','video-details','views-and-details','channel-lookup','channel-portrait'];
   let state,loading,pending=Promise.resolve(),flushTimer,storageWarning='';
   const day=at=>{const d=new Date(at);return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');};
   function prune(){
@@ -41,6 +41,7 @@ globalThis.YouTubeRequestLog=(()=>{
     try{const u=new URL(url);if(u.protocol!=='https:'||!['www.youtube.com','m.youtube.com'].includes(u.hostname))return '';
       if(u.pathname==='/watch')return u.origin+u.pathname+'?v='+encodeURIComponent(u.searchParams.get('v')||'');
       if(u.pathname==='/feeds/videos.xml')return u.origin+u.pathname+'?channel_id='+encodeURIComponent(u.searchParams.get('channel_id')||'');
+      if(u.pathname==='/playlist'&&/^UU[A-Za-z0-9_-]{22}$/.test(u.searchParams.get('list')||''))return u.origin+u.pathname+'?list='+u.searchParams.get('list');
       return (u.origin+u.pathname).slice(0,400);
     }catch{return '';}
   }
