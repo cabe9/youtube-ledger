@@ -86,9 +86,9 @@ globalThis.ChannelGroups = (() => {
   async function resolve(input,background=false) {
     const request = target(input);
     const cached = resolutions.get(request.url);
-    if (cached && Date.now()-cached.at < 5*60*1000) return cached.value;
-    const operation=async()=>{
-      const response = await fetch(request.url,{credentials:'omit',signal:AbortSignal.timeout(15000)});
+    if (cached && Date.now()-cached.at < 5*60*1000){globalThis.YouTubeRequestLog?.skip({kind:'channel'},'cache');return cached.value;}
+    const operation=async(fetchRequest=fetch)=>{
+      const response = await fetchRequest(request.url,{credentials:'omit',signal:AbortSignal.timeout(15000)});
       globalThis.YouTubeRequests?.checkResponse(response);
       if (!response.ok) throw new Error('YouTube could not load that channel. Try again shortly.');
       const end = new URL(response.url);
@@ -97,7 +97,7 @@ globalThis.ChannelGroups = (() => {
       if (html.length > 8000000) throw new Error('The YouTube response was too large. Try the channel URL.');
       return parsePage(html,request);
     };
-    const value=globalThis.YouTubeRequests?await YouTubeRequests.run(operation,{priority:background?0:3,kind:'channel',id:request.url}):await operation();
+    const value=globalThis.YouTubeRequests?await YouTubeRequests.run(operation,{priority:background?0:3,kind:'channel',reason:background?'channel-portrait':'channel-lookup',id:request.url}):await operation();
     if (resolutions.size >= 100) resolutions.clear();
     resolutions.set(request.url,{at:Date.now(),value});
     return value;

@@ -64,6 +64,21 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   await manager.getByRole('status').filter({hasText:/YouTube checks are paused until .*HTTP 403/}).waitFor();
   assert.equal((await worker.evaluate(()=>channelRequests)).length,2,'A server refusal blocks subsequent additions');
   const allTimes=await worker.evaluate(()=>requestTimes);assert.ok(allTimes.slice(1).every((at,i)=>at-allTimes[i]>=1950));
+  const diagnostic=await worker.evaluate(()=>YouTubeRequestLog.snapshot());
+  assert.equal(diagnostic.recent.length,allTimes.length,'Only real fetch attempts count');
+  assert.equal(diagnostic.recent.filter(e=>e.status===404).length,3);assert.equal(diagnostic.recent.filter(e=>e.status===403).length,1);
+  const attemptsBefore=allTimes.length;
+  await dashboard.goto(new URL('dashboard.html#settings',worker.url()).href);
+  const log=dashboard.locator('#request-log');await log.getByRole('heading',{name:'YouTube requests'}).waitFor();
+  await dashboard.waitForFunction(()=>document.querySelector('#request-log-stats strong')?.textContent==='6');
+  assert.equal(await log.locator('#request-log-rows tr').count(),6);assert.match(await log.locator('#request-log-results').textContent(),/HTTP 404 × 3/);
+  const downloadPromise=dashboard.waitForEvent('download');await log.getByRole('button',{name:'Export request log'}).click();const exported=JSON.parse(fs.readFileSync(await (await downloadPromise).path(),'utf8'));assert.equal(exported.recent.length,6);
+  await dashboard.setViewportSize({width:1200,height:1000});await log.scrollIntoViewIfNeeded();await log.screenshot({path:'/tmp/ledger-request-log-desktop.png'});
+  await dashboard.setViewportSize({width:390,height:844});await log.screenshot({path:'/tmp/ledger-request-log-mobile.png'});assert.equal(await dashboard.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Log must not widen the mobile page');
+  await dashboard.reload();await dashboard.waitForFunction(()=>document.querySelector('#request-log-stats strong')?.textContent==='6');
+  const pauseBefore=await worker.evaluate(async()=> (await YouTubeRequests.status()).pausedUntil);
+  await log.getByRole('button',{name:'Clear request log'}).click();await dashboard.waitForFunction(()=>document.querySelector('#request-log-stats strong')?.textContent==='0');
+  assert.equal(await worker.evaluate(async()=> (await YouTubeRequests.status()).pausedUntil),pauseBefore);assert.equal((await worker.evaluate(()=>requestTimes)).length,attemptsBefore,'Viewing/exporting/clearing diagnostics never contacts YouTube');
   assert.deepEqual(errors,[]);console.log('PASS: isolated 404 retries and early pauses for three consecutive 404s, paced refreshes, cached image stability, immediate cached reload, manual additions during feed pauses, and server refusals shown in the group editor.');
  }finally{await context?.close();fs.rmSync(profile,{recursive:true,force:true});}
 })().catch(error=>{console.error(error);process.exitCode=1;});

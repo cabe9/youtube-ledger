@@ -73,7 +73,7 @@ globalThis.YouTubeRequests = (() => {
         // addition. Server refusals and Retry-After still stop every lookup.
         for(let i=queue.length-1;i>=0;i--){
           const job=queue[i],manual=job.options.kind==='channel'&&job.options.priority>=3;
-          if(state.pauseScope!=='automatic'||!manual){queue.splice(i,1);job.reject(cooldownError());}
+          if(state.pauseScope!=='automatic'||!manual){queue.splice(i,1);globalThis.YouTubeRequestLog?.skip(job.options,'cooldown');job.reject(cooldownError());}
         }
       }else{state.pausedUntil=0;state.pauseReason='unknown';state.pauseScope='all';}
       queue.sort((a,b)=>(b.options.priority||0)-(a.options.priority||0));
@@ -83,12 +83,12 @@ globalThis.YouTubeRequests = (() => {
       const wait=state.lastStartedAt+spacing-Date.now();
       if(wait>0){timer=setTimeout(()=>{timer=null;wake();},wait);return;}
       queue.shift();
-      if(job.options.cancelled?.()){job.resolve();return;}
+      if(job.options.cancelled?.()){globalThis.YouTubeRequestLog?.skip(job.options,'cancelled');job.resolve();return;}
       state.lastStartedAt=Date.now();
       try{
         // Persist pacing before the request, including across worker restarts.
         await save();
-        const value=await job.operation();record(null,job.options);await save();job.resolve(value);
+        const value=await (globalThis.YouTubeRequestLog?YouTubeRequestLog.run(job.operation,job.options):job.operation(globalThis.fetch));record(null,job.options);await save();job.resolve(value);
       }catch(error){record(error,job.options);await save().catch(()=>{});job.reject(error);}
     }catch(error){for(const job of queue.splice(0))job.reject(error);}
     finally{busy=false;if(queue.length&&!timer)wake();}
@@ -96,5 +96,5 @@ globalThis.YouTubeRequests = (() => {
   function run(operation,options={}){
     return new Promise((resolve,reject)=>{queue.push({operation,options,resolve,reject});wake();});
   }
-  return {key,run,wake,checkResponse,async status(){await ready();return pauseInfo();}};
+  return {key,run,wake,checkResponse,async status(){await ready();return pauseInfo();},async diagnostics(){await ready();return {...pauseInfo(),queued:queue.length,busy};}};
 })();

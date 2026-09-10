@@ -43,6 +43,12 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
    try{await ChannelGroups.handle({type:'channelGroups:resolve',input:'https://www.youtube.com/channel/UC'+'f'.repeat(22)},sender);throw Error('Expected a cooldown');}catch(error){verify(error.name==='YouTubeCooldownError'&&error.message.includes('HTTP 403'),'Cooldown must explain the server refusal');}
    verify(calls.length===10&&(await YouTubeRequests.status()).pauseScope==='all','Server refusal must stop subsequent manual requests');
    verify(peak===1&&calls.slice(1).every((call,i)=>call.at-calls[i].at>=1950),'Requests must not overlap or start too closely');
+   const diagnostic=await YouTubeRequestLog.snapshot();
+   verify(diagnostic.recent.length===calls.length,'Diagnostic count must match actual fetch calls');
+   verify(diagnostic.recent.filter(e=>e.status===404).length===3&&diagnostic.recent.filter(e=>e.status===403).length===1,'Diagnostic HTTP failures must be exact');
+   verify(Object.values(diagnostic.days).flatMap(Object.values).reduce((n,v)=>n+v.started,0)===calls.length,'Diagnostic totals must exclude cache and cooldown skips');
+   await YouTubeRequestLog.handle({type:'requestLog:clear'},{url:browser.runtime.getURL('dashboard.html')});
+   verify(calls.length===10&&(await YouTubeRequests.status()).pauseScope==='all','Clearing diagnostics must not clear cooldown or send requests');
    await browser.storage.local.set({'test:result':{ok:true,requests:calls.length,peak,cachedVideos:paused.entries.length}});
   }catch(error){await browser.storage.local.set({'test:result':{ok:false,error:String(error.message||error)+' '+String(error.stack||'')}});}
   await browser.tabs.create({url:browser.runtime.getURL('test-result.html')});

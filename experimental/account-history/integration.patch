@@ -74,8 +74,8 @@
 +</div>
  </section>
  <footer><span>Playback sampled about once a second. Summaries update every five seconds.</span><button class="danger" id="clear" hidden>Delete this day</button></footer>
--</main><script src="compat.js"></script><script src="core.js"></script><script src="media-ui.js"></script><script src="dashboard.js"></script><script src="settings.js"></script><script src="trends.js"></script><script src="review-period.js"></script><script src="gif-codec.js"></script><script src="gif-resize.js"></script><script src="group-icons.js"></script><script src="undo-ui.js"></script><script src="groups-ui.js"></script><script src="groups-dashboard.js"></script><script src="backup-ui.js"></script><script src="recording-ui.js"></script></body></html>
-+</main><script src="compat.js"></script><script src="core.js"></script><script src="media-ui.js"></script><script src="account-history.js"></script><script src="dashboard.js"></script><script src="settings.js"></script><script src="trends.js"></script><script src="account-history-ui.js"></script><script src="review-period.js"></script><script src="gif-codec.js"></script><script src="gif-resize.js"></script><script src="group-icons.js"></script><script src="undo-ui.js"></script><script src="groups-ui.js"></script><script src="groups-dashboard.js"></script><script src="backup-ui.js"></script><script src="recording-ui.js"></script></body></html>
+-</main><script src="compat.js"></script><script src="core.js"></script><script src="media-ui.js"></script><script src="dashboard.js"></script><script src="settings.js"></script><script src="trends.js"></script><script src="review-period.js"></script><script src="gif-codec.js"></script><script src="gif-resize.js"></script><script src="group-icons.js"></script><script src="undo-ui.js"></script><script src="groups-ui.js"></script><script src="groups-dashboard.js"></script><script src="request-log-ui.js"></script><script src="backup-ui.js"></script><script src="recording-ui.js"></script></body></html>
++</main><script src="compat.js"></script><script src="core.js"></script><script src="media-ui.js"></script><script src="account-history.js"></script><script src="dashboard.js"></script><script src="settings.js"></script><script src="trends.js"></script><script src="account-history-ui.js"></script><script src="review-period.js"></script><script src="gif-codec.js"></script><script src="gif-resize.js"></script><script src="group-icons.js"></script><script src="undo-ui.js"></script><script src="groups-ui.js"></script><script src="groups-dashboard.js"></script><script src="request-log-ui.js"></script><script src="backup-ui.js"></script><script src="recording-ui.js"></script></body></html>
 --- a/dashboard.js
 +++ b/dashboard.js
 @@ -14,6 +14,7 @@
@@ -149,8 +149,8 @@
 --- a/service-worker.js
 +++ b/service-worker.js
 @@ -1 +1 @@
--importScripts('compat.js','core.js','ledger-storage.js','ledger-undo.js','watch-status.js','group-icons.js','youtube-requests.js','channel-groups.js','group-sharing.js','group-feeds.js','feed-library.js','group-queue.js','source-contexts.js','backup.js','recording.js','background.js');
-+importScripts('compat.js','core.js','ledger-storage.js','ledger-undo.js','watch-status.js','group-icons.js','youtube-requests.js','channel-groups.js','group-sharing.js','group-feeds.js','feed-library.js','group-queue.js','source-contexts.js','backup.js','recording.js','account-history.js','account-history-parser.js','account-history-rpc.js','account-history-source.js','account-history-sync.js','background.js');
+-importScripts('compat.js','core.js','ledger-storage.js','ledger-undo.js','watch-status.js','group-icons.js','request-log.js','youtube-requests.js','channel-groups.js','group-sharing.js','group-feeds.js','feed-library.js','group-queue.js','source-contexts.js','backup.js','recording.js','background.js');
++importScripts('compat.js','core.js','ledger-storage.js','ledger-undo.js','watch-status.js','group-icons.js','request-log.js','youtube-requests.js','channel-groups.js','group-sharing.js','group-feeds.js','feed-library.js','group-queue.js','source-contexts.js','backup.js','recording.js','account-history.js','account-history-parser.js','account-history-rpc.js','account-history-source.js','account-history-sync.js','background.js');
 --- a/trends.js
 +++ b/trends.js
 @@ -22,7 +22,7 @@

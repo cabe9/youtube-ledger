@@ -8,7 +8,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 ROOT = Path(__file__).resolve().parent
 FILES = ['LICENSE', 'compat.js', 'core.js', 'background.js', 'content.js',
-         'youtube-requests.js', 'media-ui.js', 'group-icons.js', 'channel-groups.js', 'group-sharing.js', 'groups-ui.js', 'groups-content.js', 'groups-dashboard.js',
+         'request-log.js', 'request-log-ui.js', 'youtube-requests.js', 'media-ui.js', 'group-icons.js', 'channel-groups.js', 'group-sharing.js', 'groups-ui.js', 'groups-content.js', 'groups-dashboard.js',
          'group-feeds.js', 'groups-feed.js', 'watch-source.js', 'watch-later-content.js',
          'recommendations.js', 'recommendations.css', 'dashboard.html',
          'dashboard.css', 'frutiger-aero.css', 'settings.js', 'trends.js', 'dashboard.js',

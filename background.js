@@ -11,6 +11,7 @@ browser.runtime.onMessage.addListener((message, sender) => {
   if(message?.type?.startsWith('backup:'))return LedgerBackup.handle(message,sender).catch(error=>({error:String(error.message)}));
   if(message?.type?.startsWith('sourceContext:'))return SourceContexts.handle(message,sender).catch(()=>null);
   if(message?.type?.startsWith('recording:'))return LedgerRecording.handle(message,sender);
+  if(message?.type?.startsWith('requestLog:'))return YouTubeRequestLog.handle(message,sender).then(async log=>({...log,queue:await YouTubeRequests.diagnostics()})).catch(error=>({error:String(error.message)}));
   const task = async () => {
     if (message.type === 'recommendation') {
       if (!sender.tab || sender.tab.incognito || !/^https:\/\/(www|m)\.youtube\.com\//.test(sender.url || '')) return;

@@ -4,7 +4,7 @@ globalThis.GroupFeeds = (() => {
   const channelPattern=/^UC[A-Za-z0-9_-]{22}$/, videoPattern=/^[A-Za-z0-9_-]{11}$/;
   let writes=Promise.resolve(), launchWrites=Promise.resolve();
   const inFlight=new Map(),activeGroups=new Map();let epoch=0,checkingAll=null;
-  const network=(run,options)=>globalThis.YouTubeRequests?YouTubeRequests.run(run,options):run();
+  const network=(run,options)=>globalThis.YouTubeRequests?YouTubeRequests.run(run,options):run(fetch);
   const detailJobs=new Map(),detailQueue=[];let detailActive=0;
   function decode(text){
     return text.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,(_,value)=>value).replace(/&(#x[\da-f]+|#\d+|amp|quot|apos|lt|gt);/gi,(_,entity)=>{
@@ -82,7 +82,7 @@ globalThis.GroupFeeds = (() => {
     if(detailJobs.has(identity)){const job=detailJobs.get(identity);job.shortsFirst||=shortsFirst;if(foreground){job.options.priority=2;globalThis.YouTubeRequests?.wake();}return job.promise;}
     // Multiple tabs share this bounded queue, in addition to their visible-card limit.
     if(detailQueue.length>=48)return Promise.reject(new Error('Video metadata is busy.'));
-    const job={shortsFirst,options:{priority:foreground?2:0,kind:'video',id:videoId,cancelled:()=>version!==epoch}};const task=new Promise((resolve,reject)=>{Object.assign(job,{resolve,reject,run:async()=>{
+    const job={shortsFirst,options:{priority:foreground?2:0,kind:'video',reason:shortsFirst?'shorts':checkViews?'views-and-details':'video-details',id:videoId,cancelled:()=>version!==epoch}};const task=new Promise((resolve,reject)=>{Object.assign(job,{resolve,reject,run:async()=>{
       if(version!==epoch)return;
       let stored=await browser.storage.local.get([key,ChannelGroups.key]);
       // One upload-feed request can fill fifteen counts. Reuse an ongoing refresh
@@ -96,8 +96,8 @@ globalThis.GroupFeeds = (() => {
       if(!entry||!groups.length||!Ledger.videoDetailsDue(entry.details,Date.now(),groups.some(g=>g.hideShorts===true))&&!(checkViews&&Ledger.videoViewsDue(entry)))return;
       let details={status:'unavailable',checkedAt:Date.now(),shorts:'unknown'},views;
       try{
-        const result=await network(async()=>{
-          const response=await fetch('https://www.youtube.com/watch?v='+videoId,{credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(15000)});
+        const result=await network(async(fetchRequest)=>{
+          const response=await fetchRequest('https://www.youtube.com/watch?v='+videoId,{credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(15000)});
           globalThis.YouTubeRequests?.checkResponse(response);
           const final=new URL(response.url);
           if(!response.ok||final.origin!=='https://www.youtube.com'||final.pathname!=='/watch'||final.searchParams.get('v')!==videoId)throw new Error('Video page unavailable.');
@@ -131,21 +131,22 @@ globalThis.GroupFeeds = (() => {
   async function getChannelUploads(channelId,force=false,background=false){
     if(!channelPattern.test(channelId))throw new Error('Choose a valid channel.');
     if(inFlight.has(channelId)){
+      globalThis.YouTubeRequestLog?.skip({kind:'feed'},'reused');
       const job=inFlight.get(channelId);
       if(!background){job.options.priority=2;globalThis.YouTubeRequests?.wake();}
       return job.promise;
     }
-    const version=epoch,options={priority:background?0:2,kind:'feed',id:channelId,cancelled:()=>version!==epoch};
+    const version=epoch,options={priority:background?0:2,kind:'feed',reason:background?'background-refresh':force?'manual-refresh':'group-refresh',id:channelId,cancelled:()=>version!==epoch};
     const task=(async()=>{
       const stored=(await browser.storage.local.get(key))[key]?.channels[channelId];
       if(version!==epoch)return;
       const now=Date.now(),due=stored?.error?Math.max(stored.retryAt||0,(stored.attemptedAt||0)+(options.priority>=2?15*60000:backgroundTTL)):(stored?.attemptedAt||0)+(options.priority>=2?ttl:backgroundTTL);
       // Manual refresh may update healthy feeds sooner, but never bypass failure cooldowns.
-      if(stored&&(stored.error?now<Math.max(due,stored.retryAfter||0):force?now<(stored.attemptedAt||0)+60000:!needsViewUpgrade(stored)&&now<due))return;
+      if(stored&&(stored.error?now<Math.max(due,stored.retryAfter||0):force?now<(stored.attemptedAt||0)+60000:!needsViewUpgrade(stored)&&now<due)){globalThis.YouTubeRequestLog?.skip(options,stored.error?'cooldown':'cache');return;}
       let entries,error='',retryAfter=0;
       try{
-        entries=await network(async()=>{
-          const response=await fetch('https://www.youtube.com/feeds/videos.xml?channel_id='+channelId,{credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(15000)});
+        entries=await network(async(fetchRequest)=>{
+          const response=await fetchRequest('https://www.youtube.com/feeds/videos.xml?channel_id='+channelId,{credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(15000)});
           try{globalThis.YouTubeRequests?.checkResponse(response);}catch(e){
             const message=response.status===429?'YouTube is limiting upload checks':response.status>=500?'YouTube’s upload feed is temporarily unavailable':response.status===404?'YouTube could not find this upload feed':response.status===403?'YouTube refused this upload feed':'YouTube could not refresh this channel';
             e.message=message+' (HTTP '+response.status+').';throw e;

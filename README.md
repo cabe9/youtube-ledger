@@ -4,13 +4,13 @@ A local YouTube usage tracker for **Chrome and Firefox**. Records video titles, 
 
 ## Install
 
-Download the **0.16.20** package for your browser below. These ZIPs are ready
+Download the **0.16.21** package for your browser below. These ZIPs are ready
 to install; no build tools are needed. For development, clone the repository
 and follow [Build and test](#build-and-test).
 
 ### Chrome
 
-1. Download [the Chrome ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.20/youtube-ledger-chrome-store-0.16.20.zip) and extract it to a permanent folder.
+1. Download [the Chrome ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.21/youtube-ledger-chrome-store-0.16.21.zip) and extract it to a permanent folder.
 2. Open `chrome://extensions` and enable **Developer mode**.
 3. Click **Load unpacked** and select the extracted folder.
 4. Pin YouTube Ledger, refresh existing YouTube tabs, and click the extension icon for the dashboard.
@@ -19,7 +19,7 @@ Keep the folder in place. The installation survives browser restarts. To update,
 
 ### Firefox
 
-1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.20/youtube-ledger-firefox-store-0.16.20.zip).
+1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.21/youtube-ledger-firefox-store-0.16.21.zip).
 2. Open `about:debugging#/runtime/this-firefox`.
 3. Click **Load Temporary Add-on** and select the extracted `manifest.json`.
 4. Refresh YouTube tabs and open YouTube Ledger from the extension toolbar.
@@ -119,7 +119,7 @@ npm run test:features
 
 Installable downloads live in [GitHub Releases](https://github.com/cabe9/youtube-ledger/releases/latest); generated ZIPs are not committed to the source tree.
 
-`build.py` defaults to store packages, cleans `dist/chrome` and `dist/firefox`, and produces `youtube-ledger-{browser}-store-0.16.20.zip`. Experimental output goes under `dist/experimental/` with explicitly named `-experimental-` ZIPs. `package-check.py` scans both store archives for excluded code, UI, permissions and references, and checks that stale output files cannot leak into them. UI and recommendation checks use installed Google Chrome. The Chrome integration check uses Playwright's Chrome for Testing in a disposable profile, with an actual unpacked extension and controlled YouTube HTML/media fixtures. After building, `npm run test:group-images:firefox` tests file uploads with the actual extension on live YouTube in a disposable Firefox profile, including animated GIFs, still-image resizing, rejection of invalid/oversize files, and reload persistence. It uses WebDriver BiDi (Node 22+ and Firefox 140+); `FIREFOX_BIN` can select the Firefox executable.
+`build.py` defaults to store packages, cleans `dist/chrome` and `dist/firefox`, and produces `youtube-ledger-{browser}-store-0.16.21.zip`. Experimental output goes under `dist/experimental/` with explicitly named `-experimental-` ZIPs. `package-check.py` scans both store archives for excluded code, UI, permissions and references, and checks that stale output files cannot leak into them. UI and recommendation checks use installed Google Chrome. The Chrome integration check uses Playwright's Chrome for Testing in a disposable profile, with an actual unpacked extension and controlled YouTube HTML/media fixtures. After building, `npm run test:group-images:firefox` tests file uploads with the actual extension on live YouTube in a disposable Firefox profile, including animated GIFs, still-image resizing, rejection of invalid/oversize files, and reload persistence. It uses WebDriver BiDi (Node 22+ and Firefox 140+); `FIREFOX_BIN` can select the Firefox executable.
 
 Verified: aggregation, paused-tab exclusion, recommendation event storage, UI behavior, content-script injection, real media playback tracking, recommendation controls, purpose labels, pause, data persistence across a full Chrome restart, and worker messaging after restart. Live YouTube layouts and the user's exact theme still require real-world validation.
 
@@ -230,3 +230,5 @@ Version 0.16.18 spaces all public feed, video-detail and channel-portrait lookup
 Version 0.16.19 keeps manual channel additions available when several ordinary upload-feed failures pause automatic checks. Additions still share the paced queue. HTTP 403/429 and server Retry-After continue to pause all lookups, including manual additions. Cooldown messages now show the reason and retry time. Existing cooldowns without a recorded cause retain their original scope until expiry. Checks: scheduler regression tests and packaged Chrome/Firefox checks using synthetic responses.
 
 Version 0.16.20 keeps isolated HTTP 404 upload-feed errors from triggering the three-failure automatic pause. Missing feeds retain their individual retry backoff and cached videos; other channels continue refreshing. Three failed feeds within five minutes without a successful feed check still pause automatic work; when all three returned HTTP 404, the message identifies that response explicitly. This stops the sweep early if the first three channels all fail. Three distinct non-404 feed failures and explicit HTTP 403/429 or Retry-After protections remain in place. Existing active cooldowns retain their scope until expiry. Checks: scheduler/feed regression tests and packaged Chrome/Firefox checks using synthetic 404, 503 and 403 responses.
+
+Version 0.16.21 adds Settings → YouTube requests. Seven days of local daily totals show actual Ledger fetch attempts by feed, video metadata, and channel lookup, including background priority and failed results. Up to 1,000 recent requests retain timestamps, purpose, public target addresses, HTTP status and elapsed time; the UI shows the latest 100 in the selected period. Cache checks, deduplicated feeds, cancellations and cooldown stops are counted separately without inventing network calls. Interrupted lookups retain an unknown result. These diagnostics exclude playback, images, YouTube’s own requests and other extensions; redirects/browser-cache responses remain one fetch attempt. Counts begin after installing this update, stay separate in each browser, are omitted from profile backups, and can be exported or cleared without resetting cooldowns. Logging adds no network calls. Checks: request-log unit tests and packaged Firefox/Chrome refresh checks.
