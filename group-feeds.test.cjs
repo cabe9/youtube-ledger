@@ -123,3 +123,31 @@ test('failed-only retry excludes healthy channels and invalidation cancels pendi
  await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',failedOnly:true,force:true},s.sender));assert.equal(calls.length,1);
  const before=structuredClone(s.data['channelUploads:v1']),tasks=s.ids.map(id=>s.feeds.getChannelUploads(id));await refreshTurn();s.feeds.invalidate();await s.finish(Promise.all(tasks));assert.equal(calls.length,1);assert.deepEqual(s.data['channelUploads:v1'],before);
 });
+test('explicit cooldown retry checks only its group despite saved error backoffs, retains cache, and deduplicates clicks',async()=>{
+ const s=refreshHarness(5),until=s.clock.now+7200000,calls=[];
+ s.data['youtubeRequests:v1']={pausedUntil:until,pauseScope:'automatic',pauseReason:'feed-failures'};
+ for(const id of s.ids)s.data['channelUploads:v1'].channels[id]={attemptedAt:s.clock.now,error:'HTTP 404',retryAt:until,retryAfter:until,entries:[{videoId:'a'.repeat(11),channelId:id,title:'Saved',publishedAt:1}]};
+ const outside=structuredClone(s.cache(s.ids[0]));s.box.fetch=async url=>{calls.push({id:new URL(url).searchParams.get('channel_id'),at:s.clock.now});return s.response(url);};
+ await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'other',force:true},s.sender));assert.equal(calls.length,0);
+ const message={type:'groupFeed:retryCooldown',groupId:'other',pausedUntil:until};
+ const results=await s.finish(Promise.all([s.feeds.handle(message,s.sender),s.feeds.handle(message,s.sender)]));assert.equal(results.filter(r=>r.retried).length,1);
+ assert.deepEqual(calls.map(c=>c.id),s.ids.slice(2));assert.deepEqual(calls.slice(1).map((c,i)=>c.at-calls[i].at),[10000,10000]);
+ assert.deepEqual(s.cache(s.ids[0]),outside);for(const id of s.ids.slice(2)){assert.equal(s.cache(id).error,'');assert.equal(s.cache(id).entries.length,1);}
+ await s.finish(s.feeds.handle(message,s.sender));assert.equal(calls.length,3);
+});
+test('a retry stops on the next server refusal or after three more failed channel checks',async()=>{
+ for(const status of [429,500]){
+  const s=refreshHarness(25),until=s.clock.now+900000;let calls=0;
+  s.data['youtubeRequests:v1']={pausedUntil:until,pauseScope:'automatic',pauseReason:'feed-failures'};
+  s.box.fetch=async url=>{calls++;return s.response(url,status);};
+  await s.finish(s.feeds.handle({type:'groupFeed:retryCooldown',groupId:'all',pausedUntil:until},s.sender));
+  assert.equal(calls,status===429?1:3);assert.ok((await s.box.YouTubeRequests.status()).pausedUntil>s.clock.now);
+ }
+});
+test('retry validates the sender and group before clearing the cooldown',async()=>{
+ const s=refreshHarness(),until=s.clock.now+900000;s.data['youtubeRequests:v1']={pausedUntil:until,pauseScope:'automatic',pauseReason:'feed-failures'};
+ const message={type:'groupFeed:retryCooldown',groupId:'all',pausedUntil:until};
+ await assert.rejects(s.feeds.handle(message,{url:'https://evil.test/',tab:{id:1}}),/cannot open/);
+ await assert.rejects(s.feeds.handle({...message,groupId:'missing'},s.sender),/no longer exists/);
+ assert.equal((await s.box.YouTubeRequests.status()).pausedUntil,until);
+});

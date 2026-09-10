@@ -130,3 +130,30 @@ test('cancelled queued work never sends a request and does not lose its promise'
  await s.finish(s.box.YouTubeRequests.run(async()=>{},{}));
  const task=s.box.YouTubeRequests.run(()=>calls++,{cancelled:()=>cancelled});await turn();cancelled=true;await s.finish(task);assert.equal(calls,0);
 });
+test('an explicit local reset persists, preserves pacing and escalation, and ignores repeated or stale clicks',async()=>{
+ const s=harness(),until=s.clock.now+7200000;
+ s.data['youtubeRequests:v1']={pausedUntil:until,pauseScope:'automatic',pauseReason:'feed-failures',level:3,lastStartedAt:s.clock.now,failures:[{id:'old',at:s.clock.now,status:500}]};
+ assert.equal(await s.finish(s.box.YouTubeRequests.retryCooldown(until+1)),false);
+ const resets=await s.finish(Promise.all([s.box.YouTubeRequests.retryCooldown(until),s.box.YouTubeRequests.retryCooldown(until)]));
+ assert.deepEqual(resets.sort(),[false,true]);
+ assert.equal(s.data['youtubeRequests:v1'].lastStartedAt,s.clock.now);assert.equal(s.data['youtubeRequests:v1'].level,3);assert.equal(s.data['youtubeRequests:v1'].failures.length,0);
+ s.load('youtube-requests.js');assert.equal((await s.box.YouTubeRequests.status()).pausedUntil,0);
+ const start=s.clock.now;
+ for(let i=0;i<3;i++)await assert.rejects(s.finish(s.box.YouTubeRequests.run(()=>s.box.YouTubeRequests.checkResponse(s.response('',500)),{kind:'feed',id:'new-'+i,priority:2,minSpacing:10000})));
+ assert.equal(s.clock.now-start,30000);assert.equal((await s.box.YouTubeRequests.status()).pausedUntil-s.clock.now,7200000);
+ assert.equal(await s.finish(s.box.YouTubeRequests.retryCooldown(until)),false);
+});
+test('cooldown overrides cannot clear explicit or legacy global pauses',async()=>{
+ for(const reason of ['http-403','http-429','retry-after','unknown']){
+  const s=harness(),until=s.clock.now+900000;s.data['youtubeRequests:v1']={pausedUntil:until,pauseScope:'all',pauseReason:reason};
+  await assert.rejects(s.finish(s.box.YouTubeRequests.retryCooldown(until)),{name:'YouTubeCooldownError'});
+  assert.equal((await s.box.YouTubeRequests.status()).pausedUntil,until);
+ }
+});
+test('a reset waits for an in-flight request and cannot erase its newer server refusal',async()=>{
+ const s=harness(),until=s.clock.now+900000;s.data['youtubeRequests:v1']={pausedUntil:until,pauseScope:'automatic',pauseReason:'feed-failures'};
+ let release;const pending=s.box.YouTubeRequests.run(async()=>{await new Promise(resolve=>release=resolve);s.box.YouTubeRequests.checkResponse(s.response('',429));},{kind:'channel',priority:3}).catch(error=>error);
+ await turn();const retry=s.box.YouTubeRequests.retryCooldown(until).catch(error=>error);release();
+ assert.equal((await s.finish(pending)).youtubeStatus,429);assert.equal((await s.finish(retry)).name,'YouTubeCooldownError');
+ assert.equal((await s.box.YouTubeRequests.status()).pauseReason,'http-429');
+});

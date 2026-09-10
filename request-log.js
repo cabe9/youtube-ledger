@@ -45,13 +45,13 @@ globalThis.YouTubeRequestLog=(()=>{
       return (u.origin+u.pathname).slice(0,400);
     }catch{return '';}
   }
-  async function run(operation,options){
+  async function run(operation,options,fetchRequest=globalThis.fetch){
     const attempts=[];
     const tracked=async(url,init)=>{
       const entry={id:crypto.randomUUID(),at:Date.now(),kind:kindOf(options),reason:reasons.includes(options.reason)?options.reason:'',mode:options.priority>=2?'foreground':'background',url:target(url),result:'pending'};
       attempts.push(entry);
       await change(()=>{const b=bucket(entry.at,entry.kind);b.started++;if(entry.mode==='background')b.background++;state.recent.push(entry);state.recent=state.recent.slice(-limit);}).catch(()=>{});
-      try{const response=await fetch(url,init);entry.status=response.status;return response;}
+      try{const response=await fetchRequest(url,init);entry.status=response.status;return response;}
       catch(error){entry.result=error.name==='TimeoutError'||error.name==='AbortError'?'timeout':'network';throw error;}
     };
     let failure;

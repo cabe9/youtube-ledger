@@ -139,7 +139,7 @@ globalThis.GroupFeeds = (() => {
   function needsViewUpgrade(channel){
     return !!channel&&channel.viewsAttemptedAt===undefined&&(channel.entries||[]).slice(0,15).some(entry=>!Ledger.validVideoViews(entry.views));
   }
-  async function getChannelUploads(channelId,force=false,background=false){
+  async function getChannelUploads(channelId,force=false,background=false,retryCooldown=false){
     if(!channelPattern.test(channelId))throw new Error('Choose a valid channel.');
     if(inFlight.has(channelId)){
       globalThis.YouTubeRequestLog?.skip({kind:'feed'},'reused');
@@ -147,13 +147,14 @@ globalThis.GroupFeeds = (() => {
       if(!background){job.options.priority=2;globalThis.YouTubeRequests?.wake();}
       return job.promise;
     }
-    const version=epoch,options={priority:background?0:2,kind:'feed',reason:background?'background-refresh':force?'manual-refresh':'group-refresh',id:channelId,deferFeedFailure:!!globalThis.UploadsPage,cancelled:()=>version!==epoch};
+    const version=epoch,options={priority:background?0:2,kind:'feed',reason:background?'background-refresh':force?'manual-refresh':'group-refresh',id:channelId,minSpacing:retryCooldown?10000:0,deferFeedFailure:!!globalThis.UploadsPage,cancelled:()=>version!==epoch};
     const task=(async()=>{
       const stored=(await browser.storage.local.get(key))[key]?.channels[channelId];
       if(version!==epoch)return;
       const now=Date.now(),due=stored?.error?Math.max(stored.retryAt||0,(stored.attemptedAt||0)+(options.priority>=2?15*60000:backgroundTTL)):(stored?.attemptedAt||0)+(options.priority>=2&&stored?.feedSource!=='uploads-page'?ttl:backgroundTTL);
-      // Manual refresh may update healthy feeds sooner, but never bypass failure cooldowns.
-      if(stored&&(stored.error?now<Math.max(due,stored.retryAfter||0):force?now<(stored.attemptedAt||0)+60000:!needsViewUpgrade(stored)&&now<due)){globalThis.YouTubeRequestLog?.skip(options,stored.error?'cooldown':'cache');return;}
+      // Only an explicit, accepted local-cooldown reset retries failed channels
+      // early. The shared scheduler still blocks every server-imposed pause.
+      if(stored&&(stored.error?!retryCooldown&&now<Math.max(due,stored.retryAfter||0):force?now<(stored.attemptedAt||0)+60000:!needsViewUpgrade(stored)&&now<due)){globalThis.YouTubeRequestLog?.skip(options,stored.error?'cooldown':'cache');return;}
       let entries,error='',retryAfter=0,feedSource='rss';
       const page=async()=>{
         feedSource='uploads-page';
@@ -206,7 +207,7 @@ globalThis.GroupFeeds = (() => {
   async function handle(message,sender){
     if(!sender.tab||sender.tab.incognito||!/^https:\/\/(www|m)\.youtube\.com\//.test(sender.url||''))throw new Error('This page cannot open Ledger feeds.');
     if(message.type==='groupFeed:leave'){activeGroups.delete(sender.tab.id);return {ok:true};}
-    if(message.type==='groupFeed:get'||message.type==='groupFeed:refresh')activeGroups.set(sender.tab.id,message.groupId);
+    if(['groupFeed:get','groupFeed:refresh','groupFeed:retryCooldown'].includes(message.type))activeGroups.set(sender.tab.id,message.groupId);
     if(message.type==='groupFeed:source'){
       const context=(await browser.storage.session.get(launchKey))[launchKey]?.[message.token];
       if(!context||Date.now()-context.at>2*60*60*1000||!context.videoIds.includes(message.videoId))return {kind:'unknown',evidence:'unverified-link'};
@@ -224,6 +225,19 @@ globalThis.GroupFeeds = (() => {
     const group=groups.groups.find(g=>g.id===message.groupId);
     if(!group)throw new Error('This group no longer exists.');
     const ids=group.channelIds.filter(id=>channelPattern.test(id));
+    if(message.type==='groupFeed:retryCooldown'){
+      if(!Number.isFinite(message.pausedUntil)||message.pausedUntil<=0)throw Error('Refresh this group to see its current cooldown.');
+      const version=epoch;
+      if(!await globalThis.YouTubeRequests?.retryCooldown(message.pausedUntil))return {ok:true,retried:false};
+      // Retry just this group's channels once, sequentially and at the slower
+      // pace. Other channels retain their individual retry times.
+      for(const id of ids){
+        if(version!==epoch||activeGroups.get(sender.tab.id)!==group.id)break;
+        await getChannelUploads(id,true,false,true);
+        if((await globalThis.YouTubeRequests?.status())?.pausedUntil>Date.now())break;
+      }
+      return {ok:true,retried:true};
+    }
     if(message.type==='groupFeed:details'){
       if(!Array.isArray(message.videoIds)||message.videoIds.length>12||message.videoIds.some(id=>typeof id!=='string'||!videoPattern.test(id)))throw new Error('Choose valid videos.');
       const entries=new Map(ids.flatMap(id=>data[key]?.channels?.[id]?.entries||[]).map(v=>[v.videoId,v]));

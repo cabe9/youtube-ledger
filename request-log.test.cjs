@@ -3,6 +3,13 @@ const {harness,turn}=require('./request-test-helpers.cjs');
 const files=['request-log.js','youtube-requests.js'];
 const total=log=>Object.values(log.days).flatMap(Object.values).reduce((out,v)=>{for(const key of ['started','failed','background','cache','cooldown','reused','cancelled'])out[key]=(out[key]||0)+(v[key]||0);return out;},{});
 const sender={url:'chrome-extension://test/dashboard.html#settings'};
+test('slow diagnostic writes do not shorten the gap between actual requests',async()=>{
+ const s=harness(files),calls=[],set=s.box.browser.storage.local.set;let delayed=false;
+ s.box.browser.storage.local.set=async value=>{if(value['youtubeRequestLog:v1']?.recent.some(e=>e.result==='pending')&&!delayed){delayed=true;s.clock.now+=500;}return set(value);};
+ s.box.fetch=async url=>{calls.push(s.clock.now);return s.response(url);};
+ for(let i=0;i<2;i++)await s.finish(s.box.YouTubeRequests.run(get=>get('https://www.youtube.com/channel/test'),{kind:'feed',id:String(i),priority:2,minSpacing:10000}));
+ assert.equal(calls[1]-calls[0],10000);
+});
 test('counts actual fetch attempts and HTTP/network results, without counting queued or cancelled work',async()=>{
  const s=harness(files);let calls=0;
  s.box.fetch=async url=>{calls++;if(url.endsWith('timeout'))throw Object.assign(Error('private message'),{name:'TimeoutError'});return s.response(url,url.endsWith('missing')?404:200);};

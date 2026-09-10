@@ -71,6 +71,13 @@ globalThis.YouTubeRequests = (() => {
     busy=true;
     try{
       await ready();
+      // Process a user's reset between requests, so an in-flight server refusal
+      // is recorded before deciding whether the cooldown can be cleared.
+      if(queue[0]?.control){
+        const job=queue.shift();
+        try{job.resolve(await job.operation());}catch(error){job.reject(error);}
+        return;
+      }
       if(state.pausedUntil>Date.now()){
         // Ordinary feed failures stop automatic work, not an explicit channel
         // addition. Server refusals and Retry-After still stop every lookup.
@@ -91,7 +98,10 @@ globalThis.YouTubeRequests = (() => {
       try{
         // Persist pacing before the request, including across worker restarts.
         await save();
-        const value=await (globalThis.YouTubeRequestLog?YouTubeRequestLog.run(job.operation,job.options):job.operation(globalThis.fetch));record(null,job.options);await save();job.resolve(value);
+        // Storage/logging can delay dispatch. Start the next spacing interval
+        // from the actual fetch, not from the earlier bookkeeping.
+        const fetchRequest=(...args)=>{state.lastStartedAt=Date.now();return globalThis.fetch(...args);};
+        const value=await (globalThis.YouTubeRequestLog?YouTubeRequestLog.run(job.operation,job.options,fetchRequest):job.operation(fetchRequest));record(null,job.options);await save();job.resolve(value);
       }catch(error){record(error,job.options);await save().catch(()=>{});job.reject(error);}
     }catch(error){for(const job of queue.splice(0))job.reject(error);}
     finally{busy=false;if(queue.length&&!timer)wake();}
@@ -99,5 +109,18 @@ globalThis.YouTubeRequests = (() => {
   function run(operation,options={}){
     return new Promise((resolve,reject)=>{queue.push({operation,options,resolve,reject});wake();});
   }
-  return {key,run,wake,checkResponse,async status(){await ready();return pauseInfo();},async diagnostics(){await ready();return {...pauseInfo(),queued:queue.length,busy};}};
+  function retryCooldown(expectedUntil){
+    return new Promise((resolve,reject)=>{
+      queue.unshift({control:true,resolve,reject,operation:async()=>{
+        if(state.pausedUntil<=Date.now())return false;
+        if(state.pauseScope!=='automatic')throw cooldownError();
+        // A double click or a stale tab cannot clear a newly triggered pause.
+        if(state.pausedUntil!==expectedUntil)return false;
+        Object.assign(state,{pausedUntil:0,pauseScope:'all',pauseReason:'unknown',failures:[],successes:0});
+        // Preserve request spacing and escalation if these new checks also fail.
+        await save();return true;
+      }});wake();
+    });
+  }
+  return {key,run,wake,checkResponse,retryCooldown,async status(){await ready();return pauseInfo();},async diagnostics(){await ready();return {...pauseInfo(),queued:queue.filter(job=>!job.control).length,busy};}};
 })();

@@ -617,6 +617,9 @@
       const failed=data.channels.filter(c=>c.error).length,missing=data.channels.filter(c=>!c.fetchedAt).length,paused=data.pausedUntil>Date.now();
       status.textContent=paused?(data.pauseMessage||'YouTube checks are paused until '+new Date(data.pausedUntil).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'.')+' Cached videos are still available.':refreshing?'Checking uploads in the background…':failed?failed+' '+(failed===1?'channel could':'channels could')+' not refresh. Available cached videos are shown. Ledger will retry automatically.':missing?'Some channels have not loaded yet.':'';
       if(failed)status.classList.add('error');
+      if(paused&&data.pauseScope==='automatic'&&!refreshing)status.append(
+        button('Retry now',()=>load(true,true,false,data.pausedUntil),{'data-focus':'retry-cooldown',title:'End Ledger’s cooldown and retry this group at a slower pace. If checks keep failing, Ledger will pause again.'})
+      );
       if(failed&&!refreshing&&!paused)status.append(
         button('Retry failed channels',()=>load(true,true,true),{'data-focus':'retry-failed',title:'Retry affected channels. Recent attempts and YouTube’s retry limits are respected.'}),
         button('Show details',()=>{saveMembersExpanded(group.id,true);members.open=true;members.querySelector('summary').focus({preventScroll:true});},{'data-focus':'refresh-details'})
@@ -683,20 +686,20 @@
       requestAnimationFrame(()=>{if(version===generation&&window.scrollY===scroll)window.scrollTo({top:position.top,behavior:'instant'});});
     }
   }
-  async function load(refresh=false,force=false,failedOnly=false){
+  async function load(refresh=false,force=false,failedOnly=false,retryUntil=0){
     if(disposed)return;
     const id=active,version=generation;if(!id||id==='overview')return;
     if(refreshing&&refresh)return;
     if(refresh){refreshing=true;render();}
     try{
       if(visitBoundary===undefined){if(!visitPromise)visitPromise=request({type:'feedLibrary:visit',groupId:id});const visit=await visitPromise;if(id!==active)return;visitBoundary=visit.previous;visitAt=visit.at;}
-      const result=await request({type:'groupFeed:get',groupId:id});if(version!==generation||id!==active)return;data=result;render();if(refresh)LedgerMedia.portraits(result.channels.map(c=>c.id));
-      if(refresh){await request({type:'groupFeed:refresh',groupId:id,force,failedOnly});if(version!==generation||id!==active)return;const latest=await request({type:'groupFeed:get',groupId:id});if(version!==generation||id!==active)return;data=latest;refreshing=false;render();}
+      const result=await request({type:'groupFeed:get',groupId:id});if(version!==generation||id!==active)return;data=result;render();if(refresh&&!retryUntil)LedgerMedia.portraits(result.channels.map(c=>c.id));
+      if(refresh){await request(retryUntil?{type:'groupFeed:retryCooldown',groupId:id,pausedUntil:retryUntil}:{type:'groupFeed:refresh',groupId:id,force,failedOnly});if(version!==generation||id!==active)return;const latest=await request({type:'groupFeed:get',groupId:id});if(version!==generation||id!==active)return;data=latest;refreshing=false;render();}
     }catch(error){if(version===generation&&id===active){refreshing=false;render();showError(error.message);}}
   }
   function storageChanged(changes,area){
     if(disposed||area!=='local')return;
-    if(changes['youtubeRequests:v1']&&data){const next=changes['youtubeRequests:v1'].newValue||{},until=next.pausedUntil||0,message=next.pauseMessage||'';if(until!==(data.pausedUntil||0)||message!==(data.pauseMessage||'')){Object.assign(data,{pausedUntil:until,pauseMessage:message});render();}}
+    if(changes['youtubeRequests:v1']&&data){const next=changes['youtubeRequests:v1'].newValue||{},until=next.pausedUntil||0,message=next.pauseMessage||'',scope=next.pauseScope||'all';if(until!==(data.pausedUntil||0)||message!==(data.pauseMessage||'')||scope!==data.pauseScope){Object.assign(data,{pausedUntil:until,pauseMessage:message,pauseScope:scope,pauseReason:next.pauseReason||'unknown'});render();}}
     if(changes['videoProgress:v1']&&data){data.progress=changes['videoProgress:v1'].newValue||{version:1,videos:{}};render();}
     if(changes[FeedLibrary.key]){library=changes[FeedLibrary.key].newValue||{version:1,groups:{}};updateNavigation();render();}
     if(changes.settings){theme=Ledger.settings(changes.settings.newValue).theme;settingsReady=true;mount();}
