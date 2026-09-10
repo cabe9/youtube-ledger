@@ -10,6 +10,21 @@ test('slow diagnostic writes do not shorten the gap between actual requests',asy
  for(let i=0;i<2;i++)await s.finish(s.box.YouTubeRequests.run(get=>get('https://www.youtube.com/channel/test'),{kind:'feed',id:String(i),priority:2,minSpacing:10000}));
  assert.equal(calls[1]-calls[0],10000);
 });
+test('upload deadlines and elapsed time start after diagnostic writes, while preserving other request signals',async()=>{
+ const s=harness(files),set=s.box.browser.storage.local.set,deadlines=[];let delayed=false;
+ s.box.AbortSignal={timeout:ms=>{const signal={createdAt:s.clock.now,ms};deadlines.push(signal);return signal;}};
+ s.box.browser.storage.local.set=async value=>{if(value['youtubeRequestLog:v1']?.recent.some(e=>e.result==='pending')&&!delayed){delayed=true;s.clock.now+=20000;}return set(value);};
+ s.box.fetch=async(url,init)=>{assert.equal(init.signal.createdAt,s.clock.now);s.clock.now+=250;return s.response(url);};
+ await s.finish(s.box.YouTubeRequests.run(get=>get('https://www.youtube.com/playlist?list=UU'+'a'.repeat(22)),{kind:'feed',priority:2,timeoutMs:30000}));
+ const entry=(await s.box.YouTubeRequestLog.snapshot()).recent[0];assert.equal(entry.sentAt-entry.at,20000);assert.equal(entry.ms,250);assert.equal(deadlines.length,1);assert.equal(deadlines[0].ms,30000);
+ const controller=new AbortController();s.box.fetch=async(url,init)=>{assert.equal(init.signal,controller.signal);return s.response(url);};
+ await s.finish(s.box.YouTubeRequests.run(get=>get('https://www.youtube.com/watch?v=abcdefghijk',{signal:controller.signal}),{kind:'video',priority:2}));assert.equal(deadlines.length,1);
+});
+test('timeouts while reading an HTTP 200 body are logged as timeouts, not unreadable metadata',async()=>{
+ const s=harness(files);s.box.fetch=async url=>s.response(url);
+ for(const name of ['TimeoutError','AbortError'])await assert.rejects(s.box.YouTubeRequestLog.run(async get=>{await get('https://www.youtube.com/playlist?list=UU'+'a'.repeat(22));s.clock.now+=30000;throw Object.assign(Error('Body stopped'),{name});},{kind:'feed',priority:2,reason:'uploads-page-fallback'}));
+ const log=await s.box.YouTubeRequestLog.snapshot();assert.ok(log.recent.every(e=>e.status===200&&e.result==='timeout'&&e.ms===30000));assert.equal(total(log).failed,2);
+});
 test('counts actual fetch attempts and HTTP/network results, without counting queued or cancelled work',async()=>{
  const s=harness(files);let calls=0;
  s.box.fetch=async url=>{calls++;if(url.endsWith('timeout'))throw Object.assign(Error('private message'),{name:'TimeoutError'});return s.response(url,url.endsWith('missing')?404:200);};

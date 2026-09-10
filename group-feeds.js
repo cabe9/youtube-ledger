@@ -11,7 +11,7 @@ globalThis.GroupFeeds = (() => {
     const task=progressWrites.then(()=>browser.storage.local.set({[progressKey]:Object.fromEntries([...refreshRuns].map(([id,job])=>[id,{...job.progress}]))}));
     progressWrites=task.catch(()=>{});return progressWrites;
   }
-  const network=(run,options)=>globalThis.YouTubeRequests?YouTubeRequests.run(run,options):run(fetch);
+  const network=(run,options)=>globalThis.YouTubeRequests?YouTubeRequests.run(run,options):run((url,init)=>fetch(url,options.timeoutMs?{...init,signal:AbortSignal.timeout(options.timeoutMs)}:init));
   const detailJobs=new Map(),detailQueue=[];let detailActive=0;
   function decode(text){
     return text.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,(_,value)=>value).replace(/&(#x[\da-f]+|#\d+|amp|quot|apos|lt|gt);/gi,(_,entity)=>{
@@ -178,7 +178,7 @@ globalThis.GroupFeeds = (() => {
       if(!background){job.options.priority=2;globalThis.YouTubeRequests?.wake();}
       return job.promise;
     }
-    const version=epoch,options={priority:background?0:2,kind:'feed',reason:background?'background-refresh':force?'manual-refresh':'group-refresh',id:channelId,minSpacing:retryCooldown?10000:0,deferFeedFailure:!!globalThis.UploadsPage,cancelled:async()=>version!==epoch||options.priority<2&&!await backgroundAllowed(channelId)};
+    const version=epoch,options={priority:background?0:2,kind:'feed',reason:background?'background-refresh':force?'manual-refresh':'group-refresh',id:channelId,minSpacing:retryCooldown?10000:0,timeoutMs:15000,deferFeedFailure:!!globalThis.UploadsPage,cancelled:async()=>version!==epoch||options.priority<2&&!await backgroundAllowed(channelId)};
     const task=(async()=>{
       const stored=(await browser.storage.local.get(key))[key]?.channels[channelId];
       if(version!==epoch)return;
@@ -189,9 +189,9 @@ globalThis.GroupFeeds = (() => {
       let entries,error='',retryAfter=0,feedSource='rss';
       const page=async()=>{
         feedSource='uploads-page';
-        Object.assign(options,{reason:'uploads-page-fallback',minSpacing:10000,deferFeedFailure:false});
+        Object.assign(options,{reason:'uploads-page-fallback',minSpacing:10000,timeoutMs:30000,deferFeedFailure:false});
         return network(async fetchRequest=>{
-          const response=await fetchRequest(UploadsPage.url(channelId),{credentials:'omit',signal:AbortSignal.timeout(15000)});
+          const response=await fetchRequest(UploadsPage.url(channelId),{credentials:'omit'});
           globalThis.YouTubeRequests?.checkResponse(response);
           const final=new URL(response.url);
           if(!response.ok||final.origin!=='https://www.youtube.com'||final.pathname!=='/playlist'||final.searchParams.get('list')!=='UU'+channelId.slice(2))throw Error('YouTube could not load this channel’s uploads page.');
@@ -201,7 +201,7 @@ globalThis.GroupFeeds = (() => {
       try{
         if(globalThis.UploadsPage&&stored?.feedSource==='uploads-page'&&stored.rssRetryAt>now)entries=await page();
         else try{entries=await network(async(fetchRequest)=>{
-          const response=await fetchRequest('https://www.youtube.com/feeds/videos.xml?channel_id='+channelId,{credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(15000)});
+          const response=await fetchRequest('https://www.youtube.com/feeds/videos.xml?channel_id='+channelId,{credentials:'omit',cache:'no-store'});
           try{globalThis.YouTubeRequests?.checkResponse(response);}catch(e){
             const message=response.status===429?'YouTube is limiting upload checks':response.status>=500?'YouTube’s upload feed is temporarily unavailable':response.status===404?'YouTube could not find this upload feed':response.status===403?'YouTube refused this upload feed':'YouTube could not refresh this channel';
             e.message=message+' (HTTP '+response.status+').';throw e;
@@ -215,7 +215,8 @@ globalThis.GroupFeeds = (() => {
         // A queued channel was not contacted. Do not mark it as a failed channel.
         if(e.name==='YouTubeCooldownError')return {outcome:'cooldown'};
         retryAfter=e.retryAfter||0;
-        error=e.name==='TimeoutError'||e.name==='AbortError'?'This channel took too long to respond.':e.name==='TypeError'?'Could not connect to YouTube’s upload feed.':String(e.message||'Could not refresh this channel.');
+        const source=feedSource==='uploads-page'?'uploads page':'upload feed';
+        error=e.name==='TimeoutError'||e.name==='AbortError'?'YouTube’s '+source+' did not finish loading within '+options.timeoutMs/1000+' seconds. Cached videos are kept.':e.name==='TypeError'?'Could not connect to YouTube’s '+source+'.':String(e.message||'Could not refresh this channel.');
       }
       if(version!==epoch||!entries&&!error)return;
       await changeCache(cache=>{

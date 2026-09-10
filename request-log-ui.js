@@ -32,13 +32,13 @@
     if(!days.children.length)row(days,['No requests recorded yet.','','','']);
     const entries=latest.recent.filter(e=>byId('period').value==='week'||Ledger.dayKey(e.at)===today).slice(-100).reverse(),body=byId('rows');body.replaceChildren();
     for(const entry of entries){
-      const result={ok:'HTTP '+entry.status,'http-error':'HTTP '+entry.status,unusable:'HTTP '+entry.status+' · unreadable data',network:'Network error',timeout:'Timed out',pending:'In progress',unfinished:'Response not recorded'}[entry.result]||'Response not recorded';
+      const result={ok:'HTTP '+entry.status,'http-error':'HTTP '+entry.status,unusable:'HTTP '+entry.status+' · unreadable data',network:'Network error',timeout:entry.status?'HTTP '+entry.status+' · timed out reading response':'Timed out',pending:'In progress',unfinished:'Response not recorded'}[entry.result]||'Response not recorded';
       const tr=row(body,[new Date(entry.at).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',second:'2-digit'}),reasons[entry.reason]||names[entry.kind]||names.other,entry.mode==='background'?'Background':'Foreground','',result,entry.ms===undefined?'—':(entry.ms/1000).toFixed(1)+'s']);
       const td=tr.children[3];if(/^https:\/\/(www|m)\.youtube\.com\//.test(entry.url)){const a=document.createElement('a');a.href=entry.url;a.target='_blank';a.rel='noreferrer noopener';a.textContent=target(entry);a.title=entry.url;td.append(a);}else td.textContent='Lookup';
       if(['http-error','network','timeout','unusable'].includes(entry.result))tr.className='request-log-failed';
     }
     if(!entries.length)row(body,['No requests recorded in this period.','','','','','']);
-    byId('recent-note').textContent='Showing the latest '+entries.length+' requests in this period. Totals include older requests even after their detail rows expire. “Response not recorded” means the extension stopped before the result was saved.';
+    byId('recent-note').textContent='Showing the latest '+entries.length+' requests in this period. New request timings start when sent and include reading the response, excluding queue and log-saving time. Totals include older requests even after their detail rows expire. “Response not recorded” means the extension stopped before the result was saved.';
     byId('warning').textContent=latest.storageWarning||'';
   }
   async function read(){

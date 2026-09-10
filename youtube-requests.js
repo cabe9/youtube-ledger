@@ -100,7 +100,12 @@ globalThis.YouTubeRequests = (() => {
         await save();
         // Storage/logging can delay dispatch. Start the next spacing interval
         // from the actual fetch, not from the earlier bookkeeping.
-        const fetchRequest=(...args)=>{state.lastStartedAt=Date.now();return globalThis.fetch(...args);};
+        const fetchRequest=(url,init)=>{
+          // Start upload deadlines at dispatch, after diagnostic/storage writes.
+          // The signal also covers reading the response body.
+          const signal=job.options.timeoutMs?AbortSignal.timeout(job.options.timeoutMs):init?.signal;
+          state.lastStartedAt=Date.now();return globalThis.fetch(url,signal?{...init,signal}:init);
+        };
         const value=await (globalThis.YouTubeRequestLog?YouTubeRequestLog.run(job.operation,job.options,fetchRequest):job.operation(fetchRequest));record(null,job.options);await save();job.resolve(value);
       }catch(error){record(error,job.options);await save().catch(()=>{});job.reject(error);}
     }catch(error){for(const job of queue.splice(0))job.reject(error);}

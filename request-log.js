@@ -51,18 +51,21 @@ globalThis.YouTubeRequestLog=(()=>{
       const entry={id:crypto.randomUUID(),at:Date.now(),kind:kindOf(options),reason:reasons.includes(options.reason)?options.reason:'',mode:options.priority>=2?'foreground':'background',url:target(url),result:'pending'};
       attempts.push(entry);
       await change(()=>{const b=bucket(entry.at,entry.kind);b.started++;if(entry.mode==='background')b.background++;state.recent.push(entry);state.recent=state.recent.slice(-limit);}).catch(()=>{});
+      entry.sentAt=Date.now();
       try{const response=await fetchRequest(url,init);entry.status=response.status;return response;}
       catch(error){entry.result=error.name==='TimeoutError'||error.name==='AbortError'?'timeout':'network';throw error;}
     };
     let failure;
     try{return await operation(tracked);}catch(error){failure=error;throw error;}
     finally{
+      const finishedAt=Date.now();
       for(const entry of attempts){
-        const result=entry.result!=='pending'?entry.result:entry.status>=400?'http-error':failure&&entry===attempts.at(-1)?'unusable':'ok';
+        const failed=failure&&entry===attempts.at(-1),timedOut=failed&&['TimeoutError','AbortError'].includes(failure.name);
+        const result=entry.result!=='pending'?entry.result:entry.status>=400?'http-error':timedOut?'timeout':failed?'unusable':'ok';
         await change(()=>{
           // Clearing the log during an active request must not restore it.
           const found=state.recent.find(v=>v.id===entry.id);if(!found)return;
-          Object.assign(found,{result,status:entry.status,ms:Math.max(0,Date.now()-entry.at)});
+          Object.assign(found,{result,status:entry.status,ms:Math.max(0,finishedAt-(entry.sentAt??entry.at))});
           const b=bucket(entry.at,entry.kind);if(result!=='ok')b.failed++;
           const status=entry.status?String(entry.status):result;b.statuses[status]=(b.statuses[status]||0)+1;
         }).catch(()=>{});

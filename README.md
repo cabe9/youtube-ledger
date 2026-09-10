@@ -4,13 +4,13 @@ A local YouTube usage tracker for **Chrome and Firefox**. Records video titles, 
 
 ## Install
 
-Download the **0.16.24** package for your browser below. These ZIPs are ready
+Download the **0.16.25** package for your browser below. These ZIPs are ready
 to install; no build tools are needed. For development, clone the repository
 and follow [Build and test](#build-and-test).
 
 ### Chrome
 
-1. Download [the Chrome ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.24/youtube-ledger-chrome-store-0.16.24.zip) and extract it to a permanent folder.
+1. Download [the Chrome ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.25/youtube-ledger-chrome-store-0.16.25.zip) and extract it to a permanent folder.
 2. Open `chrome://extensions` and enable **Developer mode**.
 3. Click **Load unpacked** and select the extracted folder.
 4. Pin YouTube Ledger, refresh existing YouTube tabs, and click the extension icon for the dashboard.
@@ -19,7 +19,7 @@ Keep the folder in place. The installation survives browser restarts. To update,
 
 ### Firefox
 
-1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.24/youtube-ledger-firefox-store-0.16.24.zip).
+1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.25/youtube-ledger-firefox-store-0.16.25.zip).
 2. Open `about:debugging#/runtime/this-firefox`.
 3. Click **Load Temporary Add-on** and select the extracted `manifest.json`.
 4. Refresh YouTube tabs and open YouTube Ledger from the extension toolbar.
@@ -119,7 +119,7 @@ npm run test:features
 
 Installable downloads live in [GitHub Releases](https://github.com/cabe9/youtube-ledger/releases/latest); generated ZIPs are not committed to the source tree.
 
-`build.py` defaults to store packages, cleans `dist/chrome` and `dist/firefox`, and produces `youtube-ledger-{browser}-store-0.16.24.zip`. Experimental output goes under `dist/experimental/` with explicitly named `-experimental-` ZIPs. `package-check.py` scans both store archives for excluded code, UI, permissions and references, and checks that stale output files cannot leak into them. UI and recommendation checks use installed Google Chrome. The Chrome integration check uses Playwright's Chrome for Testing in a disposable profile, with an actual unpacked extension and controlled YouTube HTML/media fixtures. After building, `npm run test:group-images:firefox` tests file uploads with the actual extension on live YouTube in a disposable Firefox profile, including animated GIFs, still-image resizing, rejection of invalid/oversize files, and reload persistence. It uses WebDriver BiDi (Node 22+ and Firefox 140+); `FIREFOX_BIN` can select the Firefox executable.
+`build.py` defaults to store packages, cleans `dist/chrome` and `dist/firefox`, and produces `youtube-ledger-{browser}-store-0.16.25.zip`. Experimental output goes under `dist/experimental/` with explicitly named `-experimental-` ZIPs. `package-check.py` scans both store archives for excluded code, UI, permissions and references, and checks that stale output files cannot leak into them. UI and recommendation checks use installed Google Chrome. The Chrome integration check uses Playwright's Chrome for Testing in a disposable profile, with an actual unpacked extension and controlled YouTube HTML/media fixtures. After building, `npm run test:group-images:firefox` tests file uploads with the actual extension on live YouTube in a disposable Firefox profile, including animated GIFs, still-image resizing, rejection of invalid/oversize files, and reload persistence. It uses WebDriver BiDi (Node 22+ and Firefox 140+); `FIREFOX_BIN` can select the Firefox executable.
 
 Verified: aggregation, paused-tab exclusion, recommendation event storage, UI behavior, content-script injection, real media playback tracking, recommendation controls, purpose labels, pause, data persistence across a full Chrome restart, and worker messaging after restart. Live YouTube layouts and the user's exact theme still require real-world validation.
 
@@ -238,3 +238,5 @@ Version 0.16.22 recovers recent uploads through a paced public uploads-page fall
 Version 0.16.23 adds **Retry now** beside a group’s precautionary cooldown message. This explicit action clears Ledger’s automatic pause and retries the current group sequentially, with requests at least ten seconds apart, including channels whose local failure timers have not expired. Other channels retain their individual backoffs. Cached videos stay visible. Repeated failures pause requests again; HTTP 403/429, server Retry-After and legacy pauses with unknown causes cannot be overridden. Normal Refresh continues to respect cooldowns. Checks: cooldown scheduler and group tests, packaged Chrome button check, Firefox fallback/override check and package validation.
 
 Version 0.16.24 lets open YouTube background tabs trigger upload sweeps and lets unfinished group refreshes continue at the slower background pace after leaving the group. Background checks are optional in Settings, reuse warm caches, skip global cooldowns without generating per-channel attempts, and stop when no usable YouTube tabs remain. A group progress bar shows channels checked out of the total, with refreshed, already-cached and failed counts. Pauses keep the unfinished count visible instead of claiming every channel was checked. Successful uploads-page sources keep their existing two-hour cache and 24-hour RSS retry interval. Checks: scheduling unit tests, packaged Chrome hidden-tab/settings checks, Firefox continuation checks, fallback/override regressions and package validation.
+
+Version 0.16.25 gives uploads-page fallbacks up to 30 seconds, starting the deadline when the request is sent, after local request-log writes. RSS keeps its 15-second deadline. Slow response bodies are recorded as timeouts, with the HTTP status retained, and channel errors identify which source timed out. New request elapsed times exclude diagnostic-write delays. Cached uploads and normal retry backoffs remain; this adds no immediate retries or concurrent requests. Checks: deadline/logging regressions, slow-body fallback checks in packaged Chrome and Firefox, and package validation.

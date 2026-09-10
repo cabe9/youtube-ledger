@@ -59,6 +59,19 @@ test('RSS fallback is paced and logged, then cached for two hours and reuses the
  s.clock.now+=2*3600000;await s.finish(s.feeds.getChannelUploads(A));assert.equal(s.calls.length,3);assert.equal(s.calls[2].isRSS,false);
  s.clock.now=s.cache().rssRetryAt+1;s.setStatus(200,200);await s.finish(s.feeds.getChannelUploads(A));assert.equal(s.calls.length,4);assert.equal(s.cache().feedSource,'rss');assert.equal(s.cache().rssRetryAt,undefined);
 });
+test('slow fallback bodies get thirty seconds; longer stalls retain cache and identify the timed-out source',async()=>{
+ const s=setup(),deadlines=[];let bodyMs=20000;
+ s.box.AbortSignal={timeout:ms=>{deadlines.push(ms);const until=s.clock.now+ms;return {get aborted(){return s.clock.now>=until;}};}};
+ s.box.fetch=async(url,init)=>{
+  s.calls.push({url,at:s.clock.now});if(url.includes('/feeds/'))return s.response(url,404);
+  return {...s.response(url),text:async()=>{s.clock.now+=bodyMs;if(init.signal.aborted)throw Object.assign(Error('Slow body'),{name:'TimeoutError'});return '<script>var ytInitialData = '+pageFor()+';</script>';}};
+ };
+ await s.finish(s.feeds.getChannelUploads(A));assert.deepEqual(deadlines,[15000,30000]);assert.equal(s.cache().error,'');assert.equal(s.cache().entries.length,3);
+ const entries=structuredClone(s.cache().entries);s.clock.now+=2*3600000;bodyMs=31000;await s.finish(s.feeds.getChannelUploads(A));
+ assert.equal(s.calls.length,3,'One slow request must not create an immediate retry');assert.deepEqual(s.cache().entries,entries);assert.match(s.cache().error,/uploads page.*30 seconds/);assert.ok(s.cache().retryAt>s.clock.now);assert.equal((await s.box.YouTubeRequests.status()).pausedUntil,0);
+ const log=await s.box.YouTubeRequestLog.snapshot();assert.equal(log.recent.at(-1).result,'timeout');assert.equal(log.recent.at(-1).status,200);
+ const rss=setup();rss.box.fetch=async()=>{throw Object.assign(Error('Slow feed'),{name:'TimeoutError'});};await rss.finish(rss.feeds.getChannelUploads(A));assert.match(rss.cache().error,/upload feed.*15 seconds/);
+});
 test('successful fallbacks keep a group working; failure of both sources stops large sweeps',async()=>{
  const good=setup(5);good.data['youtubeRequests:v1']={level:4};await good.finish(good.feeds.handle({type:'groupFeed:refresh',groupId:'g'},good.sender));assert.equal(good.calls.length,10);assert.equal((await good.box.YouTubeRequests.status()).pausedUntil,0);assert.equal(good.data['youtubeRequests:v1'].level,0,'Successful fallback checks must clear escalation from earlier failures');
  assert.ok(Object.values(good.data['channelUploads:v1'].channels).every(c=>c.entries.length===3&&!c.error));
