@@ -15,7 +15,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
      channelRequests.push(String(url));requestTimes.push(Date.now());
      const response=new Response(`<link rel="canonical" href="${url}"><meta property="og:title" content="Added channel">`,{status:refuseChannels?403:200});Object.defineProperty(response,'url',{value:String(url)});return response;
     }
-    refreshRequests.push(id);requestTimes.push(Date.now());const status=blockAll||id===c?404:200;
+    refreshRequests.push(id);requestTimes.push(Date.now());const status=blockAll|| (id===c?404:200);
     const xml=`<feed xmlns="http://www.w3.org/2005/Atom"><yt:channelId>${id}</yt:channelId><title>Test channel</title></feed>`;
     const result=new Response(xml,{status});Object.defineProperty(result,'url',{value:String(url)});return result;
    };
@@ -36,7 +36,14 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   await page.waitForFunction(()=>/1 channel could not refresh/.test(document.querySelector('#ledger-group-feed')?.shadowRoot.querySelector('.status')?.textContent));
   const requested=await worker.evaluate(()=>refreshRequests);assert.equal(requested.filter(id=>id===ids[0]).length,1);assert.equal(requested.filter(id=>id===ids[2]).length,1);assert.equal(requested.includes(ids[1]),false);
   assert.equal(await page.evaluate(()=>retainedImage.isConnected),true);
-  await worker.evaluate(async ids=>{blockAll=true;const key='channelUploads:v1',cache=(await chrome.storage.local.get(key))[key];for(const id of ids){cache.channels[id].attemptedAt=Date.now()-16*60000;cache.channels[id].retryAt=Date.now()-1;cache.channels[id].error='Previous failure';}await chrome.storage.local.set({[key]:cache});},ids);
+  await worker.evaluate(async ids=>{blockAll=404;const key='channelUploads:v1',cache=(await chrome.storage.local.get(key))[key];for(const id of ids){cache.channels[id].attemptedAt=Date.now()-16*60000;cache.channels[id].retryAt=Date.now()-1;cache.channels[id].error='Previous failure';}await chrome.storage.local.set({[key]:cache});},ids);
+  await feed.getByRole('button',{name:'Retry failed channels',exact:true}).click();
+  await page.waitForFunction(()=>/3 channels could not refresh/.test(document.querySelector('#ledger-group-feed')?.shadowRoot.querySelector('.status')?.textContent));
+  assert.equal((await worker.evaluate(()=>YouTubeRequests.status())).pausedUntil,0,'Three 404s must not pause the browser');
+  assert.equal(await feed.getByRole('button',{name:'Refresh uploads',exact:true}).isDisabled(),false);
+  assert.equal(await page.evaluate(()=>retainedImage.isConnected),true);assert.equal(await feed.locator('article').count(),3);
+  assert.equal((await worker.evaluate(()=>refreshRequests)).length,5);
+  await worker.evaluate(async ids=>{blockAll=503;const key='channelUploads:v1',cache=(await chrome.storage.local.get(key))[key];for(const id of ids){cache.channels[id].attemptedAt=Date.now()-16*60000;cache.channels[id].retryAt=Date.now()-1;}await chrome.storage.local.set({[key]:cache});},ids);
   await feed.getByRole('button',{name:'Retry failed channels',exact:true}).click();
   await page.waitForFunction(()=>/YouTube checks are paused until/.test(document.querySelector('#ledger-group-feed')?.shadowRoot.querySelector('.status')?.textContent));
   assert.equal(await page.evaluate(()=>retainedImage.isConnected),true);assert.equal(await feed.locator('article').count(),3);
@@ -62,6 +69,6 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   await manager.getByRole('status').filter({hasText:/YouTube checks are paused until .*HTTP 403/}).waitFor();
   assert.equal((await worker.evaluate(()=>channelRequests)).length,2,'A server refusal blocks subsequent additions');
   const allTimes=await worker.evaluate(()=>requestTimes);assert.ok(allTimes.slice(1).every((at,i)=>at-allTimes[i]>=1950));
-  assert.deepEqual(errors,[]);console.log('PASS: paced refreshes, cached image stability, immediate cached reload, manual additions during feed pauses, and server refusals shown in the group editor.');
+  assert.deepEqual(errors,[]);console.log('PASS: three missing feeds stay local, paced refreshes, cached image stability, immediate cached reload, manual additions during feed pauses, and server refusals shown in the group editor.');
  }finally{await context?.close();fs.rmSync(profile,{recursive:true,force:true});}
 })().catch(error=>{console.error(error);process.exitCode=1;});

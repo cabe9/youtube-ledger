@@ -18,7 +18,7 @@ test('a visible request interrupts a background wait, and promoted queued work m
 });
 test('widespread feed failures pause automatic lookups but allow paced manual channel additions after restart',async()=>{
  const s=harness(),calls=[];
- const request=id=>s.box.YouTubeRequests.run(async()=>{calls.push(id);s.box.YouTubeRequests.checkResponse(s.response('https://www.youtube.com/',404));},{priority:2,kind:'feed',id});
+ const request=id=>s.box.YouTubeRequests.run(async()=>{calls.push(id);s.box.YouTubeRequests.checkResponse(s.response('https://www.youtube.com/',503));},{priority:2,kind:'feed',id});
  await s.finish(Promise.allSettled(['a','b','c','d','e'].map(request)));
  assert.deepEqual(calls,['a','b','c']);const until=(await s.box.YouTubeRequests.status()).pausedUntil;assert.equal(until-s.clock.now,900000);
  s.load('youtube-requests.js');
@@ -31,7 +31,7 @@ test('widespread feed failures pause automatic lookups but allow paced manual ch
 });
 test('queued manual additions survive a feed pause while automatic work stays unattempted',async()=>{
  const s=harness();let release,calls=[];
- const feed=id=>s.box.YouTubeRequests.run(async()=>{calls.push(id);if(id==='c')await new Promise(resolve=>release=resolve);s.box.YouTubeRequests.checkResponse(s.response('',404));},{kind:'feed',id,priority:2});
+ const feed=id=>s.box.YouTubeRequests.run(async()=>{calls.push(id);if(id==='c')await new Promise(resolve=>release=resolve);s.box.YouTubeRequests.checkResponse(s.response('',503));},{kind:'feed',id,priority:2});
  await s.finish(Promise.allSettled([feed('a'),feed('b')]));
  const third=feed('c').catch(error=>error);await s.tick();
  const auto=s.box.YouTubeRequests.run(()=>calls.push('video'),{kind:'video',priority:2}).catch(error=>error);
@@ -59,6 +59,58 @@ test('server cooldowns are respected across metadata and feed calls, without fal
  await assert.rejects(s.finish(request(404)));assert.equal((await s.box.YouTubeRequests.status()).pausedUntil,0);
  await assert.rejects(s.finish(request(429,'video','3600')));assert.equal((await s.box.YouTubeRequests.status()).pausedUntil-s.clock.now,3600000);
  await assert.rejects(s.finish(request(200)),{name:'YouTubeCooldownError'});assert.equal(calls,2);
+});
+test('missing feeds do not count toward the three-error pause, even across worker restarts',async()=>{
+ const s=harness();
+ const request=(id,status)=>s.box.YouTubeRequests.run(()=>s.box.YouTubeRequests.checkResponse(s.response('',status)),{kind:'feed',id,priority:2});
+ for(const id of ['missing-a','missing-b','missing-c'])await assert.rejects(s.finish(request(id,404)));
+ assert.equal((await s.box.YouTubeRequests.status()).pausedUntil,0);
+ s.load('youtube-requests.js');
+ for(const id of ['server-a','server-b'])await assert.rejects(s.finish(request(id,503)));
+ assert.equal((await s.box.YouTubeRequests.status()).pausedUntil,0);
+ await assert.rejects(s.finish(request('server-c',503)));
+ assert.equal((await s.box.YouTubeRequests.status()).pauseReason,'feed-failures');
+});
+test('ten distinct missing feeds without a healthy feed stop automatic work and preserve that scope after restart',async()=>{
+ const s=harness(),calls=[];
+ const request=id=>s.box.YouTubeRequests.run(()=>{calls.push(id);s.box.YouTubeRequests.checkResponse(s.response('',404));},{kind:'feed',id,priority:2});
+ await s.finish(Promise.allSettled(Array.from({length:5},(_,i)=>request(String(i)))));
+ s.load('youtube-requests.js');
+ await s.finish(Promise.allSettled(Array.from({length:8},(_,i)=>request(String(i+5)))));
+ assert.equal(calls.length,10);
+ const status=await s.box.YouTubeRequests.status();assert.equal(status.pauseReason,'feed-not-found');assert.equal(status.pauseScope,'automatic');assert.match(status.pauseMessage,/Ten channel upload feeds returned HTTP 404/);
+ s.load('youtube-requests.js');await s.finish(s.box.YouTubeRequests.run(()=>calls.push('manual'),{kind:'channel',priority:3}));
+ assert.equal(calls.length,11);assert.equal((await s.box.YouTubeRequests.status()).pausedUntil,status.pausedUntil);
+ await assert.rejects(s.finish(request('blocked')),{name:'YouTubeCooldownError'});assert.equal(calls.length,11);
+});
+test('a healthy feed resets the missing-feed run, but successful video lookups do not',async()=>{
+ const s=harness();
+ const request=(id,status,kind='feed')=>s.box.YouTubeRequests.run(()=>s.box.YouTubeRequests.checkResponse(s.response('',status)),{kind,id,priority:2});
+ for(let run=0;run<2;run++){
+  for(let i=0;i<9;i++)await assert.rejects(s.finish(request('missing-'+run+'-'+i,404)));
+  assert.equal((await s.box.YouTubeRequests.status()).pausedUntil,0);
+  if(run===0)await s.finish(request('healthy',200));
+ }
+ await s.finish(request('video',200,'video'));
+ await assert.rejects(s.finish(request('tenth',404)));
+ assert.equal((await s.box.YouTubeRequests.status()).pauseReason,'feed-not-found');
+});
+test('404 evidence counts distinct channels within five minutes and ignores unclassified older evidence',async()=>{
+ const s=harness();s.data['youtubeRequests:v1']={failures:[{id:'legacy-a',at:s.clock.now},{id:'legacy-b',at:s.clock.now}]};
+ const request=id=>s.box.YouTubeRequests.run(()=>s.box.YouTubeRequests.checkResponse(s.response('',404)),{kind:'feed',id,priority:2});
+ for(let i=0;i<12;i++)await assert.rejects(s.finish(request('same-channel')));
+ assert.equal((await s.box.YouTubeRequests.status()).pausedUntil,0);
+ for(let i=0;i<8;i++)await assert.rejects(s.finish(request(String(i))));
+ s.clock.now+=300000;s.load('youtube-requests.js');
+ for(let i=0;i<9;i++)await assert.rejects(s.finish(request('new-'+i)));
+ assert.equal((await s.box.YouTubeRequests.status()).pausedUntil,0);
+ await assert.rejects(s.finish(request('new-9')));
+ assert.equal((await s.box.YouTubeRequests.status()).pauseReason,'feed-not-found');
+});
+test('Retry-After on a 404 still immediately pauses all requests',async()=>{
+ const s=harness();
+ await assert.rejects(s.finish(s.box.YouTubeRequests.run(()=>s.box.YouTubeRequests.checkResponse(s.response('',404,'','3600')),{kind:'feed',id:'missing',priority:2})));
+ const status=await s.box.YouTubeRequests.status();assert.equal(status.pauseScope,'all');assert.equal(status.pauseReason,'retry-after');assert.equal(status.pausedUntil-s.clock.now,3600000);
 });
 test('cancelled queued work never sends a request and does not lose its promise',async()=>{
  const s=harness();let cancelled=false,calls=0;

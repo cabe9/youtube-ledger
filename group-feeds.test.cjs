@@ -87,12 +87,29 @@ test('background sweeps check inactive channels at most every two hours; opening
  await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'other'},s.sender));assert.deepEqual(calls.slice(4),s.ids.slice(2));
  s.clock.now+=2*3600000;await s.finish(s.feeds.handle({type:'groupFeed:checkAll'},s.sender));assert.equal(calls.length,10);
 });
-test('overlapping groups share paced requests and cooldown stops a large sweep after three failing channels',async()=>{
- const s=refreshHarness(25),calls=[];s.box.fetch=async url=>{calls.push(url);return s.response(url,404);};
+test('overlapping groups share paced requests and cooldown stops a large sweep after three server errors',async()=>{
+ const s=refreshHarness(25),calls=[];s.box.fetch=async url=>{calls.push(url);return s.response(url,503);};
  await s.finish(Promise.all([s.feeds.handle({type:'groupFeed:refresh',groupId:'all'},s.sender),s.feeds.handle({type:'groupFeed:checkAll'},s.sender)]));
  assert.equal(calls.length,3);assert.equal(new Set(calls).size,3);assert.equal(Object.keys(s.data['channelUploads:v1'].channels).length,3);
  const data=await s.feeds.handle({type:'groupFeed:get',groupId:'all'},s.sender);assert.ok(data.pausedUntil>s.clock.now);
  const before=calls.length;await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',force:true},s.sender));assert.equal(calls.length,before);
+});
+test('three missing feeds back off individually while the remaining group channels finish refreshing',async()=>{
+ const s=refreshHarness(15),calls=[];
+ s.box.fetch=async url=>{const id=new URL(url).searchParams.get('channel_id');calls.push(id);return s.response(url,s.ids.indexOf(id)<3?404:200);};
+ for(const id of s.ids)s.data['channelUploads:v1'].channels[id]={entries:[{videoId:'a'.repeat(11),channelId:id,title:'Cached video',publishedAt:1}],fetchedAt:1};
+ await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all'},s.sender));
+ assert.equal(calls.length,15);assert.equal(new Set(calls).size,15);
+ const data=await s.feeds.handle({type:'groupFeed:get',groupId:'all'},s.sender);assert.equal(data.pausedUntil,0);
+ for(const id of s.ids.slice(0,3)){assert.match(s.cache(id).error,/HTTP 404/);assert.equal(s.cache(id).entries.length,1);assert.equal(s.cache(id).fetchedAt,1);assert.ok(s.cache(id).retryAt>s.clock.now);}
+ for(const id of s.ids.slice(3)){assert.equal(s.cache(id).error,'');assert.ok(s.cache(id).fetchedAt>1);}
+ await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',failedOnly:true,force:true},s.sender));assert.equal(calls.length,15);
+});
+test('a large run of missing feeds stops a background sweep before checking every channel',async()=>{
+ const s=refreshHarness(25),calls=[];s.box.fetch=async url=>{calls.push(url);return s.response(url,404);};
+ await s.finish(s.feeds.handle({type:'groupFeed:checkAll'},s.sender));assert.equal(calls.length,10);
+ const data=await s.feeds.handle({type:'groupFeed:get',groupId:'all'},s.sender);assert.equal(data.pauseReason,'feed-not-found');assert.equal(data.pauseScope,'automatic');
+ assert.equal(Object.keys(s.data['channelUploads:v1'].channels).length,10);
 });
 test('a background channel already queued is promoted when its group opens',async()=>{
  const s=refreshHarness(2),calls=[];s.box.fetch=async url=>{calls.push({url,at:s.clock.now});return s.response(url);};

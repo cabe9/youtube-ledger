@@ -7,7 +7,7 @@ python3 build.py --channel experimental
 npm run test:account-history
 ```
 
-Outputs: `dist/experimental/chrome`, `dist/experimental/firefox`, and `youtube-ledger-{browser}-experimental-0.16.19.zip`. The manifest name is **YouTube Ledger Experimental**. The default `python3 build.py` instead creates the store packages in `dist/chrome` and `dist/firefox`; `python3 package-check.py` verifies their exclusion boundary and stale-file cleanup. Generated packages have not been published.
+Outputs: `dist/experimental/chrome`, `dist/experimental/firefox`, and `youtube-ledger-{browser}-experimental-0.16.20.zip`. The manifest name is **YouTube Ledger Experimental**. The default `python3 build.py` instead creates the store packages in `dist/chrome` and `dist/firefox`; `python3 package-check.py` verifies their exclusion boundary and stale-file cleanup. Generated packages have not been published.
 
 ## Use
 

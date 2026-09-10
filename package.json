@@ -1,6 +1,6 @@
 {
   "name": "youtube-ledger",
-  "version": "0.16.19",
+  "version": "0.16.20",
   "private": true,
   "scripts": {
     "test": "node --test tests.test.cjs channel-groups.test.cjs group-feeds.test.cjs features.test.cjs discovery.test.cjs recording.test.cjs media.test.cjs video-length.test.cjs shorts.test.cjs group-sharing.test.cjs youtube-requests.test.cjs",
