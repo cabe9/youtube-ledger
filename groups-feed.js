@@ -25,7 +25,7 @@
   const storageKey='ledger:group-feed-positions';
   const el=(tag,text,attrs={})=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=text;for(const [k,v] of Object.entries(attrs))node.setAttribute(k,v);return node;};
   const button=(text,fn,attrs={})=>{const node=el('button',text,{type:'button',...attrs});node.addEventListener('click',fn);return node;};
-  async function request(message){const result=await browser.runtime.sendMessage(message);if(result?.groupFeedError||result?.channelGroupError)throw new Error(result.groupFeedError||result.channelGroupError);return result;}
+  async function request(message){if(['groupFeed:get','groupFeed:refresh','groupFeed:retryCooldown'].includes(message.type))message={...message,visible:document.visibilityState==='visible'};const result=await browser.runtime.sendMessage(message);if(result?.groupFeedError||result?.channelGroupError)throw new Error(result.groupFeedError||result.channelGroupError);return result;}
   const groupURL=id=>'/feed/subscriptions#ledger-group='+encodeURIComponent(id);
   const channelURL=id=>'https://www.youtube.com/channel/'+id;
   const manage=()=>request({type:'channelGroups:open'}).catch(error=>showError(error.message));
@@ -123,6 +123,7 @@
     .header-actions .group-options{width:40px;padding:8px}.header-actions button:disabled{cursor:default}
     .refresh-line{display:flex;align-items:center;gap:5px;margin-top:10px;min-height:28px;color:var(--quiet)}.refresh-line .freshness{font-size:12px;margin:0}
     .refresh-line button{display:grid;place-items:center;width:30px;height:30px;padding:6px;background:transparent;border:0;color:var(--quiet)}.refresh-line button:hover{background:var(--control-hover)}
+    .upload-progress{width:min(420px,100%);margin-top:8px;font-size:12px;color:var(--quiet)}.upload-progress[hidden]{display:none}.upload-progress-label{color:var(--ink);margin:0 0 5px}.upload-progress-note{margin:5px 0 0}.upload-progress progress{display:block;width:100%;height:5px;appearance:none;border:0;border-radius:5px;overflow:hidden;background:var(--line);color:var(--accent)}.upload-progress progress::-webkit-progress-bar{background:var(--line)}.upload-progress progress::-webkit-progress-value{background:var(--accent);border-radius:5px}.upload-progress progress::-moz-progress-bar{background:var(--accent);border-radius:5px}
     .browse-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:18px;margin-top:14px;border-top:1px solid var(--line)}
     .browse-tools .search-group{flex:1;max-width:560px;min-width:min(240px,100%);width:auto}.browse-tools select{max-width:100%}.browse-tools .filter-toggle{display:flex;gap:8px;align-items:center}
     .sort-controls{display:flex;align-items:center;gap:4px;min-width:0}.sort-controls select{min-width:0}.sort-direction{display:grid;place-items:center;width:40px;height:40px;padding:9px;flex-shrink:0}.sort-note,.shorts-note{font-size:12px;color:var(--quiet);margin:10px 0 0}.sort-note:empty,.shorts-note:empty{display:none}.video-stats{font:inherit;color:var(--quiet)}.video-stats::before{content:'·';margin-right:6px}.video-stats[hidden]{display:none}
@@ -458,7 +459,17 @@
   }
   for(const type of ['click','auxclick','contextmenu'])window.addEventListener(type,queueVideoClick,true);
   function updateTimes(){for(const card of host?.shadowRoot.querySelectorAll('article')||[])updateCard(card);updateFreshness();updateNavigation();}
-  function updateFreshness(){const node=host?.shadowRoot.querySelector('.freshness');if(!node)return;const checked=(data?.channels||[]).filter(c=>c.fetchedAt).map(c=>c.fetchedAt);node.textContent=refreshing?'Checking uploads…':checked.length?'Uploads checked '+Ledger.relativeTime(Math.min(...checked)).toLocaleLowerCase():'Uploads not checked yet';node.title=checked.length?'Oldest successful channel refresh: '+new Date(Math.min(...checked)).toLocaleString():'';}
+  function updateFreshness(){const node=host?.shadowRoot.querySelector('.freshness');if(!node)return;const checked=(data?.channels||[]).filter(c=>c.fetchedAt).map(c=>c.fetchedAt);node.textContent=refreshing||data?.refresh?.running?'Checking uploads…':checked.length?'Uploads checked '+Ledger.relativeTime(Math.min(...checked)).toLocaleLowerCase():'Uploads not checked yet';node.title=checked.length?'Oldest successful channel refresh: '+new Date(Math.min(...checked)).toLocaleString():'';updateRefreshProgress();}
+  function updateRefreshProgress(){
+    const node=host?.shadowRoot.querySelector('.upload-progress');if(!node)return;
+    const state=data?.refresh;node.hidden=!state?.total;if(node.hidden)return;
+    const caption=state.checked+' of '+state.total+' '+(state.failedOnly?'failed channels':'channels')+' checked';
+    const notes=[...(state.refreshed?[state.refreshed+' refreshed']:[]),...(state.cached?[state.cached+' already cached']:[]),...(state.failed?[state.failed+' failed']:[])];
+    if(!state.running&&state.checked<state.total)notes.push((state.paused?'Paused · ':'')+(state.total-state.checked)+' remaining');
+    node.querySelector('.upload-progress-label').textContent=caption;
+    node.querySelector('.upload-progress-note').textContent=notes.join(' · ')||(state.running?'Starting checks…':'');
+    const bar=node.querySelector('progress');bar.max=state.total;bar.value=state.checked;bar.setAttribute('aria-valuetext',caption+(notes.length?'. '+notes.join(', '):''));
+  }
   function reconcileChildren(parent,children){
     const keep=new Set(children);
     for(const node of [...parent.childNodes])if(!keep.has(node))node.remove();
@@ -551,6 +562,7 @@
     ]),{class:'group-options feed-menu-trigger','aria-label':'Group options','aria-haspopup':'menu','aria-expanded':'false','data-focus':'group-options',title:'Group options'});
     options.append(outlineIcon('M4 12h.01M12 12h.01M20 12h.01'));options.firstChild.setAttribute('stroke-width','4');actions.append(options);top.append(heading,actions);header.replaceChildren(top);
     const freshness=el('div',undefined,{class:'refresh-line'}),refresh=button('',()=>load(true,true),{'data-focus':'refresh','aria-label':refreshing?'Refreshing uploads':'Refresh uploads',title:'Refresh uploads'});refresh.append(outlineIcon('M20 7v5h-5M4 17v-5h5M6.1 6.1a8 8 0 0 1 13.2 3M4.7 14.9a8 8 0 0 0 13.2 3'));refresh.disabled=refreshing||data?.pausedUntil>Date.now();freshness.append(el('span','',{class:'freshness'}),refresh);header.append(freshness);
+    const uploadProgress=el('div',undefined,{class:'upload-progress',hidden:''});uploadProgress.append(el('p','',{class:'upload-progress-label'}),el('progress',undefined,{max:'1',value:'0','aria-label':'Channel upload checks'}),el('p','',{class:'upload-progress-note'}));header.append(uploadProgress);
     const tools=el('div',undefined,{class:'browse-tools'}),search=el('input',undefined,{type:'search',class:'search-group',placeholder:'Search titles or channels','aria-label':'Search this group',maxlength:'200',title:'Search titles and channels in the available uploads'});search.value=query;
     search.addEventListener('compositionstart',()=>{composing=true;});search.addEventListener('compositionend',()=>{composing=false;query=search.value;limit=48;render();});search.addEventListener('input',()=>{query=search.value;limit=48;if(!composing)render();});tools.append(search);
     const order=Ledger.groupSort(group.sort),sortControls=el('div',undefined,{class:'sort-controls'}),sort=el('select',undefined,{'aria-label':'Sort uploads','data-focus':'sort',title:'Views per hour is the average since upload, not current activity.'});
@@ -693,16 +705,17 @@
     if(refresh){refreshing=true;render();}
     try{
       if(visitBoundary===undefined){if(!visitPromise)visitPromise=request({type:'feedLibrary:visit',groupId:id});const visit=await visitPromise;if(id!==active)return;visitBoundary=visit.previous;visitAt=visit.at;}
-      const result=await request({type:'groupFeed:get',groupId:id});if(version!==generation||id!==active)return;data=result;render();if(refresh&&!retryUntil)LedgerMedia.portraits(result.channels.map(c=>c.id));
+      const result=await request({type:'groupFeed:get',groupId:id});if(version!==generation||id!==active)return;data=result;render();if(refresh&&!retryUntil&&document.visibilityState==='visible')LedgerMedia.portraits(result.channels.map(c=>c.id));
       if(refresh){await request(retryUntil?{type:'groupFeed:retryCooldown',groupId:id,pausedUntil:retryUntil}:{type:'groupFeed:refresh',groupId:id,force,failedOnly});if(version!==generation||id!==active)return;const latest=await request({type:'groupFeed:get',groupId:id});if(version!==generation||id!==active)return;data=latest;refreshing=false;render();}
-    }catch(error){if(version===generation&&id===active){refreshing=false;render();showError(error.message);}}
+    }catch(error){if(version===generation&&id===active){refreshing=false;if(data?.refresh)data.refresh.running=false;render();showError(error.message);}}
   }
   function storageChanged(changes,area){
     if(disposed||area!=='local')return;
+    if(changes['groupRefreshProgress:v1']&&data){data.refresh=changes['groupRefreshProgress:v1'].newValue?.[active]||null;updateFreshness();}
     if(changes['youtubeRequests:v1']&&data){const next=changes['youtubeRequests:v1'].newValue||{},until=next.pausedUntil||0,message=next.pauseMessage||'',scope=next.pauseScope||'all';if(until!==(data.pausedUntil||0)||message!==(data.pauseMessage||'')||scope!==data.pauseScope){Object.assign(data,{pausedUntil:until,pauseMessage:message,pauseScope:scope,pauseReason:next.pauseReason||'unknown'});render();}}
     if(changes['videoProgress:v1']&&data){data.progress=changes['videoProgress:v1'].newValue||{version:1,videos:{}};render();}
     if(changes[FeedLibrary.key]){library=changes[FeedLibrary.key].newValue||{version:1,groups:{}};updateNavigation();render();}
-    if(changes.settings){theme=Ledger.settings(changes.settings.newValue).theme;settingsReady=true;mount();}
+    if(changes.settings){theme=Ledger.settings(changes.settings.newValue).theme;settingsReady=true;mount();if(changes.settings.oldValue?.backgroundGroupChecks===false&&changes.settings.newValue?.backgroundGroupChecks===true)checkAll();}
     if(changes['channelGroups:v1']){
       const previous=saved,group=previous.groups.find(g=>g.id===active);saved=changes['channelGroups:v1'].newValue||{groups:[],channels:{}};const next=saved.groups.find(g=>g.id===active);
       if(JSON.stringify(previous.groups)===JSON.stringify(saved.groups)&&previous.collapsed===saved.collapsed){
@@ -769,7 +782,7 @@
        (mini&&!mini.isConnected&&document.querySelector('ytd-mini-guide-renderer #items')))mount();
   });
   pageChanges.observe(document,{childList:true,subtree:true});
-  const checkAll=()=>{if(!disposed&&document.visibilityState==='visible'&&saved.groups.length)request({type:'groupFeed:checkAll'}).catch(()=>{});};
+  const checkAll=()=>{if(!disposed&&saved.groups.length)request({type:'groupFeed:checkAll'}).catch(()=>{});};
   const checkTimer=setInterval(checkAll,15*60*1000),initialCheck=setTimeout(checkAll,30000+Math.random()*30000);
   const timeTimer=setInterval(updateTimes,60000);
   const durationRefresh=setInterval(scheduleDurations,60000);

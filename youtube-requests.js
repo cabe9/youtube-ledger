@@ -93,7 +93,7 @@ globalThis.YouTubeRequests = (() => {
       const wait=state.lastStartedAt+spacing-Date.now();
       if(wait>0){timer=setTimeout(()=>{timer=null;wake();},wait);return;}
       queue.shift();
-      if(job.options.cancelled?.()){globalThis.YouTubeRequestLog?.skip(job.options,'cancelled');job.resolve();return;}
+      if(await job.options.cancelled?.()){globalThis.YouTubeRequestLog?.skip(job.options,'cancelled');job.resolve();return;}
       state.lastStartedAt=Date.now();
       try{
         // Persist pacing before the request, including across worker restarts.

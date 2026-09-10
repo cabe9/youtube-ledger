@@ -58,6 +58,9 @@ test('content collector distinguishes playback, seeking, background, pause and s
 });
 
 test('settings preserve defaults, validate input and optionally include parked history',()=>{
+  assert.equal(Ledger.settings().backgroundGroupChecks,true);
+  assert.equal(Ledger.settings({backgroundGroupChecks:false}).backgroundGroupChecks,false);
+  assert.equal(Ledger.settings({backgroundGroupChecks:'false'}).backgroundGroupChecks,true);
   assert.equal(Ledger.settings().hideRecommendations,true);
   assert.equal(Object.hasOwn(Ledger.settings({hideRecommendations:false,shortMinutes:7}),'shortMinutes'),false);
   assert.equal(Ledger.settings({hideRecommendations:false}).hideRecommendations,false);

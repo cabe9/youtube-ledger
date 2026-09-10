@@ -58,6 +58,10 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   const check=require('./uploads-page-browser-test.cjs'),fixture=JSON.parse(fs.readFileSync(path.join(__dirname,'tests/fixtures/uploads-page-playlist.json')));
   fs.writeFileSync(path.join(extension,'test-paced.js'),`(async()=>{try{await (${check.toString()})(${JSON.stringify(fixture)});}catch(error){await browser.storage.local.set({'test:result':{ok:false,error:String(error.stack||error)}});}await browser.tabs.create({url:browser.runtime.getURL('test-result.html')});})();`);
  }
+ if(process.argv.includes('--background-feeds')){
+  const check=require('./background-feeds-browser-test.cjs');
+  fs.writeFileSync(path.join(extension,'test-paced.js'),`(async()=>{try{await (${check.toString()})();}catch(error){await browser.storage.local.set({'test:result':{ok:false,error:String(error.stack||error)}});}await browser.tabs.create({url:browser.runtime.getURL('test-result.html')});})();`);
+ }
  // Keep the synthetic background job alive with an extension-page port, as a
  // real content-script request does while it waits for the paced refresh.
  const testFile=path.join(extension,'test-paced.js'),body=fs.readFileSync(testFile,'utf8').replaceAll("await browser.tabs.create({url:browser.runtime.getURL('test-result.html')});",'');
@@ -76,6 +80,6 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   assert.ok(page,'Background checks must finish: '+log.slice(-5000));
   const result=await send('script.evaluate',{expression:'(async()=>{const port=browser.runtime.connect({name:"test-keepalive"}),timer=setInterval(()=>port.postMessage("alive"),1000);try{for(let i=0;i<240;i++){const value=(await browser.storage.local.get("test:result"))["test:result"];if(value)return JSON.stringify(value);await new Promise(resolve=>setTimeout(resolve,500));}return JSON.stringify({ok:false,error:"Timed out: "+JSON.stringify(await browser.storage.local.get(["youtubeRequestLog:v1","youtubeRequests:v1"]))});}finally{clearInterval(timer);port.disconnect();}})()',target:{context:page.context},awaitPromise:true});
   assert.equal(result.type,'success',JSON.stringify(result));const report=JSON.parse(result.result.value);assert.equal(report.ok,true,report.error);
-  console.log('PASS: Firefox '+session.capabilities.browserVersion+(process.argv.includes('--uploads-fallback')?' uploads-page fallback, cached refreshes, source reuse and 429 protection; ':' early failure detection, shared pacing, cached reads, manual additions and server cooldowns; ')+report.requests+' synthetic requests.');
+  console.log('PASS: Firefox '+session.capabilities.browserVersion+(process.argv.includes('--background-feeds')?' background continuation, pacing, warm-cache reuse and opt-out; ':process.argv.includes('--uploads-fallback')?' uploads-page fallback, cached refreshes, source reuse and 429 protection; ':' early failure detection, shared pacing, cached reads, manual additions and server cooldowns; ')+report.requests+' synthetic requests.');
  }finally{socket?.close();firefox.kill();await sleep(500);fs.rmSync(temporary,{recursive:true,force:true});}
 })().catch(error=>{console.error(error);process.exitCode=1;});

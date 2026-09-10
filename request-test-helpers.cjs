@@ -6,7 +6,7 @@ function harness(files=['youtube-requests.js']){
  const box={URL,Map,Set,Promise,structuredClone,AbortSignal,TextDecoder,crypto:require('node:crypto').webcrypto,
  Date:class extends Date{static now(){return clock.now;}},
  setTimeout:(fn,ms)=>{const id=++serial;timers.set(id,{fn,at:clock.now+ms});return id;},clearTimeout:id=>timers.delete(id),
- browser:{runtime:{getURL:path=>'chrome-extension://test/'+path},storage:{local:storage(data),session:storage(session)}}};
+ browser:{runtime:{getURL:path=>'chrome-extension://test/'+path},tabs:{query:async()=>[{id:1,url:'https://www.youtube.com/',active:false,incognito:false}]},storage:{local:storage(data),session:storage(session)}}};
  vm.createContext(box);const load=file=>vm.runInContext(fs.readFileSync(file,'utf8'),box);files.forEach(load);
  async function tick(){await turn();const next=[...timers.values()].sort((a,b)=>a.at-b.at)[0];if(next){clock.now=next.at;for(const [id,timer] of timers)if(timer.at<=clock.now){timers.delete(id);timer.fn();}await turn();}}
  async function finish(task){let done=false,result,error;Promise.resolve(task).then(value=>{result=value;done=true;},e=>{error=e;done=true;});for(let i=0;i<1000&&!done;i++)await tick();if(!done)throw Error('Request test did not finish');if(error)throw error;return result;}

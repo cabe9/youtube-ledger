@@ -52,6 +52,8 @@
 
   <p>Visible group cards can request public watch-page metadata directly from YouTube without account cookies to learn a video’s total length, live/upcoming status, or YouTube Shorts classification. These lookups run at most two at a time, stop after reading the player metadata when possible, and are cached with upload records. They do not open a player or add Ledger watch records. Available durations are normally refreshed at most weekly; live and upcoming status is checked more often while visible, and failed lookups are retried at most hourly.</p>
 
+  <p>Background group refreshes can run while a YouTube tab is open, including a background tab, and unfinished group refreshes can continue after leaving the group. They reuse cached uploads and use the same paced request queue and cooldowns. Turn off “Refresh subscription groups in background” in Settings to stop this background work. Closing all YouTube tabs also stops new background requests; browser suspension can delay checks. No extra browser permissions are required for this option.</p>
+
   <h2>Storage and retention</h2>
   <p>Records and preferences are stored using the browser's local extension storage (<code>storage.local</code>). The extension does not send them to a developer-operated server or use browser sync storage. Chrome and Firefox profiles keep separate histories.</p>
   <p>History, Review and group controls display available video thumbnails and channel portraits from YouTube image hosts. These image requests go directly to those hosts without a page referrer; they do not go through a Ledger server. Images load as needed, and missing images have a text or placeholder fallback. Portrait URLs and available channel addresses are included in profile backups.</p>

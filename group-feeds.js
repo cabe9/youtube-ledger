@@ -4,6 +4,13 @@ globalThis.GroupFeeds = (() => {
   const channelPattern=/^UC[A-Za-z0-9_-]{22}$/, videoPattern=/^[A-Za-z0-9_-]{11}$/;
   let writes=Promise.resolve(), launchWrites=Promise.resolve();
   const inFlight=new Map(),activeGroups=new Map();let epoch=0,checkingAll=null;
+  const refreshRuns=new Map(),progressKey='groupRefreshProgress:v1';let progressWrites=Promise.resolve();
+  function publishProgress(){
+    // This small operational snapshot must reach content-script storage events;
+    // Chrome's session storage is private to trusted extension contexts.
+    const task=progressWrites.then(()=>browser.storage.local.set({[progressKey]:Object.fromEntries([...refreshRuns].map(([id,job])=>[id,{...job.progress}]))}));
+    progressWrites=task.catch(()=>{});return progressWrites;
+  }
   const network=(run,options)=>globalThis.YouTubeRequests?YouTubeRequests.run(run,options):run(fetch);
   const detailJobs=new Map(),detailQueue=[];let detailActive=0;
   function decode(text){
@@ -139,6 +146,30 @@ globalThis.GroupFeeds = (() => {
   function needsViewUpgrade(channel){
     return !!channel&&channel.viewsAttemptedAt===undefined&&(channel.entries||[]).slice(0,15).some(entry=>!Ledger.validVideoViews(entry.views));
   }
+  function uploadsDue(stored,{force=false,background=false,retryCooldown=false}={},now=Date.now()){
+    if(!stored)return true;
+    if(stored.error)return retryCooldown||now>=Math.max(stored.retryAt||0,stored.retryAfter||0,(stored.attemptedAt||0)+(background?backgroundTTL:ttl));
+    if(force)return now>=(stored.attemptedAt||0)+60000;
+    return needsViewUpgrade(stored)||now>=(stored.attemptedAt||0)+(!background&&stored.feedSource!=='uploads-page'?ttl:backgroundTTL);
+  }
+  async function backgroundAllowed(channelId){
+    const local=await browser.storage.local.get(['settings',...(channelId?[ChannelGroups.key]:[])]);
+    if(local.settings?.backgroundGroupChecks===false)return false;
+    if(channelId&&!local[ChannelGroups.key]?.groups?.some(group=>group.channelIds.includes(channelId)))return false;
+    const tabs=await browser.tabs.query({url:['https://www.youtube.com/*','https://m.youtube.com/*'],discarded:false});
+    return tabs.some(tab=>!tab.incognito);
+  }
+  async function leaveGroup(tabId){
+    if(!activeGroups.delete(tabId))return;
+    const local=await browser.storage.local.get(ChannelGroups.key),active=new Set(activeGroups.values());
+    const visible=new Set((local[ChannelGroups.key]?.groups||[]).filter(group=>active.has(group.id)).flatMap(group=>group.channelIds));
+    for(const [id,job]of inFlight)if(!visible.has(id)){
+      job.options.priority=0;
+      if(job.options.reason!=='uploads-page-fallback')job.options.reason='background-refresh';
+    }
+    globalThis.YouTubeRequests?.wake();
+  }
+  globalThis.browser?.tabs?.onRemoved?.addListener(tabId=>{void leaveGroup(tabId).catch(()=>{});});
   async function getChannelUploads(channelId,force=false,background=false,retryCooldown=false){
     if(!channelPattern.test(channelId))throw new Error('Choose a valid channel.');
     if(inFlight.has(channelId)){
@@ -147,14 +178,14 @@ globalThis.GroupFeeds = (() => {
       if(!background){job.options.priority=2;globalThis.YouTubeRequests?.wake();}
       return job.promise;
     }
-    const version=epoch,options={priority:background?0:2,kind:'feed',reason:background?'background-refresh':force?'manual-refresh':'group-refresh',id:channelId,minSpacing:retryCooldown?10000:0,deferFeedFailure:!!globalThis.UploadsPage,cancelled:()=>version!==epoch};
+    const version=epoch,options={priority:background?0:2,kind:'feed',reason:background?'background-refresh':force?'manual-refresh':'group-refresh',id:channelId,minSpacing:retryCooldown?10000:0,deferFeedFailure:!!globalThis.UploadsPage,cancelled:async()=>version!==epoch||options.priority<2&&!await backgroundAllowed(channelId)};
     const task=(async()=>{
       const stored=(await browser.storage.local.get(key))[key]?.channels[channelId];
       if(version!==epoch)return;
-      const now=Date.now(),due=stored?.error?Math.max(stored.retryAt||0,(stored.attemptedAt||0)+(options.priority>=2?15*60000:backgroundTTL)):(stored?.attemptedAt||0)+(options.priority>=2&&stored?.feedSource!=='uploads-page'?ttl:backgroundTTL);
+      const now=Date.now();
       // Only an explicit, accepted local-cooldown reset retries failed channels
       // early. The shared scheduler still blocks every server-imposed pause.
-      if(stored&&(stored.error?!retryCooldown&&now<Math.max(due,stored.retryAfter||0):force?now<(stored.attemptedAt||0)+60000:!needsViewUpgrade(stored)&&now<due)){globalThis.YouTubeRequestLog?.skip(options,stored.error?'cooldown':'cache');return;}
+      if(!uploadsDue(stored,{force,background:options.priority<2,retryCooldown},now)){globalThis.YouTubeRequestLog?.skip(options,stored.error?'cooldown':'cache');return {outcome:stored.error?'waiting':'cached'};}
       let entries,error='',retryAfter=0,feedSource='rss';
       const page=async()=>{
         feedSource='uploads-page';
@@ -182,7 +213,7 @@ globalThis.GroupFeeds = (() => {
         catch(failure){if(!globalThis.UploadsPage?.eligible(failure)||version!==epoch)throw failure;entries=await page();}
       }catch(e){
         // A queued channel was not contacted. Do not mark it as a failed channel.
-        if(e.name==='YouTubeCooldownError')return;
+        if(e.name==='YouTubeCooldownError')return {outcome:'cooldown'};
         retryAfter=e.retryAfter||0;
         error=e.name==='TimeoutError'||e.name==='AbortError'?'This channel took too long to respond.':e.name==='TypeError'?'Could not connect to YouTube’s upload feed.':String(e.message||'Could not refresh this channel.');
       }
@@ -193,8 +224,37 @@ globalThis.GroupFeeds = (() => {
         if(!error){channel.feedSource=feedSource;if(feedSource==='uploads-page')channel.rssRetryAt=stored?.rssRetryAt>now?stored.rssRetryAt:Date.now()+86400000;else delete channel.rssRetryAt;}
         return next;
       });
+      return {outcome:error?'failed':'refreshed'};
     })();
     inFlight.set(channelId,{promise:task,options});try{return await task;}finally{if(inFlight.get(channelId)?.promise===task)inFlight.delete(channelId);}
+  }
+  async function refreshGroup(group,channelIds,{force=false,retryCooldown=false,failedOnly=false}={}){
+    const previous=refreshRuns.get(group.id);
+    if(previous?.progress.running){if(!retryCooldown)return previous.promise;await previous.promise;}
+    const version=epoch,targets=[...new Set(channelIds)],job={progress:{total:targets.length,checked:0,refreshed:0,cached:0,failed:0,running:true,paused:false,failedOnly}};
+    refreshRuns.delete(group.id);refreshRuns.set(group.id,job);
+    for(const [id,old]of refreshRuns)if(refreshRuns.size>200&&!old.progress.running)refreshRuns.delete(id);
+    job.promise=(async()=>{
+      await publishProgress();let index=0;
+      try{
+        const results=await Promise.allSettled(Array.from({length:Math.min(retryCooldown?1:4,targets.length)},async()=>{
+          while(index<targets.length&&version===epoch){
+            const background=![...activeGroups.values()].includes(group.id);
+            if(background&&!await backgroundAllowed()||(await globalThis.YouTubeRequests?.status())?.pausedUntil>Date.now())break;
+            if(index>=targets.length||version!==epoch)break;
+            const result=await getChannelUploads(targets[index++],retryCooldown||!background&&force,background,retryCooldown);
+            if(version!==epoch)break;
+            if(['refreshed','cached','failed'].includes(result?.outcome)){job.progress.checked++;job.progress[result.outcome]++;await publishProgress();}
+          }
+        }));
+        const error=results.find(result=>result.status==='rejected');if(error)throw error.reason;
+        return {ok:true};
+      }finally{
+        if(version===epoch&&refreshRuns.get(group.id)===job){
+          job.progress.running=false;job.progress.paused=(await globalThis.YouTubeRequests?.status())?.pausedUntil>Date.now();await publishProgress();
+        }
+      }
+    })();return job.promise;
   }
   async function launchContext(group,entries){
     const token=crypto.randomUUID(), at=Date.now();
@@ -206,8 +266,10 @@ globalThis.GroupFeeds = (() => {
   }
   async function handle(message,sender){
     if(!sender.tab||sender.tab.incognito||!/^https:\/\/(www|m)\.youtube\.com\//.test(sender.url||''))throw new Error('This page cannot open Ledger feeds.');
-    if(message.type==='groupFeed:leave'){activeGroups.delete(sender.tab.id);return {ok:true};}
-    if(['groupFeed:get','groupFeed:refresh','groupFeed:retryCooldown'].includes(message.type))activeGroups.set(sender.tab.id,message.groupId);
+    if(message.type==='groupFeed:leave'){await leaveGroup(sender.tab.id);return {ok:true};}
+    if(['groupFeed:get','groupFeed:refresh','groupFeed:retryCooldown'].includes(message.type)){
+      if(message.visible===false)await leaveGroup(sender.tab.id);else activeGroups.set(sender.tab.id,message.groupId);
+    }
     if(message.type==='groupFeed:source'){
       const context=(await browser.storage.session.get(launchKey))[launchKey]?.[message.token];
       if(!context||Date.now()-context.at>2*60*60*1000||!context.videoIds.includes(message.videoId))return {kind:'unknown',evidence:'unverified-link'};
@@ -216,26 +278,21 @@ globalThis.GroupFeeds = (() => {
     if(message.type==='groupFeed:checkAll'){
       if(checkingAll)return checkingAll;
       const version=epoch;checkingAll=(async()=>{
+        if((await globalThis.YouTubeRequests?.status())?.pausedUntil>Date.now()||!await backgroundAllowed())return {ok:true};
         const local=await browser.storage.local.get([ChannelGroups.key,key]),cache=local[key]?.channels||{};
-        const ids=[...new Set((local[ChannelGroups.key]?.groups||[]).flatMap(g=>g.channelIds))].filter(id=>channelPattern.test(id)).sort((a,b)=>(cache[a]?.attemptedAt||0)-(cache[b]?.attemptedAt||0)).slice(0,200);
-        for(const id of ids){if(version!==epoch)break;await getChannelUploads(id,false,true);if((await globalThis.YouTubeRequests?.status())?.pausedUntil>Date.now())break;}return {ok:true};
+        const ids=[...new Set((local[ChannelGroups.key]?.groups||[]).flatMap(g=>g.channelIds))].filter(id=>channelPattern.test(id)&&uploadsDue(cache[id],{background:true})).sort((a,b)=>(cache[a]?.attemptedAt||0)-(cache[b]?.attemptedAt||0)).slice(0,200);
+        for(const id of ids){if(version!==epoch||!await backgroundAllowed()||(await globalThis.YouTubeRequests?.status())?.pausedUntil>Date.now())break;await getChannelUploads(id,false,true);}return {ok:true};
       })();try{return await checkingAll;}finally{checkingAll=null;}
     }
     const data=await browser.storage.local.get([ChannelGroups.key,key]), groups=data[ChannelGroups.key]||{groups:[],channels:{}};
     const group=groups.groups.find(g=>g.id===message.groupId);
     if(!group)throw new Error('This group no longer exists.');
     const ids=group.channelIds.filter(id=>channelPattern.test(id));
+    if(message.visible!==false){for(const id of ids){const job=inFlight.get(id);if(job){job.options.priority=2;if(job.options.reason==='background-refresh')job.options.reason='group-refresh';}}globalThis.YouTubeRequests?.wake();}
     if(message.type==='groupFeed:retryCooldown'){
       if(!Number.isFinite(message.pausedUntil)||message.pausedUntil<=0)throw Error('Refresh this group to see its current cooldown.');
-      const version=epoch;
       if(!await globalThis.YouTubeRequests?.retryCooldown(message.pausedUntil))return {ok:true,retried:false};
-      // Retry just this group's channels once, sequentially and at the slower
-      // pace. Other channels retain their individual retry times.
-      for(const id of ids){
-        if(version!==epoch||activeGroups.get(sender.tab.id)!==group.id)break;
-        await getChannelUploads(id,true,false,true);
-        if((await globalThis.YouTubeRequests?.status())?.pausedUntil>Date.now())break;
-      }
+      await refreshGroup(group,ids,{retryCooldown:true});
       return {ok:true,retried:true};
     }
     if(message.type==='groupFeed:details'){
@@ -250,12 +307,12 @@ globalThis.GroupFeeds = (() => {
       return {details:Object.fromEntries(values.map(([id,e])=>[id,e?.details]).filter(([,value])=>Ledger.validVideoDetails(value))),views:Object.fromEntries(values.map(([id,e])=>[id,e?.views]).filter(([,value])=>Ledger.validVideoViews(value)))};
     }
     if(message.type==='groupFeed:refresh'){
-      const version=epoch,targets=message.failedOnly===true?ids.filter(id=>data[key]?.channels?.[id]?.error):ids;
-      let index=0;await Promise.all(Array.from({length:Math.min(4,targets.length)},async()=>{while(index<targets.length&&version===epoch&&activeGroups.get(sender.tab.id)===group.id)await getChannelUploads(targets[index++],message.force===true);}));return {ok:true};
+      const targets=message.failedOnly===true?ids.filter(id=>data[key]?.channels?.[id]?.error):ids;
+      return refreshGroup(group,targets,{force:message.force===true,failedOnly:message.failedOnly===true});
     }
     if(message.type!=='groupFeed:get')throw new Error('Unknown feed request.');
     const cache=data[key]?.channels||{}, entries=[...new Map(ids.flatMap(id=>cache[id]?.entries||[]).map(v=>[v.videoId,v])).values()].sort((a,b)=>b.publishedAt-a.publishedAt||a.videoId.localeCompare(b.videoId));
-    return {...(await globalThis.YouTubeRequests?.status()),progress:globalThis.WatchStatus?await WatchStatus.read():{version:1,videos:{}},group,channels:ids.map(id=>({...groups.channels[id],id,fetchedAt:cache[id]?.fetchedAt||null,error:cache[id]?.error||'',retryAt:cache[id]?.retryAt||0,feedSource:cache[id]?.feedSource||'rss'})),entries,launchToken:entries.length?await launchContext(group,entries):null};
+    return {...(await globalThis.YouTubeRequests?.status()),refresh:refreshRuns.get(group.id)?{...refreshRuns.get(group.id).progress}:null,progress:globalThis.WatchStatus?await WatchStatus.read():{version:1,videos:{}},group,channels:ids.map(id=>({...groups.channels[id],id,fetchedAt:cache[id]?.fetchedAt||null,error:cache[id]?.error||'',retryAt:cache[id]?.retryAt||0,feedSource:cache[id]?.feedSource||'rss'})),entries,launchToken:entries.length?await launchContext(group,entries):null};
   }
-  return {invalidate(){epoch++;inFlight.clear();},key,parse,parseVideoDetails,readPlayer,merge,getChannelUploads,handle,prune};
+  return {invalidate(){epoch++;inFlight.clear();refreshRuns.clear();void publishProgress();},key,parse,parseVideoDetails,readPlayer,merge,getChannelUploads,handle,prune};
 })();

@@ -151,3 +151,57 @@ test('retry validates the sender and group before clearing the cooldown',async()
  await assert.rejects(s.feeds.handle({...message,groupId:'missing'},s.sender),/no longer exists/);
  assert.equal((await s.box.YouTubeRequests.status()).pausedUntil,until);
 });
+test('leaving a group lets unfinished checks finish at background pace without restarting completed channels',async()=>{
+ const s=refreshHarness(7),calls=[];let release;
+ s.box.fetch=async url=>{calls.push({url,at:s.clock.now});if(calls.length===1)await new Promise(resolve=>release=resolve);return s.response(url);};
+ const pending=s.feeds.handle({type:'groupFeed:refresh',groupId:'all'},s.sender);await refreshTurn();
+ await s.feeds.handle({type:'groupFeed:leave'},s.sender);release();await s.finish(pending);
+ assert.equal(calls.length,7);assert.equal(new Set(calls.map(c=>c.url)).size,7);assert.ok(calls.slice(1).every((c,i)=>c.at-calls[i].at>=10000));
+});
+test('hidden-tab refreshes are background work, and disabling the setting still allows visible group checks',async()=>{
+ const s=refreshHarness(3),calls=[];s.box.fetch=async url=>{calls.push(s.clock.now);return s.response(url);};
+ s.data.settings={backgroundGroupChecks:false};
+ await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',visible:false},s.sender));assert.equal(calls.length,0);
+ await s.finish(s.feeds.handle({type:'groupFeed:checkAll'},s.sender));assert.equal(calls.length,0);
+ await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',visible:true},s.sender));assert.equal(calls.length,3);assert.equal(calls[1]-calls[0],2000);
+ s.clock.now+=3*3600000;s.data.settings.backgroundGroupChecks=true;
+ await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',visible:false},s.sender));assert.equal(calls.length,6);assert.equal(calls[4]-calls[3],10000);
+});
+test('queued background checks stop when disabled, the last YouTube tab closes, or the channel is removed',async()=>{
+ for(const stop of ['setting','closed','removed']){
+  const s=refreshHarness(7),calls=[];let release;
+  s.box.fetch=async url=>{calls.push(url);if(calls.length===1)await new Promise(resolve=>release=resolve);return s.response(url);};
+  const pending=s.feeds.handle({type:'groupFeed:refresh',groupId:'all'},s.sender);await refreshTurn();
+  await s.feeds.handle({type:'groupFeed:leave'},s.sender);
+  if(stop==='setting')s.data.settings={backgroundGroupChecks:false};
+  if(stop==='closed')s.box.browser.tabs.query=async()=>[];
+  if(stop==='removed')s.data['channelGroups:v1'].groups=[];
+  release();await s.finish(pending);assert.equal(calls.length,1,stop);
+ }
+});
+test('background sweeps ignore warm channels before applying the sweep limit, and do nothing during a cooldown',async()=>{
+ const s=refreshHarness(205),calls=[];s.load('request-log.js');
+ for(const id of s.ids.slice(0,200))s.data['channelUploads:v1'].channels[id]={attemptedAt:s.clock.now,entries:[]};
+ s.box.fetch=async url=>{calls.push(url);return s.response(url);};
+ await s.finish(s.feeds.handle({type:'groupFeed:checkAll'},s.sender));assert.equal(calls.length,5);
+ await s.finish(s.feeds.handle({type:'groupFeed:checkAll'},s.sender));assert.equal(calls.length,5);
+ const before=JSON.stringify((await s.box.YouTubeRequestLog.snapshot()).days);
+ s.data['youtubeRequests:v1']={pausedUntil:s.clock.now+900000,pauseScope:'automatic',pauseReason:'feed-failures'};s.load('youtube-requests.js');
+ await s.finish(s.feeds.handle({type:'groupFeed:checkAll'},s.sender));assert.equal(JSON.stringify((await s.box.YouTubeRequestLog.snapshot()).days),before);
+});
+test('progress includes cached channels, counts a refreshed channel once, and is shared across tabs',async()=>{
+ const s=refreshHarness(3);let release;const calls=[];
+ s.data['channelUploads:v1'].channels[s.ids[0]]={attemptedAt:s.clock.now,entries:[]};
+ s.box.fetch=async url=>{calls.push(url);if(calls.length===1)await new Promise(resolve=>release=resolve);return s.response(url);};
+ const pending=s.feeds.handle({type:'groupFeed:refresh',groupId:'all'},s.sender);await refreshTurn();
+ const other={...s.sender,tab:{id:2}},shared=s.feeds.handle({type:'groupFeed:refresh',groupId:'all'},other);await refreshTurn();
+ let refresh=(await s.feeds.handle({type:'groupFeed:get',groupId:'all'},other)).refresh;
+ assert.equal(refresh.total,3);assert.equal(refresh.checked,1);assert.equal(refresh.cached,1);assert.equal(refresh.running,true);
+ release();await s.finish(Promise.all([pending,shared]));
+ refresh=s.data['groupRefreshProgress:v1'].all;assert.equal(refresh.checked,3);assert.equal(refresh.cached,1);assert.equal(refresh.refreshed,2);assert.equal(refresh.running,false);assert.equal(calls.length,2);
+});
+test('progress stops at the actual count when server cooldown leaves channels unattempted',async()=>{
+ const s=refreshHarness(7);s.box.fetch=async url=>s.response(url,429);
+ await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all'},s.sender));
+ const state=s.data['groupRefreshProgress:v1'].all;assert.equal(state.total,7);assert.equal(state.checked,1);assert.equal(state.failed,1);assert.equal(state.paused,true);assert.equal(state.running,false);
+});
