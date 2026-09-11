@@ -32,7 +32,7 @@ function setup(){
  const box={Ledger,ChannelGroups,URL,Date,Map,Set,Promise,structuredClone,AbortSignal,TextDecoder,fetch:async(url,options)=>{
   requests.push({url,options});active++;peak=Math.max(peak,active);await new Promise(resolve=>gates.push(resolve));active--;
   const id=new URL(url).searchParams.get('v');return {ok:true,url,text:async()=>id===X?'<html>Sign in</html>':html(player(id,id===W?'3661':'379'))};
- },browser:{storage:{local:{get:async keys=>Object.fromEntries((Array.isArray(keys)?keys:[keys]).map(k=>[k,structuredClone(data[k])])),set:async values=>Object.assign(data,structuredClone(values))}}}};
+ },browser:{tabs:{query:async()=>[{id:1,url:'https://www.youtube.com/'}]},storage:{local:{get:async keys=>Object.fromEntries((Array.isArray(keys)?keys:[keys]).map(k=>[k,structuredClone(data[k])])),set:async values=>Object.assign(data,structuredClone(values))}}}};
  vm.runInNewContext(fs.readFileSync('group-feeds.js','utf8'),box);
  return {box,data,requests,gates,get peak(){return peak;},release(){for(const done of gates.splice(0))done();}};
 }
@@ -80,10 +80,10 @@ test('view sorting upgrades cached durations, uses an hourly cooldown, and prese
  await s.box.GroupFeeds.handle(message,sender);assert.equal(requests,2,'Unavailable counts do not cause a retry loop');
 });
 
-test('legacy caches recover fifteen view counts with one shared RSS request instead of individual watch pages',async()=>{
+test('expired legacy caches recover fifteen view counts with one shared RSS request instead of individual watch pages',async()=>{
  const s=setup(),now=Date.now(),xml=fs.readFileSync('tests/fixtures/youtube-uploads.xml','utf8').replaceAll('UCvryaJCRHcTVjOC_DcuYxGg',A).replaceAll('vryaJCRHcTVjOC_DcuYxGg',A.slice(2));
  const entries=GroupFeeds.parse(xml,A,now).map(({views,...entry})=>({...entry,details:{status:'available',duration:300,shorts:false,checkedAt:now}}));
- s.data['channelUploads:v1'].channels[A]={entries,fetchedAt:now,attemptedAt:now};s.data['channelGroups:v1'].groups[0].sort='rate-desc';
+ s.data['channelUploads:v1'].channels[A]={entries,fetchedAt:now-2*3600000,attemptedAt:now-2*3600000};s.data['channelGroups:v1'].groups[0].sort='rate-desc';
  const urls=[];s.box.fetch=async url=>{urls.push(url);assert.ok(url.includes('/feeds/videos.xml?'));return {ok:true,url,text:async()=>xml};};
  const message={type:'groupFeed:details',groupId:'podcasts',videoIds:entries.slice(0,12).map(e=>e.videoId)},sender={tab:{id:1},url:'https://www.youtube.com/feed/subscriptions'};
  const [result]=await Promise.all([s.box.GroupFeeds.handle(message,sender),s.box.GroupFeeds.handle(message,sender)]);

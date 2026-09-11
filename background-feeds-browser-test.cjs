@@ -19,6 +19,10 @@ module.exports=async function checkBackgroundFeeds(){
   verify(progress.total===2&&progress.checked===2&&progress.refreshed===2&&!progress.running,'Progress must finish after background continuation');
   await GroupFeeds.handle({type:'groupFeed:checkAll'},sender);verify(calls.length===2,'Background sweep must reuse warm channels');
   const log=await YouTubeRequestLog.snapshot();verify(log.recent.length===2&&log.recent[1].mode==='background','Continuation must be logged at background priority');
+  const warm=(await browser.storage.local.get('channelUploads:v1'))['channelUploads:v1'];for(const c of Object.values(warm.channels))c.attemptedAt=Date.now()-30*60000;await browser.storage.local.set({'channelUploads:v1':warm});
+  const before=JSON.stringify((await browser.storage.local.get('groupRefreshProgress:v1'))['groupRefreshProgress:v1']);
+  for(let i=0;i<4;i++){await GroupFeeds.handle({type:'groupFeed:get',groupId:'background'},sender);await GroupFeeds.handle({type:'groupFeed:refresh',groupId:'background',automatic:true},sender);}
+  verify(calls.length===2&&JSON.stringify((await browser.storage.local.get('groupRefreshProgress:v1'))['groupRefreshProgress:v1'])===before,'Warm visible visits must not request uploads or restart progress');
   const key='channelUploads:v1',cache=(await browser.storage.local.get(key))[key];for(const c of Object.values(cache.channels))c.attemptedAt=1;await browser.storage.local.set({[key]:cache,settings:{backgroundGroupChecks:false}});
   await GroupFeeds.handle({type:'groupFeed:checkAll'},sender);verify(calls.length===2,'Opt-out must stop background requests');
   await browser.storage.local.set({settings:{backgroundGroupChecks:true}});open=false;

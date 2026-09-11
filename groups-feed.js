@@ -458,7 +458,7 @@
     prepared.ready.catch(error=>showError(error.message));remember();
   }
   for(const type of ['click','auxclick','contextmenu'])window.addEventListener(type,queueVideoClick,true);
-  function updateTimes(){for(const card of host?.shadowRoot.querySelectorAll('article')||[])updateCard(card);updateFreshness();updateNavigation();}
+  function updateTimes(){for(const card of host?.shadowRoot.querySelectorAll('article')||[])updateCard(card);updateFreshness();updateNavigation();if(data?.pausedUntil&&data.pausedUntil<=Date.now()&&!refreshing)load();}
   function updateFreshness(){const node=host?.shadowRoot.querySelector('.freshness');if(!node)return;const checked=(data?.channels||[]).filter(c=>c.fetchedAt).map(c=>c.fetchedAt);node.textContent=refreshing||data?.refresh?.running?'Checking uploads…':checked.length?'Uploads checked '+Ledger.relativeTime(Math.min(...checked)).toLocaleLowerCase():'Uploads not checked yet';node.title=checked.length?'Oldest successful channel refresh: '+new Date(Math.min(...checked)).toLocaleString():'';updateRefreshProgress();}
   function updateRefreshProgress(){
     const node=host?.shadowRoot.querySelector('.upload-progress');if(!node)return;
@@ -702,11 +702,13 @@
     if(disposed)return;
     const id=active,version=generation;if(!id||id==='overview')return;
     if(refreshing&&refresh)return;
-    if(refresh){refreshing=true;render();}
+    // Automatic checks announce actual work through the shared progress state.
+    // A warm group visit should never flash "Checking uploads".
+    if(refresh&&force){refreshing=true;render();}
     try{
       if(visitBoundary===undefined){if(!visitPromise)visitPromise=request({type:'feedLibrary:visit',groupId:id});const visit=await visitPromise;if(id!==active)return;visitBoundary=visit.previous;visitAt=visit.at;}
       const result=await request({type:'groupFeed:get',groupId:id});if(version!==generation||id!==active)return;data=result;render();if(refresh&&!retryUntil&&document.visibilityState==='visible')LedgerMedia.portraits(result.channels.map(c=>c.id));
-      if(refresh){await request(retryUntil?{type:'groupFeed:retryCooldown',groupId:id,pausedUntil:retryUntil}:{type:'groupFeed:refresh',groupId:id,force,failedOnly});if(version!==generation||id!==active)return;const latest=await request({type:'groupFeed:get',groupId:id});if(version!==generation||id!==active)return;data=latest;refreshing=false;render();}
+      if(refresh){await request(retryUntil?{type:'groupFeed:retryCooldown',groupId:id,pausedUntil:retryUntil}:{type:'groupFeed:refresh',groupId:id,force,failedOnly,automatic:!force});if(version!==generation||id!==active)return;const latest=await request({type:'groupFeed:get',groupId:id});if(version!==generation||id!==active)return;data=latest;refreshing=false;render();}
     }catch(error){if(version===generation&&id===active){refreshing=false;if(data?.refresh)data.refresh.running=false;render();showError(error.message);}}
   }
   function storageChanged(changes,area){
@@ -783,16 +785,15 @@
   });
   pageChanges.observe(document,{childList:true,subtree:true});
   const checkAll=()=>{if(!disposed&&saved.groups.length)request({type:'groupFeed:checkAll'}).catch(()=>{});};
-  const checkTimer=setInterval(checkAll,15*60*1000),initialCheck=setTimeout(checkAll,30000+Math.random()*30000);
+  const checkTimer=setInterval(checkAll,30*60*1000),initialCheck=setTimeout(checkAll,30000+Math.random()*30000);
   const timeTimer=setInterval(updateTimes,60000);
   const durationRefresh=setInterval(scheduleDurations,60000);
-  const visibilityChanged=()=>{scheduleDurations();if(document.visibilityState!=='visible')request({type:'groupFeed:leave'}).catch(()=>{});else if(active&&active!=='overview'&&!refreshing)load(true);};
+  const visibilityChanged=()=>{scheduleDurations();if(document.visibilityState!=='visible')request({type:'groupFeed:leave'}).catch(()=>{});else if(active&&active!=='overview'&&!refreshing)load();};
   document.addEventListener('visibilitychange',visibilityChanged);
-  const mountTimer=setInterval(mount,1000),refreshTimer=setInterval(()=>{if(active&&active!=='overview'&&document.visibilityState==='visible')load(true);},15*60*1000);
-  const retryTimer=setInterval(()=>{if(active&&active!=='overview'&&!refreshing&&document.visibilityState==='visible'&&data&&(!data.pausedUntil||data.pausedUntil<=Date.now())&&(data.pausedUntil||data.channels.some(channel=>channel.error&&(!channel.retryAt||channel.retryAt<=Date.now()))))load(true,false,!data.pausedUntil);},60000);
+  const mountTimer=setInterval(mount,1000),refreshTimer=setInterval(()=>{if(active&&active!=='overview'&&document.visibilityState==='visible')load(true);},30*60*1000);
   function dispose(){
     if(disposed)return;closeGroupMenu(false);closeVideoMenu(false,false);remember();disposed=true;generation++;
-    clearInterval(checkTimer);clearTimeout(initialCheck);clearInterval(timeTimer);clearInterval(mountTimer);clearInterval(refreshTimer);clearInterval(retryTimer);clearTimeout(cacheTimer);pageChanges.disconnect();
+    clearInterval(checkTimer);clearTimeout(initialCheck);clearInterval(timeTimer);clearInterval(mountTimer);clearInterval(refreshTimer);clearTimeout(cacheTimer);pageChanges.disconnect();
     clearDurationCards();clearTimeout(metadataRenderTimer);clearInterval(durationRefresh);document.removeEventListener('visibilitychange',visibilityChanged);
     try{browser.storage.onChanged.removeListener(storageChanged);}catch{}
     document.removeEventListener('yt-navigate-start',navigationStarted);document.removeEventListener('yt-navigate-finish',navigationFinished);

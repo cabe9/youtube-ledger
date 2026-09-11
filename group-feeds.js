@@ -103,10 +103,12 @@ globalThis.GroupFeeds = (() => {
     const job={shortsFirst,options:{priority:foreground?2:0,kind:'video',reason:shortsFirst?'shorts':checkViews?'views-and-details':'video-details',id:videoId,cancelled:()=>version!==epoch}};const task=new Promise((resolve,reject)=>{Object.assign(job,{resolve,reject,run:async()=>{
       if(version!==epoch)return;
       let stored=await browser.storage.local.get([key,ChannelGroups.key]);
-      // One upload-feed request can fill fifteen counts. Reuse an ongoing refresh
-      // or upgrade a pre-count cache before downloading individual watch pages.
+      // Reuse upload results without promoting an automatic refresh just because
+      // its cards are visible. Legacy count upgrades respect the same interval.
       if(!job.shortsFirst&&checkViews&&(inFlight.has(channelId)||needsViewUpgrade(stored[key]?.channels?.[channelId]))){
-        await getChannelUploads(channelId);if(version!==epoch)return;
+        if(inFlight.has(channelId))await inFlight.get(channelId).promise;
+        else if(uploadsDue(stored[key]?.channels?.[channelId],{background:true})&&await backgroundAllowed(channelId))await getChannelUploads(channelId,false,true);
+        if(version!==epoch)return;
         stored=await browser.storage.local.get([key,ChannelGroups.key]);
       }
       const entry=stored[key]?.channels?.[channelId]?.entries?.find(v=>v.videoId===videoId);
@@ -150,7 +152,7 @@ globalThis.GroupFeeds = (() => {
     if(!stored)return true;
     if(stored.error)return retryCooldown||now>=Math.max(stored.retryAt||0,stored.retryAfter||0,(stored.attemptedAt||0)+(background?backgroundTTL:ttl));
     if(force)return now>=(stored.attemptedAt||0)+60000;
-    return needsViewUpgrade(stored)||now>=(stored.attemptedAt||0)+(!background&&stored.feedSource!=='uploads-page'?ttl:backgroundTTL);
+    return !background&&needsViewUpgrade(stored)||now>=(stored.attemptedAt||0)+(!background&&stored.feedSource!=='uploads-page'?ttl:backgroundTTL);
   }
   async function backgroundAllowed(channelId){
     const local=await browser.storage.local.get(['settings',...(channelId?[ChannelGroups.key]:[])]);
@@ -229,10 +231,10 @@ globalThis.GroupFeeds = (() => {
     })();
     inFlight.set(channelId,{promise:task,options});try{return await task;}finally{if(inFlight.get(channelId)?.promise===task)inFlight.delete(channelId);}
   }
-  async function refreshGroup(group,channelIds,{force=false,retryCooldown=false,failedOnly=false}={}){
+  async function refreshGroup(group,channelIds,{force=false,retryCooldown=false,failedOnly=false,automatic=false}={}){
     const previous=refreshRuns.get(group.id);
-    if(previous?.progress.running){if(!retryCooldown)return previous.promise;await previous.promise;}
-    const version=epoch,targets=[...new Set(channelIds)],job={progress:{total:targets.length,checked:0,refreshed:0,cached:0,failed:0,running:true,paused:false,failedOnly}};
+    if(previous?.progress.running){if(!retryCooldown){if(!automatic){previous.automatic=false;previous.force||=force;}return previous.promise;}await previous.promise;}
+    const version=epoch,targets=[...new Set(channelIds)],job={automatic,force,progress:{total:targets.length,checked:0,refreshed:0,cached:0,failed:0,running:true,paused:false,failedOnly}};
     refreshRuns.delete(group.id);refreshRuns.set(group.id,job);
     for(const [id,old]of refreshRuns)if(refreshRuns.size>200&&!old.progress.running)refreshRuns.delete(id);
     job.promise=(async()=>{
@@ -240,10 +242,10 @@ globalThis.GroupFeeds = (() => {
       try{
         const results=await Promise.allSettled(Array.from({length:Math.min(retryCooldown?1:4,targets.length)},async()=>{
           while(index<targets.length&&version===epoch){
-            const background=![...activeGroups.values()].includes(group.id);
+            const background=job.automatic||![...activeGroups.values()].includes(group.id);
             if(background&&!await backgroundAllowed()||(await globalThis.YouTubeRequests?.status())?.pausedUntil>Date.now())break;
             if(index>=targets.length||version!==epoch)break;
-            const result=await getChannelUploads(targets[index++],retryCooldown||!background&&force,background,retryCooldown);
+            const result=await getChannelUploads(targets[index++],retryCooldown||!background&&job.force,background,retryCooldown);
             if(version!==epoch)break;
             if(['refreshed','cached','failed'].includes(result?.outcome)){job.progress.checked++;job.progress[result.outcome]++;await publishProgress();}
           }
@@ -289,7 +291,9 @@ globalThis.GroupFeeds = (() => {
     const group=groups.groups.find(g=>g.id===message.groupId);
     if(!group)throw new Error('This group no longer exists.');
     const ids=group.channelIds.filter(id=>channelPattern.test(id));
-    if(message.visible!==false){for(const id of ids){const job=inFlight.get(id);if(job){job.options.priority=2;if(job.options.reason==='background-refresh')job.options.reason='group-refresh';}}globalThis.YouTubeRequests?.wake();}
+    // Reading cached cards or returning to a tab must not promote background
+    // uploads to the faster foreground queue. Only an explicit refresh does.
+    if(message.visible!==false&&(message.type==='groupFeed:retryCooldown'||message.type==='groupFeed:refresh'&&message.automatic!==true)){for(const id of ids){const job=inFlight.get(id);if(job){job.options.priority=2;if(job.options.reason==='background-refresh')job.options.reason='group-refresh';}}globalThis.YouTubeRequests?.wake();}
     if(message.type==='groupFeed:retryCooldown'){
       if(!Number.isFinite(message.pausedUntil)||message.pausedUntil<=0)throw Error('Refresh this group to see its current cooldown.');
       if(!await globalThis.YouTubeRequests?.retryCooldown(message.pausedUntil))return {ok:true,retried:false};
@@ -309,7 +313,10 @@ globalThis.GroupFeeds = (() => {
     }
     if(message.type==='groupFeed:refresh'){
       const targets=message.failedOnly===true?ids.filter(id=>data[key]?.channels?.[id]?.error):ids;
-      return refreshGroup(group,targets,{force:message.force===true,failedOnly:message.failedOnly===true});
+      const automatic=message.automatic===true;
+      // Warm visits do not create a progress run or per-channel cache attempts.
+      if(automatic&&(!targets.some(id=>uploadsDue(data[key]?.channels?.[id],{background:true}))||!await backgroundAllowed()||(await globalThis.YouTubeRequests?.status())?.pausedUntil>Date.now()))return {ok:true};
+      return refreshGroup(group,targets,{force:!automatic&&message.force===true,failedOnly:message.failedOnly===true,automatic});
     }
     if(message.type!=='groupFeed:get')throw new Error('Unknown feed request.');
     const cache=data[key]?.channels||{}, entries=[...new Map(ids.flatMap(id=>cache[id]?.entries||[]).map(v=>[v.videoId,v])).values()].sort((a,b)=>b.publishedAt-a.publishedAt||a.videoId.localeCompare(b.videoId));

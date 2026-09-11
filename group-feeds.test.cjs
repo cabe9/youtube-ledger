@@ -205,3 +205,35 @@ test('progress stops at the actual count when server cooldown leaves channels un
  await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all'},s.sender));
  const state=s.data['groupRefreshProgress:v1'].all;assert.equal(state.total,7);assert.equal(state.checked,1);assert.equal(state.failed,1);assert.equal(state.paused,true);assert.equal(state.running,false);
 });
+test('automatic group visits reuse two-hour caches without progress runs or diagnostic cache attempts',async()=>{
+ const s=refreshHarness(3);s.load('request-log.js');let calls=0;s.box.fetch=async url=>{calls++;return s.response(url);};
+ for(const id of s.ids)s.data['channelUploads:v1'].channels[id]={attemptedAt:s.clock.now-30*60000,fetchedAt:s.clock.now-30*60000,entries:[{videoId:'a'.repeat(11),channelId:id,title:'Cached',publishedAt:1}]};
+ for(let i=0;i<5;i++){
+  await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',automatic:true},s.sender));
+  assert.equal((await s.feeds.handle({type:'groupFeed:get',groupId:'all'},s.sender)).refresh,null);
+ }
+ assert.equal(calls,0);assert.equal(s.data['groupRefreshProgress:v1'],undefined);assert.deepEqual(Object.keys((await s.box.YouTubeRequestLog.snapshot()).days),[]);
+ await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',force:true},s.sender));assert.equal(calls,3,'Manual Refresh can update before the two-hour interval');
+});
+test('automatic uploads stay at background pace while visible, including after cache reads and repeated visits',async()=>{
+ const s=refreshHarness(3),calls=[];s.load('request-log.js');let release;
+ const videoId='a'.repeat(11);s.data['channelUploads:v1'].channels[s.ids[0]]={attemptedAt:1,entries:[{videoId,channelId:s.ids[0],title:'Visible',publishedAt:1,views:{count:10,checkedAt:s.clock.now},details:{status:'available',duration:100,shorts:false,checkedAt:s.clock.now}}]};
+ s.box.fetch=async url=>{calls.push({url,at:s.clock.now});if(calls.length===1)await new Promise(resolve=>release=resolve);return s.response(url);};
+ const pending=s.feeds.handle({type:'groupFeed:refresh',groupId:'all',automatic:true},s.sender);await refreshTurn();
+ await s.feeds.handle({type:'groupFeed:get',groupId:'all'},s.sender);
+ const details=s.feeds.handle({type:'groupFeed:details',groupId:'all',videoIds:[videoId],checkViews:true},s.sender);
+ const same=s.feeds.handle({type:'groupFeed:refresh',groupId:'all',automatic:true},s.sender);await refreshTurn();
+ release();await s.finish(Promise.all([pending,same,details]));
+ assert.equal(calls.length,3);assert.ok(calls.slice(1).every((call,i)=>call.at-calls[i].at>=10000));assert.ok((await s.box.YouTubeRequestLog.snapshot()).recent.every(e=>e.mode==='background'));
+ const progress=JSON.stringify(s.data['groupRefreshProgress:v1']);s.clock.now+=30*60000;
+ await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',automatic:true},s.sender));assert.equal(calls.length,3);assert.equal(JSON.stringify(s.data['groupRefreshProgress:v1']),progress);
+ s.clock.now+=2*3600000;await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',automatic:true},s.sender));assert.equal(calls.length,6);
+});
+test('automatic group refresh honors opt-out and error cooldowns without starting a progress run',async()=>{
+ const s=refreshHarness(2);let calls=0;s.box.fetch=async url=>{calls++;return s.response(url);};
+ s.data.settings={backgroundGroupChecks:false};await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',automatic:true},s.sender));assert.equal(calls,0);assert.equal(s.data['groupRefreshProgress:v1'],undefined);
+ await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',force:true},s.sender));assert.equal(calls,2);
+ s.data.settings.backgroundGroupChecks=true;
+ for(const id of s.ids)Object.assign(s.cache(id),{error:'Timed out',attemptedAt:s.clock.now-30*60000,retryAt:s.clock.now-15*60000});
+ const before=JSON.stringify(s.data['groupRefreshProgress:v1']);await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',automatic:true},s.sender));assert.equal(calls,2);assert.equal(JSON.stringify(s.data['groupRefreshProgress:v1']),before);
+});
