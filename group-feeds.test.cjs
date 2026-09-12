@@ -80,7 +80,7 @@ test('feed errors make one attempt, keep cached videos, and manual refresh respe
   s.clock.now=s.cache(id).retryAt;s.box.fetch=async url=>{calls++;return s.response(url);};await s.finish(s.feeds.getChannelUploads(id));assert.equal(calls,2);assert.equal(s.cache(id).error,'');
  }
 });
-test('background sweeps check inactive channels at most every two hours; opening a group prioritizes its due channels',async()=>{
+test('background sweeps reuse channels for two hours; opening a group prioritizes its due channels',async()=>{
  const s=refreshHarness(4),calls=[];s.box.fetch=async url=>{calls.push(new URL(url).searchParams.get('channel_id'));return s.response(url);};
  await s.finish(s.feeds.handle({type:'groupFeed:checkAll'},s.sender));assert.equal(calls.length,4);
  s.clock.now+=16*60000;await s.finish(s.feeds.handle({type:'groupFeed:checkAll'},s.sender));assert.equal(calls.length,4);
@@ -217,7 +217,7 @@ test('automatic group visits reuse two-hour caches without progress runs or diag
 });
 test('automatic uploads stay at background pace while visible, including after cache reads and repeated visits',async()=>{
  const s=refreshHarness(3),calls=[];s.load('request-log.js');let release;
- const videoId='a'.repeat(11);s.data['channelUploads:v1'].channels[s.ids[0]]={attemptedAt:1,entries:[{videoId,channelId:s.ids[0],title:'Visible',publishedAt:1,views:{count:10,checkedAt:s.clock.now},details:{status:'available',duration:100,shorts:false,checkedAt:s.clock.now}}]};
+ const videoId='a'.repeat(11);s.data['channelUploads:v1'].channels[s.ids[0]]={attemptedAt:1,entries:[{videoId,channelId:s.ids[0],title:'Visible',publishedAt:s.clock.now,views:{count:10,checkedAt:s.clock.now},details:{status:'available',duration:100,shorts:false,checkedAt:s.clock.now}}]};
  s.box.fetch=async url=>{calls.push({url,at:s.clock.now});if(calls.length===1)await new Promise(resolve=>release=resolve);return s.response(url);};
  const pending=s.feeds.handle({type:'groupFeed:refresh',groupId:'all',automatic:true},s.sender);await refreshTurn();
  await s.feeds.handle({type:'groupFeed:get',groupId:'all'},s.sender);
@@ -236,4 +236,65 @@ test('automatic group refresh honors opt-out and error cooldowns without startin
  s.data.settings.backgroundGroupChecks=true;
  for(const id of s.ids)Object.assign(s.cache(id),{error:'Timed out',attemptedAt:s.clock.now-30*60000,retryAt:s.clock.now-15*60000});
  const before=JSON.stringify(s.data['groupRefreshProgress:v1']);await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',automatic:true},s.sender));assert.equal(calls,2);assert.equal(JSON.stringify(s.data['groupRefreshProgress:v1']),before);
+});
+
+const DAY=86400000;
+test('daily checks require a successful check confirming 90 days of inactivity, including legacy caches',()=>{
+ const now=200*DAY,old={fetchedAt:now,latestUploadAt:now-90*DAY,entries:[]};
+ assert.equal(GroupFeeds.automaticInterval(old,now),DAY);
+ assert.equal(GroupFeeds.automaticInterval({...old,latestUploadAt:old.latestUploadAt+1},now),2*3600000);
+ assert.equal(GroupFeeds.automaticInterval({fetchedAt:now,entries:[{publishedAt:now-100*DAY}]},now),DAY);
+ assert.equal(GroupFeeds.automaticInterval({fetchedAt:now,entries:[]},now),2*3600000,'An empty feed has unknown activity');
+ assert.equal(GroupFeeds.automaticInterval({entries:[{publishedAt:1}],error:'Unreadable',attemptedAt:now},now),2*3600000,'Failed or unverified old data cannot establish inactivity');
+ assert.equal(GroupFeeds.automaticInterval({fetchedAt:now-120*DAY,latestUploadAt:now-121*DAY,error:'Offline'},now),2*3600000,'A once-active channel does not become inactive merely because later checks failed');
+ assert.equal(GroupFeeds.automaticInterval({...old,entries:[{publishedAt:now-DAY}]},now),2*3600000,'Newer known uploads take precedence');
+});
+test('latest upload evidence survives cache eviction and failed checks, and a recent upload restores frequent checks',()=>{
+ const now=Date.now(),entry={videoId:'a'.repeat(11),channelId:A,title:'Old upload',publishedAt:now-100*DAY};
+ let cache=GroupFeeds.merge(null,A,[entry],now);
+ assert.equal(cache.channels[A].latestUploadAt,entry.publishedAt);
+ // Other channels fill the global video budget, evicting this channel's videos.
+ for(let c=0;c<20;c++)cache=GroupFeeds.merge(cache,'channel'+c,Array.from({length:250},(_,i)=>({videoId:String(c*250+i).padStart(11,'0'),channelId:'channel'+c,title:'Newer',publishedAt:now-DAY})),now);
+ assert.equal(cache.channels[A].entries.length,0);assert.equal(GroupFeeds.automaticInterval(cache.channels[A],now),DAY);
+ cache=GroupFeeds.merge(cache,A,undefined,now+DAY,'Offline');assert.equal(cache.channels[A].latestUploadAt,entry.publishedAt);assert.equal(GroupFeeds.automaticInterval(cache.channels[A],now+DAY),DAY);
+ cache=GroupFeeds.merge(cache,A,[{...entry,videoId:'b'.repeat(11),publishedAt:now+DAY-3600000,publishedAtEstimated:true}],now+DAY);
+ assert.equal(GroupFeeds.automaticInterval(cache.channels[A],now+DAY),2*3600000);
+});
+test('approximate fallback ages cannot move a known latest-upload date forward',()=>{
+ const now=Date.now(),entry={videoId:'a'.repeat(11),channelId:A,title:'Known upload',publishedAt:now-100*DAY};
+ const saved=GroupFeeds.merge(null,A,[entry],now);
+ const exact=GroupFeeds.merge(saved,A,[{...entry,publishedAt:now-89*DAY,publishedAtEstimated:true}],now+DAY);
+ assert.equal(exact.channels[A].latestUploadAt,entry.publishedAt);assert.equal(GroupFeeds.automaticInterval(exact.channels[A],now+DAY),DAY);
+ const estimated=GroupFeeds.merge(null,A,[{...entry,publishedAtEstimated:true}],now);
+ const repeated=GroupFeeds.merge(estimated,A,[{...entry,publishedAt:entry.publishedAt+DAY,publishedAtEstimated:true}],now+DAY);
+ assert.equal(repeated.channels[A].latestUploadAt,entry.publishedAt);
+});
+test('inactive channels skip automatic group visits and sweeps until daily due time, then resume two-hour checks after a new upload',async()=>{
+ const s=refreshHarness(2),[old,active]=s.ids,start=s.clock.now,calls=[];
+ s.data['channelUploads:v1'].channels={
+  [old]:{fetchedAt:start-3*3600000,attemptedAt:start-3*3600000,entries:[],latestUploadAt:start-100*DAY},
+  [active]:{fetchedAt:start-3*3600000,attemptedAt:start-3*3600000,entries:[],latestUploadAt:start-DAY}
+ };
+ s.box.fetch=async url=>{const id=new URL(url).searchParams.get('channel_id');calls.push(id);return s.response(url);};
+ await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',automatic:true},s.sender));assert.deepEqual(calls,[active]);
+ let data=await s.feeds.handle({type:'groupFeed:get',groupId:'all'},s.sender);assert.equal(data.channels[0].dailyChecks,true);assert.equal(data.channels[1].dailyChecks,false);
+ assert.equal(data.refresh.cached,1);assert.equal(data.refresh.refreshed,1);
+ // Worker reloads must not lose the saved inactivity evidence or reset its timer.
+ s.load('group-feeds.js');await s.finish(s.box.GroupFeeds.handle({type:'groupFeed:checkAll'},s.sender));assert.deepEqual(calls,[active]);
+ s.clock.now=start+21*3600000-1;await s.finish(s.feeds.getChannelUploads(old,false,true));assert.deepEqual(calls,[active]);
+ s.clock.now++;
+ s.box.fetch=async url=>{const id=new URL(url).searchParams.get('channel_id');calls.push(id);const body=`<feed xmlns="http://www.w3.org/2005/Atom"><yt:channelId>${id}</yt:channelId><title>Returned creator</title><entry><yt:videoId>aaaaaaaaaaa</yt:videoId><yt:channelId>${id}</yt:channelId><title>New upload</title><published>${new Date(s.clock.now-3600000).toISOString()}</published></entry></feed>`;return {...s.response(url),text:async()=>body};};
+ await s.finish(s.feeds.getChannelUploads(old,false,true));assert.deepEqual(calls,[active,old]);
+ data=await s.feeds.handle({type:'groupFeed:get',groupId:'all'},s.sender);assert.equal(data.channels[0].dailyChecks,false);assert.ok(data.entries.some(e=>e.title==='New upload'));
+ s.clock.now+=2*3600000;await s.finish(s.feeds.getChannelUploads(old,false,true));assert.deepEqual(calls,[active,old,old]);
+});
+test('manual Refresh can check an inactive channel early but still respects server pauses',async()=>{
+ const s=refreshHarness(),id=s.ids[0],now=s.clock.now;let calls=0;
+ s.data['channelUploads:v1'].channels[id]={fetchedAt:now-3*3600000,attemptedAt:now-3*3600000,entries:[],latestUploadAt:now-100*DAY};
+ s.box.fetch=async url=>{calls++;return s.response(url);};
+ await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',automatic:true},s.sender));assert.equal(calls,0);
+ await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',force:true},s.sender));assert.equal(calls,1);
+ s.clock.now+=60000;s.box.fetch=async url=>{calls++;return s.response(url,429);};
+ await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',force:true},s.sender));assert.equal(calls,2);
+ s.clock.now+=60000;await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',force:true},s.sender));assert.equal(calls,2);
 });

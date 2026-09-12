@@ -39,3 +39,12 @@ test('portable backup validates, round-trips all records and rolls back a failed
  const bad=clone(backup);bad.data['day:2026-09-06'][0].url='javascript:alert(1)';assert.throws(()=>B.validate(bad));assert.throws(()=>B.validate({schemaVersion:5,dailyVideos:[]}));
  await assert.rejects(B.handle({type:'backup:restore',backup},{url:'https://www.youtube.com/'}));
 });
+
+test('profile transfer preserves latest upload dates even when all cached videos were trimmed',async()=>{
+ const s=setup(),B=s.box.LedgerBackup,sender={url:'chrome-extension://test/dashboard.html#settings'};
+ s.data={'channelUploads:v1':{version:1,channels:{[A]:{entries:[],latestUploadAt:1000,fetchedAt:10000000000,attemptedAt:10000000000}}}};
+ const backup=await B.handle({type:'backup:export'},sender);s.data={};await B.handle({type:'backup:restore',backup},sender);
+ assert.equal(s.data['channelUploads:v1'].channels[A].latestUploadAt,1000);
+ for(const value of [-1,0,'1000',null]){const bad=clone(backup);bad.data['channelUploads:v1'].channels[A].latestUploadAt=value;assert.throws(()=>B.validate(bad));}
+ const old=clone(backup);delete old.data['channelUploads:v1'].channels[A].latestUploadAt;assert.doesNotThrow(()=>B.validate(old));
+});

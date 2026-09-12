@@ -1,6 +1,7 @@
 /* Local recent-upload cache. No account, API key, or remote Ledger service. */
 globalThis.GroupFeeds = (() => {
   const key='channelUploads:v1', launchKey='groupLaunches:v1', ttl=15*60*1000, backgroundTTL=2*3600000;
+  const inactiveAfter=90*86400000,inactiveTTL=86400000;
   const channelPattern=/^UC[A-Za-z0-9_-]{22}$/, videoPattern=/^[A-Za-z0-9_-]{11}$/;
   let writes=Promise.resolve(), launchWrites=Promise.resolve();
   const inFlight=new Map(),activeGroups=new Map();let epoch=0,checkingAll=null;
@@ -59,6 +60,11 @@ globalThis.GroupFeeds = (() => {
         combined.set(entry.videoId,next);
       }
       cache.channels[channelId].entries=[...combined.values()].sort((a,b)=>b.publishedAt-a.publishedAt||a.videoId.localeCompare(b.videoId)).slice(0,250);
+      // Keep the newest known upload even if global storage limits later evict
+      // every video from this channel. Use reconciled dates so a rounded page
+      // age cannot replace an exact date or drift forward on every refresh.
+      const latest=latestUploadAt(cache.channels[channelId]);
+      if(latest!==undefined)cache.channels[channelId].latestUploadAt=latest;
       cache.channels[channelId].fetchedAt=at;
     }
     // Bound metadata storage, with no age cutoff. Preserve the newest 5,000 discovered uploads.
@@ -148,11 +154,22 @@ globalThis.GroupFeeds = (() => {
   function needsViewUpgrade(channel){
     return !!channel&&channel.viewsAttemptedAt===undefined&&(channel.entries||[]).slice(0,15).some(entry=>!Ledger.validVideoViews(entry.views));
   }
+  function latestUploadAt(channel){
+    const dates=[channel?.latestUploadAt,...(channel?.entries||[]).map(entry=>entry.publishedAt)].filter(at=>Number.isFinite(at)&&at>0);
+    return dates.length?Math.max(...dates):undefined;
+  }
+  function automaticInterval(channel,now=Date.now()){
+    const latest=latestUploadAt(channel),confirmed=channel?.fetchedAt;
+    // Judge inactivity at a successful check, not by time passing while checks
+    // fail. Empty/unknown channels retain the normal cadence. Legacy caches can
+    // supply their retained dates until the next successful refresh saves one.
+    return latest!==undefined&&Number.isFinite(confirmed)&&confirmed>0&&Math.min(confirmed,now)-latest>=inactiveAfter?inactiveTTL:backgroundTTL;
+  }
   function uploadsDue(stored,{force=false,background=false,retryCooldown=false}={},now=Date.now()){
     if(!stored)return true;
-    if(stored.error)return retryCooldown||now>=Math.max(stored.retryAt||0,stored.retryAfter||0,(stored.attemptedAt||0)+(background?backgroundTTL:ttl));
+    if(stored.error)return retryCooldown||now>=Math.max(stored.retryAt||0,stored.retryAfter||0,(stored.attemptedAt||0)+(background?automaticInterval(stored,now):ttl));
     if(force)return now>=(stored.attemptedAt||0)+60000;
-    return !background&&needsViewUpgrade(stored)||now>=(stored.attemptedAt||0)+(!background&&stored.feedSource!=='uploads-page'?ttl:backgroundTTL);
+    return !background&&needsViewUpgrade(stored)||now>=(stored.attemptedAt||0)+(background?automaticInterval(stored,now):stored.feedSource!=='uploads-page'?ttl:backgroundTTL);
   }
   async function backgroundAllowed(channelId){
     const local=await browser.storage.local.get(['settings',...(channelId?[ChannelGroups.key]:[])]);
@@ -320,7 +337,7 @@ globalThis.GroupFeeds = (() => {
     }
     if(message.type!=='groupFeed:get')throw new Error('Unknown feed request.');
     const cache=data[key]?.channels||{}, entries=[...new Map(ids.flatMap(id=>cache[id]?.entries||[]).map(v=>[v.videoId,v])).values()].sort((a,b)=>b.publishedAt-a.publishedAt||a.videoId.localeCompare(b.videoId));
-    return {...(await globalThis.YouTubeRequests?.status()),refresh:refreshRuns.get(group.id)?{...refreshRuns.get(group.id).progress}:null,progress:globalThis.WatchStatus?await WatchStatus.read():{version:1,videos:{}},group,channels:ids.map(id=>({...groups.channels[id],id,fetchedAt:cache[id]?.fetchedAt||null,error:cache[id]?.error||'',retryAt:cache[id]?.retryAt||0,feedSource:cache[id]?.feedSource||'rss'})),entries,launchToken:entries.length?await launchContext(group,entries):null};
+    return {...(await globalThis.YouTubeRequests?.status()),refresh:refreshRuns.get(group.id)?{...refreshRuns.get(group.id).progress}:null,progress:globalThis.WatchStatus?await WatchStatus.read():{version:1,videos:{}},group,channels:ids.map(id=>({...groups.channels[id],id,fetchedAt:cache[id]?.fetchedAt||null,error:cache[id]?.error||'',retryAt:cache[id]?.retryAt||0,feedSource:cache[id]?.feedSource||'rss',dailyChecks:automaticInterval(cache[id])===inactiveTTL})),entries,launchToken:entries.length?await launchContext(group,entries):null};
   }
-  return {invalidate(){epoch++;inFlight.clear();refreshRuns.clear();void publishProgress();},key,parse,parseVideoDetails,readPlayer,merge,getChannelUploads,handle,prune};
+  return {invalidate(){epoch++;inFlight.clear();refreshRuns.clear();void publishProgress();},key,parse,parseVideoDetails,readPlayer,merge,automaticInterval,getChannelUploads,handle,prune};
 })();

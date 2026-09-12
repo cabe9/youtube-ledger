@@ -31,10 +31,12 @@ const {chromium}=require('playwright'),fs=require('node:fs'),os=require('node:os
   assert.equal(result.calls.length,2,JSON.stringify(result));assert.ok(result.calls[1].at-result.calls[0].at>=9950);assert.ok(result.log.recent.every(r=>r.mode==='background'));
   await worker.evaluate(async()=>GroupFeeds.handle({type:'groupFeed:checkAll'},{tab:{id:999},url:'https://www.youtube.com/watch?v=abcdefghijk'}));assert.equal((await worker.evaluate(()=>backgroundCalls)).length,2);
   console.log('Warm sweep complete; checking repeat visits and tab focus…');
-  await worker.evaluate(async()=>{const key='channelUploads:v1',cache=(await browser.storage.local.get(key))[key];for(const channel of Object.values(cache.channels))channel.attemptedAt=Date.now()-30*60000;await browser.storage.local.set({[key]:cache});});
+  await worker.evaluate(async()=>{const key='channelUploads:v1',cache=(await browser.storage.local.get(key))[key];for(const channel of Object.values(cache.channels))channel.attemptedAt=Date.now()-30*60000;Object.assign(Object.values(cache.channels)[0],{latestUploadAt:Date.now()-100*86400000,attemptedAt:Date.now()-3*3600000});await browser.storage.local.set({[key]:cache});});
   await youtube.goto('https://www.youtube.com/feed/subscriptions#ledger-group=background');
   await waitFor(worker,()=>groupRefreshRequests>=1);const feed=youtube.locator('#ledger-group-feed');await feed.locator('.freshness').waitFor();
   assert.equal(await feed.locator('.upload-progress').isVisible(),false);assert.doesNotMatch(await feed.locator('.freshness').textContent(),/Checking/);
+  await feed.locator('.group-members summary').click();await feed.locator('.channel-cadence').waitFor();assert.equal(await feed.locator('.channel-cadence').count(),1);assert.equal(await feed.locator('.channel-cadence').textContent(),'Checked daily');assert.match(await feed.locator('.channel-cadence').getAttribute('title'),/90 days/);
+  await feed.locator('.group-members').screenshot({path:'/tmp/ledger-inactive-channels-chrome.png'});
   const beforeFocus=await worker.evaluate(()=>groupRefreshRequests);
   await youtube.evaluate(()=>{document.documentElement.dataset.ledgerTestVisibility='visible';document.dispatchEvent(new Event('visibilitychange'));});
   await youtube.waitForTimeout(500);assert.equal(await worker.evaluate(()=>groupRefreshRequests),beforeFocus,'Tab focus must only read cached data');
