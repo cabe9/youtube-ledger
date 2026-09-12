@@ -42,5 +42,8 @@ module.exports=async function checkUploadsFallback(fixture){
  try{await GroupFeeds.handle({type:'groupFeed:retryCooldown',groupId:'fallback',pausedUntil:paused.pausedUntil},sender);throw Error('Expected cooldown');}catch(error){verify(error.name==='YouTubeCooldownError','Explicit retry must also respect the server cooldown');}
  verify(calls.length===4,'Rejected override must not send requests');
  const log=await YouTubeRequestLog.snapshot();verify(log.recent.length===4&&log.recent.filter(r=>r.reason==='uploads-page-fallback').length===3,'Fallback attempts must be identifiable in the request log');
+ const sources=Object.values(log.sources.days).reduce((out,day)=>{for(const [name,b]of Object.entries(day)){out[name]||={};for(const [k,n]of Object.entries(b))out[name][k]=(out[name][k]||0)+n;}return out;},{});
+ verify(sources.rss.started===1&&sources.rss.failed===1&&!sources.rss.succeeded&&!log.sources.lastSuccess.rss,'A working fallback must never count as a successful RSS load');
+ verify(sources['uploads-page'].started===3&&sources['uploads-page'].succeeded===2&&sources['uploads-page'].failed===1,'Fallback traffic must include both success and refusal');
  const report={ok:true,requests:calls.length,entries:paused.entries.length};await browser.storage.local.set({'test:result':report});return report;
 };

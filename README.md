@@ -4,13 +4,13 @@ A local YouTube usage tracker for **Chrome and Firefox**. Records video titles, 
 
 ## Install
 
-Download the **0.16.26** package for your browser below. These ZIPs are ready
+Download the **0.16.27** package for your browser below. These ZIPs are ready
 to install; no build tools are needed. For development, clone the repository
 and follow [Build and test](#build-and-test).
 
 ### Chrome
 
-1. Download [the Chrome ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.26/youtube-ledger-chrome-store-0.16.26.zip) and extract it to a permanent folder.
+1. Download [the Chrome ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.27/youtube-ledger-chrome-store-0.16.27.zip) and extract it to a permanent folder.
 2. Open `chrome://extensions` and enable **Developer mode**.
 3. Click **Load unpacked** and select the extracted folder.
 4. Pin YouTube Ledger, refresh existing YouTube tabs, and click the extension icon for the dashboard.
@@ -19,7 +19,7 @@ Keep the folder in place. The installation survives browser restarts. To update,
 
 ### Firefox
 
-1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.26/youtube-ledger-firefox-store-0.16.26.zip).
+1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.27/youtube-ledger-firefox-store-0.16.27.zip).
 2. Open `about:debugging#/runtime/this-firefox`.
 3. Click **Load Temporary Add-on** and select the extracted `manifest.json`.
 4. Refresh YouTube tabs and open YouTube Ledger from the extension toolbar.
@@ -242,3 +242,5 @@ Version 0.16.24 lets open YouTube background tabs trigger upload sweeps and lets
 Version 0.16.25 gives uploads-page fallbacks up to 30 seconds, starting the deadline when the request is sent, after local request-log writes. RSS keeps its 15-second deadline. Slow response bodies are recorded as timeouts, with the HTTP status retained, and channel errors identify which source timed out. New request elapsed times exclude diagnostic-write delays. Cached uploads and normal retry backoffs remain; this adds no immediate retries or concurrent requests. Checks: deadline/logging regressions, slow-body fallback checks in packaged Chrome and Firefox, and package validation.
 
 Version 0.16.26 makes automatic group refreshes quieter. All automatic upload checks use the two-hour cache and slower background priority, even in a visible group. Warm visits do not create another progress run, tab focus only reads saved results, and periodic checks run every 30 minutes instead of active-group checks every 15 minutes and failure polling every minute. Manual Refresh remains available. Turning background checks off now stops automatic upload checks in visible groups too. Checks: repeated-visit, priority, interval and opt-out regressions; packaged Chrome and Firefox checks; package validation.
+
+Version 0.16.27 adds **Settings → YouTube requests → RSS and page lookups**. The selected period shows usable RSS successes versus completed attempts, separately counts uploads-page fallbacks, watch-page metadata and channel pages, and retains the last RSS attempt and success beyond the seven-day detail window. HTTP 200 with unusable data is a failure; interrupted requests remain unknown. Existing retained rows are recovered once; any older requests missing source details are disclosed rather than guessed. Daily source totals survive the 1,000-row limit. Export includes these diagnostics; Clear removes them without changing cooldowns. No extra YouTube calls or changes to refresh pacing. Checks: source-log migration, interruption, retention and success/failure unit tests; packaged Chrome/Firefox fallback and dashboard checks; package validation.

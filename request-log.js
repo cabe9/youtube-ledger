@@ -4,10 +4,46 @@ globalThis.YouTubeRequestLog=(()=>{
   const kinds=['feed','video','channel'],reasons=['group-refresh','background-refresh','manual-refresh','uploads-page-fallback','shorts','video-details','views-and-details','channel-lookup','channel-portrait'];
   let state,loading,pending=Promise.resolve(),flushTimer,storageWarning='';
   const day=at=>{const d=new Date(at);return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');};
+  const sourceCounts=()=>({started:0,succeeded:0,failed:0,pending:0,unfinished:0,background:0});
+  function sourceOf(url){
+    try{const u=new URL(url);
+      if(u.protocol!=='https:'||!['www.youtube.com','m.youtube.com'].includes(u.hostname))return 'other';
+      if(u.pathname==='/feeds/videos.xml')return 'rss';
+      if(u.pathname==='/playlist'&&/^UU[A-Za-z0-9_-]{22}$/.test(u.searchParams.get('list')||''))return 'uploads-page';
+      if(u.pathname==='/watch'||u.pathname.startsWith('/shorts/'))return 'watch-page';
+      if(/^\/(channel\/|user\/|c\/|@)/.test(u.pathname))return 'channel-page';
+    }catch{}
+    return 'other';
+  }
+  function sourceBucket(entry){
+    const date=day(entry.at),daily=state.sources.days[date]||(state.sources.days[date]={});
+    return daily[entry.source]||(daily[entry.source]=sourceCounts());
+  }
+  function outcome(result){return result==='ok'?'succeeded':result==='pending'?'pending':result==='unfinished'?'unfinished':'failed';}
+  function remember(entry,started=false){
+    const last=state.sources.lastAttempt[entry.source];
+    if(!last||entry.at>last.at||entry.at===last.at&&(started||last.id===entry.id))state.sources.lastAttempt[entry.source]={id:entry.id,at:entry.at,result:entry.result,...(entry.status?{status:entry.status}:{})};
+    if(entry.result==='ok')state.sources.lastSuccess[entry.source]=Math.max(state.sources.lastSuccess[entry.source]||0,entry.at);
+  }
+  function prepareSources(){
+    if(!state.sources){
+      state.sources={version:1,since:Date.now(),days:{},lastSuccess:{},lastAttempt:{}};
+      // Only recover source counts from records we actually still have. The UI
+      // compares these with the original daily totals to disclose any gaps.
+      for(const entry of state.recent){
+        entry.source=sourceOf(entry.url);const b=sourceBucket(entry);
+        b.started++;b[outcome(entry.result)]++;if(entry.mode==='background')b.background++;remember(entry,true);
+      }
+    }else{
+      for(const daily of Object.values(state.sources.days))for(const b of Object.values(daily)){b.unfinished+=b.pending;b.pending=0;}
+      for(const last of Object.values(state.sources.lastAttempt))if(last.result==='pending')last.result='unfinished';
+    }
+  }
   function prune(){
     const rows=state.recent.length,days=Object.keys(state.days).length;
     const cutoff=new Date(Date.now());cutoff.setHours(0,0,0,0);cutoff.setDate(cutoff.getDate()-retention+1);
     state.days=Object.fromEntries(Object.entries(state.days).filter(([date])=>date>=day(cutoff)));
+    if(state.sources)state.sources.days=Object.fromEntries(Object.entries(state.sources.days).filter(([date])=>date>=day(cutoff)));
     state.recent=state.recent.filter(entry=>entry.at>=+cutoff).slice(-limit);
     return rows!==state.recent.length||days!==Object.keys(state.days).length;
   }
@@ -18,7 +54,7 @@ globalThis.YouTubeRequestLog=(()=>{
       // A worker may stop before receiving a response. Preserve the attempt,
       // without inventing an HTTP result or counting it as a server failure.
       for(const entry of state.recent)if(entry.result==='pending')entry.result='unfinished';
-      if(prune())await save();
+      prepareSources();prune();await save();
     })();
     await loading;
   }
@@ -49,8 +85,12 @@ globalThis.YouTubeRequestLog=(()=>{
     const attempts=[];
     const tracked=async(url,init)=>{
       const entry={id:crypto.randomUUID(),at:Date.now(),kind:kindOf(options),reason:reasons.includes(options.reason)?options.reason:'',mode:options.priority>=2?'foreground':'background',url:target(url),result:'pending'};
-      attempts.push(entry);
-      await change(()=>{const b=bucket(entry.at,entry.kind);b.started++;if(entry.mode==='background')b.background++;state.recent.push(entry);state.recent=state.recent.slice(-limit);}).catch(()=>{});
+      entry.source=sourceOf(entry.url);const attempt={entry,logState:null};attempts.push(attempt);
+      await change(()=>{
+        attempt.logState=state;const b=bucket(entry.at,entry.kind);b.started++;if(entry.mode==='background')b.background++;
+        const s=sourceBucket(entry);s.started++;s.pending++;if(entry.mode==='background')s.background++;remember(entry,true);
+        state.recent.push(entry);state.recent=state.recent.slice(-limit);
+      }).catch(()=>{});
       entry.sentAt=Date.now();
       try{const response=await fetchRequest(url,init);entry.status=response.status;return response;}
       catch(error){entry.result=error.name==='TimeoutError'||error.name==='AbortError'?'timeout':'network';throw error;}
@@ -59,13 +99,18 @@ globalThis.YouTubeRequestLog=(()=>{
     try{return await operation(tracked);}catch(error){failure=error;throw error;}
     finally{
       const finishedAt=Date.now();
-      for(const entry of attempts){
-        const failed=failure&&entry===attempts.at(-1),timedOut=failed&&['TimeoutError','AbortError'].includes(failure.name);
+      for(const attempt of attempts){
+        const {entry,logState}=attempt;
+        const failed=failure&&attempt===attempts.at(-1),timedOut=failed&&['TimeoutError','AbortError'].includes(failure.name);
         const result=entry.result!=='pending'?entry.result:entry.status>=400?'http-error':timedOut?'timeout':failed?'unusable':'ok';
         await change(()=>{
           // Clearing the log during an active request must not restore it.
-          const found=state.recent.find(v=>v.id===entry.id);if(!found)return;
-          Object.assign(found,{result,status:entry.status,ms:Math.max(0,finishedAt-(entry.sentAt??entry.at))});
+          if(state!==logState)return;
+          Object.assign(entry,{result,status:entry.status,ms:Math.max(0,finishedAt-(entry.sentAt??entry.at))});remember(entry);
+          // Aggregate results survive the recent-row limit, but do not recreate
+          // an expired day if a request was interrupted for longer than a week.
+          if(!state.sources.days[day(entry.at)])return;
+          const s=sourceBucket(entry);s.pending--;s[outcome(result)]++;
           const b=bucket(entry.at,entry.kind);if(result!=='ok')b.failed++;
           const status=entry.status?String(entry.status):result;b.statuses[status]=(b.statuses[status]||0)+1;
         }).catch(()=>{});
@@ -79,7 +124,7 @@ globalThis.YouTubeRequestLog=(()=>{
   async function snapshot(){await pending;await ready();if(prune())await save();return {...structuredClone(state),storageWarning,retentionDays:retention,recentLimit:limit,generatedAt:Date.now()};}
   async function handle(message,sender){
     if(sender.incognito||sender.tab?.incognito||(sender.url||'').split(/[?#]/)[0]!==browser.runtime.getURL('dashboard.html'))throw Error('Open Ledger Settings to view the request log.');
-    if(message.type==='requestLog:clear')await change(()=>{state={version:1,since:Date.now(),days:{},recent:[]};});
+    if(message.type==='requestLog:clear')await change(()=>{state={version:1,since:Date.now(),days:{},recent:[]};prepareSources();});
     else if(message.type!=='requestLog:get')throw Error('Unknown request log action.');
     return snapshot();
   }

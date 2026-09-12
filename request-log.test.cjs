@@ -71,3 +71,52 @@ test('only the extension dashboard can read or clear the log',async()=>{
  for(const other of [{url:'https://www.youtube.com/'},{url:'chrome-extension://test/dashboard.html.evil'},{...sender,tab:{incognito:true}}])await assert.rejects(s.box.YouTubeRequestLog.handle({type:'requestLog:get'},other),/Open Ledger Settings/);
  assert.equal((await s.box.YouTubeRequestLog.handle({type:'requestLog:get'},sender)).version,1);
 });
+const rssURL='https://www.youtube.com/feeds/videos.xml?channel_id=UC'+'a'.repeat(22);
+const sources=log=>Object.values(log.sources.days).reduce((out,day)=>{for(const [type,b]of Object.entries(day)){out[type]||={};for(const [k,n]of Object.entries(b))out[type][k]=(out[type][k]||0)+n;}return out;},{});
+test('separates usable RSS from HTML lookups, including failed and unreadable HTTP 200 feeds',async()=>{
+ const s=harness(files);let status=200;s.box.fetch=async url=>s.response(url,status);
+ const run=(url,kind='feed',failure)=>s.box.YouTubeRequestLog.run(async get=>{await get(url);if(failure)throw failure;},{kind,priority:0});
+ const at=s.clock.now;await run(rssURL);s.clock.now+=1000;status=404;await run(rssURL);status=200;
+ await assert.rejects(run(rssURL,'feed',Error('Unreadable')));
+ await assert.rejects(run(rssURL,'feed',Object.assign(Error('Timeout'),{name:'TimeoutError'})));
+ await run('https://www.youtube.com/playlist?list=UU'+'a'.repeat(22));
+ await run('https://www.youtube.com/watch?v=abcdefghijk','channel');
+ await run('https://www.youtube.com/@example/videos','channel');
+ for(let i=0;i<10;i++)s.box.YouTubeRequestLog.skip({kind:'feed'},'cooldown');
+ const log=await s.box.YouTubeRequestLog.snapshot(),b=sources(log);
+ assert.equal(b.rss.started,4);assert.equal(b.rss.succeeded,1);assert.equal(b.rss.failed,3);assert.equal(b.rss.pending,0);
+ assert.equal(b['uploads-page'].started,1);assert.equal(b['watch-page'].started,1);assert.equal(b['channel-page'].started,1);
+ assert.equal(log.sources.lastSuccess.rss,at);assert.equal(log.sources.lastAttempt.rss.result,'timeout');
+ assert.equal(log.sources.lastAttempt.rss.status,200);assert.equal(total(log).started,7);
+});
+test('source counts survive row eviction and restarts; last RSS success survives day expiry until clear',async()=>{
+ const s=harness(files);s.box.fetch=async url=>s.response(url);const at=s.clock.now;
+ await s.box.YouTubeRequestLog.run(get=>get(rssURL),{kind:'feed'});
+ for(let i=0;i<1001;i++)await s.box.YouTubeRequestLog.run(get=>get('https://www.youtube.com/watch?v=abcdefghijk'),{kind:'video'});
+ s.load('request-log.js');let log=await s.box.YouTubeRequestLog.snapshot();
+ assert.equal(log.recent.length,1000);assert.equal(sources(log)['watch-page'].succeeded,1001);assert.equal(sources(log).rss.succeeded,1);
+ s.clock.now+=8*86400000;s.load('request-log.js');log=await s.box.YouTubeRequestLog.snapshot();
+ assert.equal(Object.keys(log.sources.days).length,0);assert.equal(log.sources.lastSuccess.rss,at);
+ await s.box.YouTubeRequestLog.handle({type:'requestLog:clear'},sender);log=await s.box.YouTubeRequestLog.snapshot();
+ assert.equal(log.sources.lastSuccess.rss,undefined);assert.equal(log.sources.lastAttempt.rss,undefined);
+});
+test('migrates only retained legacy evidence once, without inventing results for missing rows',async()=>{
+ const s=harness(files),at=s.clock.now,date=new s.box.Date(at).toLocaleDateString('en-CA');
+ s.data['youtubeRequestLog:v1']={version:1,since:at-1000,days:{[date]:{feed:{started:9,failed:7}}},recent:[
+  {id:'1',at,kind:'feed',url:rssURL,result:'ok',status:200},
+  {id:'2',at:at+1,kind:'feed',url:rssURL,result:'http-error',status:404},
+  {id:'3',at:at+2,kind:'feed',url:rssURL,result:'pending'}]};
+ let log=await s.box.YouTubeRequestLog.snapshot(),b=sources(log).rss;
+ assert.equal(total(log).started,9);assert.equal(b.started,3);assert.equal(b.succeeded,1);assert.equal(b.failed,1);assert.equal(b.unfinished,1);
+ assert.equal(log.sources.lastSuccess.rss,at);assert.equal(log.sources.lastAttempt.rss.result,'unfinished');
+ s.load('request-log.js');log=await s.box.YouTubeRequestLog.snapshot();assert.equal(sources(log).rss.started,3);
+});
+test('interrupted requests stay unknown and a clear during a request also clears source aggregates',async()=>{
+ const s=harness(files);let release;s.box.fetch=url=>new Promise(resolve=>{release=()=>resolve(s.response(url));});
+ const operation=s.box.YouTubeRequestLog.run(get=>get(rssURL),{kind:'feed'});await turn();
+ assert.equal(sources(await s.box.YouTubeRequestLog.snapshot()).rss.pending,1);
+ const restarted=harness(files);Object.assign(restarted.data,structuredClone(s.data));let log=await restarted.box.YouTubeRequestLog.snapshot();
+ assert.equal(sources(log).rss.pending,0);assert.equal(sources(log).rss.unfinished,1);assert.equal(sources(log).rss.failed,0);assert.equal(log.sources.lastSuccess.rss,undefined);
+ await s.box.YouTubeRequestLog.handle({type:'requestLog:clear'},sender);release();await operation;log=await s.box.YouTubeRequestLog.snapshot();
+ assert.equal(Object.keys(log.sources.days).length,0);assert.equal(log.sources.lastSuccess.rss,undefined);
+});

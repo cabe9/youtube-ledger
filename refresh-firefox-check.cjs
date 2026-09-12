@@ -80,6 +80,18 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   assert.ok(page,'Background checks must finish: '+log.slice(-5000));
   const result=await send('script.evaluate',{expression:'(async()=>{const port=browser.runtime.connect({name:"test-keepalive"}),timer=setInterval(()=>port.postMessage("alive"),1000);try{for(let i=0;i<240;i++){const value=(await browser.storage.local.get("test:result"))["test:result"];if(value)return JSON.stringify(value);await new Promise(resolve=>setTimeout(resolve,500));}return JSON.stringify({ok:false,error:"Timed out: "+JSON.stringify(await browser.storage.local.get(["youtubeRequestLog:v1","youtubeRequests:v1"]))});}finally{clearInterval(timer);port.disconnect();}})()',target:{context:page.context},awaitPromise:true});
   assert.equal(result.type,'success',JSON.stringify(result));const report=JSON.parse(result.result.value);assert.equal(report.ok,true,report.error);
+  if(process.argv.includes('--uploads-fallback')){
+   await send('browsingContext.navigate',{context:page.context,url:new URL('dashboard.html#settings',page.url).href,wait:'complete'});
+   const health=await send('script.evaluate',{target:{context:page.context},awaitPromise:true,expression:`(async()=>{
+    const rate=()=>document.getElementById('request-log-rss-rate');for(let i=0;i<100&&rate()?.textContent!=='0%';i++)await new Promise(r=>setTimeout(r,100));
+    const before=(await browser.runtime.sendMessage({type:'requestLog:get'})).recent.length;
+    const result={rate:rate()?.textContent,pages:document.getElementById('request-log-page-count')?.textContent,last:document.getElementById('request-log-rss-last')?.textContent,attempt:document.getElementById('request-log-rss-attempt')?.textContent,before};
+    document.getElementById('request-log-period').value='week';document.getElementById('request-log-period').dispatchEvent(new Event('change'));
+    result.after=(await browser.runtime.sendMessage({type:'requestLog:get'})).recent.length;return JSON.stringify(result);
+   })()`});
+   assert.equal(health.type,'success',JSON.stringify(health));const ui=JSON.parse(health.result.value);
+   assert.equal(ui.rate,'0%');assert.equal(ui.pages,'3');assert.match(ui.last,/None recorded/);assert.match(ui.attempt,/HTTP 404/);assert.equal(ui.before,4);assert.equal(ui.after,4);
+  }
   console.log('PASS: Firefox '+session.capabilities.browserVersion+(process.argv.includes('--background-feeds')?' background continuation, pacing, warm-cache reuse and opt-out; ':process.argv.includes('--uploads-fallback')?' uploads-page fallback, cached refreshes, source reuse and 429 protection; ':' early failure detection, shared pacing, cached reads, manual additions and server cooldowns; ')+report.requests+' synthetic requests.');
  }finally{socket?.close();firefox.kill();await sleep(500);fs.rmSync(temporary,{recursive:true,force:true});}
 })().catch(error=>{console.error(error);process.exitCode=1;});

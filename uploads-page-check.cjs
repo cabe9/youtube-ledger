@@ -17,6 +17,18 @@ const check=require('./uploads-page-browser-test.cjs');
   await feed.screenshot({path:'/tmp/ledger-uploads-fallback-chrome.png'});
   const dashboard=await context.newPage();await dashboard.goto(new URL('dashboard.html#settings',worker.url()).href);const log=dashboard.locator('#request-log');await log.getByText('Uploads-page fallback',{exact:true}).first().waitFor();assert.match(await log.locator('#request-log-rows').textContent(),/CarlSagan42/);
   assert.equal((await worker.evaluate(()=>YouTubeRequestLog.snapshot())).recent.length,4);
+  assert.equal(await log.locator('#request-log-rss-rate').textContent(),'0%');assert.equal(await log.locator('#request-log-page-count').textContent(),'3');
+  assert.match(await log.locator('#request-log-rss-last').textContent(),/None recorded/);assert.match(await log.locator('#request-log-rss-attempt').textContent(),/HTTP 404/);
+  await log.locator('#request-log-period').selectOption('week');assert.match(await log.locator('#request-log-rss-count').textContent(),/0 of 1 completed/);
+  await dashboard.setViewportSize({width:1200,height:1000});await log.locator('.request-log-health').screenshot({path:'/tmp/ledger-rss-health-chrome.png'});
+  await dashboard.setViewportSize({width:390,height:844});await log.locator('.request-log-health').screenshot({path:'/tmp/ledger-rss-health-mobile.png'});
+  assert.ok(await dashboard.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Request health must fit a narrow screen');
+  await dashboard.reload();await log.locator('#request-log-rss-rate').filter({hasText:'0%'}).waitFor();
+  const exported=dashboard.waitForEvent('download');await log.getByRole('button',{name:'Export request log'}).click();
+  const data=JSON.parse(fs.readFileSync(await (await exported).path(),'utf8'));assert.equal(data.sources.lastAttempt.rss.status,404);
+  assert.equal((await worker.evaluate(()=>YouTubeRequestLog.snapshot())).recent.length,4,'Reading or exporting health must not trigger YouTube checks');
+  await log.getByRole('button',{name:'Clear request log'}).click();await log.locator('#request-log-rss-rate').filter({hasText:'—'}).waitFor();
+  assert.equal(await log.locator('#request-log-page-count').textContent(),'0');assert.match(await log.locator('#request-log-rss-count').textContent(),/No completed RSS/);
   console.log('PASS: packaged Chrome uploads fallback, cached refresh, source reuse, 429 protection, approximate UI and request log.');
  }finally{await context?.close();fs.rmSync(profile,{recursive:true,force:true});}
 })().catch(error=>{console.error(error);process.exitCode=1;});
