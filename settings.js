@@ -67,6 +67,10 @@ function fillSettings(value) {
   }
 }
 browser.storage.local.get('settings').then(data=>fillSettings(data.settings));
+// The same preference can be changed from a group's menu on YouTube.
+browser.storage.onChanged.addListener((changes,area)=>{
+  if(area==='local'&&changes.settings)document.getElementById('setting-groupDebugMode').checked=Ledger.settings(changes.settings.newValue).groupDebugMode;
+});
 document.getElementById('settings-form').addEventListener('submit',async event=>{
   event.preventDefault();
   const value={};

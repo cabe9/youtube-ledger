@@ -10,6 +10,8 @@ const check=require('./uploads-page-browser-test.cjs');
   await context.route('https://www.youtube.com/**',route=>route.fulfill({contentType:'text/html',body:'<style>body{background:#111;color:white;font:14px Arial}ytd-page-manager{display:block}</style><ytd-masthead>YouTube</ytd-masthead><ytd-page-manager><ytd-browse page-subtype="subscriptions"></ytd-browse></ytd-page-manager>'}));
   await context.route('https://i.ytimg.com/**',route=>route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="480" height="270"><rect width="480" height="270" fill="#463453"/></svg>'}));
   const page=await context.newPage();await page.goto('https://www.youtube.com/feed/subscriptions#ledger-group=fallback');const feed=page.locator('#ledger-group-feed');
+  await feed.locator('article').first().waitFor();assert.equal(await feed.locator('.fallback-note').count(),0);
+  await feed.getByRole('button',{name:'Group options',exact:true}).click();await feed.getByRole('menuitemcheckbox',{name:'Debug mode'}).click();
   await feed.locator('.fallback-note').waitFor();assert.match(await feed.locator('.fallback-note').textContent(),/first page/);
   assert.equal(await feed.locator('article').count(),3);
   assert.match(await feed.locator('article time').first().textContent(),/^~/);assert.match(await feed.locator('article time').first().getAttribute('title'),/Approximate/);

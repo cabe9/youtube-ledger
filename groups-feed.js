@@ -12,7 +12,7 @@
   let saved={groups:[],channels:{}},theme=Ledger.settings().theme,nav,mini,host,style,active='',generation=0,data,refreshing=false,limit=48,restore=null;
   let navigationGroups,navigationActive,navigationCollapsed,cacheTimer,settingsReady=false,loadedGeneration=-1,lastPath=location.pathname,pendingGroup='',pendingPath='',nativeNavigation=false;
   let initialHash=location.pathname==='/feed/subscriptions'&&/^(?:#ledger-group=|#ledger-groups(?:$|&))/.test(location.hash)?location.hash:'';
-  let videoMenu=null,menuRenderPending=false,groupMenu=null;
+  let videoMenu=null,menuRenderPending=false,groupMenu=null,debugMode=false;
   let library={version:1,groups:{}},uploads={channels:{}},navigationNew='',query='',visitBoundary,visitAt=0,visitPromise=null,composing=false;
   const memberExpansionWrites=new Map();
   const expandedFilters=new Set();
@@ -111,6 +111,7 @@
     .video-menu{position:fixed;z-index:10000;box-sizing:border-box;width:220px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow:auto;padding:6px;border:1px solid var(--control-border);border-radius:12px;background:var(--page-bg);box-shadow:0 8px 28px #0005}
     .video-menu button{display:block;width:100%;min-height:40px;text-align:left;border:0;border-radius:7px;background:transparent;padding:10px 12px;font-size:14px;line-height:1.35}
     .video-menu button:hover,.video-menu button:focus-visible{background:var(--control-hover)}.video-menu .reset-watch{border-top:1px solid var(--line);border-radius:0 0 7px 7px;margin-top:4px}
+    .video-menu [role=menuitemcheckbox]{display:flex;align-items:center;gap:9px}.video-menu [role=menuitemcheckbox]::before{content:'';display:grid;place-items:center;flex:0 0 16px;height:16px;border:1px solid var(--control-border);border-radius:3px;line-height:1}.video-menu [role=menuitemcheckbox][aria-checked=true]::before{content:'✓';background:var(--accent);color:var(--button-ink);border-color:var(--accent)}
     .video-menu .menu-error{font-size:12px;color:var(--danger-ink);margin:8px 10px}
   `;
   const headerCss=`
@@ -462,7 +463,7 @@
   function updateFreshness(){const node=host?.shadowRoot.querySelector('.freshness');if(!node)return;const checked=(data?.channels||[]).filter(c=>c.fetchedAt).map(c=>c.fetchedAt);node.textContent=refreshing||data?.refresh?.running?'Checking uploads…':checked.length?'Uploads checked '+Ledger.relativeTime(Math.min(...checked)).toLocaleLowerCase():'Uploads not checked yet';node.title=checked.length?'Oldest successful channel refresh: '+new Date(Math.min(...checked)).toLocaleString():'';updateRefreshProgress();}
   function updateRefreshProgress(){
     const node=host?.shadowRoot.querySelector('.upload-progress');if(!node)return;
-    const state=data?.refresh;node.hidden=!state?.total;if(node.hidden)return;
+    const state=data?.refresh;node.hidden=!debugMode||!state?.total;if(node.hidden)return;
     const caption=state.checked+' of '+state.total+' '+(state.failedOnly?'failed channels':'channels')+' checked';
     const notes=[...(state.refreshed?[state.refreshed+' refreshed']:[]),...(state.cached?[state.cached+' already cached']:[]),...(state.failed?[state.failed+' failed']:[])];
     if(!state.running&&state.checked<state.total)notes.push((state.paused?'Paused · ':'')+(state.total-state.checked)+' remaining');
@@ -518,10 +519,10 @@
       else LedgerMedia.updateChannels(row,{[channel.id]:channel});
       row.querySelector('.ledger-channel').title=channel.name||'YouTube channel';
       let error=row.querySelector('small');
-      if(channel.error){if(!error){error=el('small');row.append(error);}error.textContent=channel.error;error.title=channel.retryAt?'Retry available after '+new Date(channel.retryAt).toLocaleTimeString():'';}else error?.remove();
+      if(debugMode&&channel.error){if(!error){error=el('small');row.append(error);}error.textContent=channel.error;error.title=channel.retryAt?'Retry available after '+new Date(channel.retryAt).toLocaleTimeString():'';}else error?.remove();
       let cadence=row.querySelector('.channel-cadence');
       const schedule=channel.checkSchedule,label=schedule?.label||(channel.dailyChecks?'Checked daily':'');
-      if(label){
+      if(debugMode&&label){
         if(!cadence){cadence=el('span','',{class:'channel-cadence'});row.append(cadence);}
         cadence.textContent=label;
         cadence.title=(schedule?.reason||'No known uploads for at least 90 days at the last successful check.')+(schedule?.expectedAt?' Expected upload around '+new Date(schedule.expectedAt).toLocaleString()+'.':'')+' Manual Refresh can check sooner. Automatic checks require YouTube to be open.';
@@ -539,10 +540,16 @@
   async function saveHeader(message){
     try{await request(message);}catch(error){render();showError(error.message);}
   }
+  async function setDebugMode(enabled){
+    try{
+      const {settings}=await browser.storage.local.get('settings');
+      await browser.storage.local.set({settings:{...Ledger.settings(settings),groupDebugMode:enabled}});
+    }catch(error){showError('Could not save debug mode. '+error.message);}
+  }
   function openFeedMenu(trigger,label,items){
     if(videoMenu?.trigger===trigger){closeVideoMenu();return;}closeVideoMenu(false);closeGroupMenu(false);
     const panel=el('div',undefined,{class:'video-menu',id:'ledger-feed-menu',role:'menu','aria-label':label});
-    for(const [text,action,disabled] of items){const item=button(text,()=>{closeVideoMenu();action();},{role:'menuitem',tabindex:'-1'});item.disabled=!!disabled;panel.append(item);}
+    for(const [text,action,disabled,checked] of items){const item=button(text,()=>{closeVideoMenu();action();},{role:typeof checked==='boolean'?'menuitemcheckbox':'menuitem',tabindex:'-1',...(typeof checked==='boolean'?{'aria-checked':String(checked)}:{})});item.disabled=!!disabled;panel.append(item);}
     videoMenu={trigger,panel};trigger.setAttribute('aria-expanded','true');trigger.setAttribute('aria-controls',panel.id);
     host.shadowRoot.append(panel);positionVideoMenu();panel.querySelector('button:not(:disabled)')?.focus({preventScroll:true});
   }
@@ -565,7 +572,8 @@
     const focusOptions=()=>host?.shadowRoot.querySelector('[data-focus=group-options]')?.focus({preventScroll:true});
     const options=button('',()=>openFeedMenu(options,'Group options',[
       ['Add channels',()=>ChannelGroupsUI.bulk(groupId,theme)],['Edit this group',()=>ChannelGroupsUI.manageGroup(group,theme,focusOptions)],
-      ['Share group',()=>ChannelGroupsUI.shareGroup(groupId,theme,focusOptions)],['Manage all groups',manage]
+      ['Share group',()=>ChannelGroupsUI.shareGroup(groupId,theme,focusOptions)],['Manage all groups',manage],
+      ['Debug mode',()=>setDebugMode(!debugMode),false,debugMode]
     ]),{class:'group-options feed-menu-trigger','aria-label':'Group options','aria-haspopup':'menu','aria-expanded':'false','data-focus':'group-options',title:'Group options'});
     options.append(outlineIcon('M4 12h.01M12 12h.01M20 12h.01'));options.firstChild.setAttribute('stroke-width','4');actions.append(options);top.append(heading,actions);header.replaceChildren(top);
     const freshness=el('div',undefined,{class:'refresh-line'}),refresh=button('',()=>load(true,true),{'data-focus':'refresh','aria-label':refreshing?'Refreshing uploads':'Refresh uploads',title:'Refresh uploads'});refresh.append(outlineIcon('M20 7v5h-5M4 17v-5h5M6.1 6.1a8 8 0 0 1 13.2 3M4.7 14.9a8 8 0 0 0 13.2 3'));refresh.disabled=refreshing||data?.pausedUntil>Date.now();freshness.append(el('span','',{class:'freshness'}),refresh);header.append(freshness);
@@ -639,11 +647,11 @@
       if(paused&&data.pauseScope==='automatic'&&!refreshing)status.append(
         button('Retry now',()=>load(true,true,false,data.pausedUntil),{'data-focus':'retry-cooldown',title:'End Ledger’s cooldown and retry this group at a slower pace. If checks keep failing, Ledger will pause again.'})
       );
-      if(failed&&!refreshing&&!paused)status.append(
-        button('Retry failed channels',()=>load(true,true,true),{'data-focus':'retry-failed',title:'Retry affected channels. Recent attempts and YouTube’s retry limits are respected.'}),
-        button('Show details',()=>{saveMembersExpanded(group.id,true);members.open=true;members.querySelector('summary').focus({preventScroll:true});},{'data-focus':'refresh-details'})
-      );
-      if(data.channels.some(c=>c.feedSource==='uploads-page'))content.append(el('p','Some uploads were recovered from YouTube’s public uploads pages. Only the first page is checked; ~ marks approximate dates or view counts.',{class:'note fallback-note'}));
+      if(failed&&!refreshing&&!paused){
+        status.append(button('Retry failed channels',()=>load(true,true,true),{'data-focus':'retry-failed',title:'Retry affected channels. Recent attempts and YouTube’s retry limits are respected.'}));
+        if(debugMode)status.append(button('Show details',()=>{saveMembersExpanded(group.id,true);members.open=true;members.querySelector('summary').focus({preventScroll:true});},{'data-focus':'refresh-details'}));
+      }
+      if(debugMode&&data.channels.some(c=>c.feedSource==='uploads-page'))content.append(el('p','Some uploads were recovered from YouTube’s public uploads pages. Only the first page is checked; ~ marks approximate dates or view counts.',{class:'note fallback-note'}));
       if(!data.entries.length){const empty=el('div',undefined,{class:'empty'});empty.append(el('p',!data.channels.length?'This group has no channels yet. Use “Add to group” on a channel or video page, or add a channel in Manage groups.':refreshing?'Fetching recent uploads from these channels.':'No uploads are available yet. Try Refresh to check these channels again.'));content.append(empty);}
       const grid=(sameView&&root.querySelector('.grid'))||el('div',undefined,{class:'grid'}),gridChildren=[],existing=new Map([...grid.querySelectorAll('article')].map(card=>[card.dataset.videoId,card]));
       const visible=displayEntries(group);let previousNew;
@@ -724,7 +732,7 @@
     if(changes['youtubeRequests:v1']&&data){const next=changes['youtubeRequests:v1'].newValue||{},until=next.pausedUntil||0,message=next.pauseMessage||'',scope=next.pauseScope||'all';if(until!==(data.pausedUntil||0)||message!==(data.pauseMessage||'')||scope!==data.pauseScope){Object.assign(data,{pausedUntil:until,pauseMessage:message,pauseScope:scope,pauseReason:next.pauseReason||'unknown'});render();}}
     if(changes['videoProgress:v1']&&data){data.progress=changes['videoProgress:v1'].newValue||{version:1,videos:{}};render();}
     if(changes[FeedLibrary.key]){library=changes[FeedLibrary.key].newValue||{version:1,groups:{}};updateNavigation();render();}
-    if(changes.settings){theme=Ledger.settings(changes.settings.newValue).theme;settingsReady=true;mount();if(changes.settings.oldValue?.backgroundGroupChecks===false&&changes.settings.newValue?.backgroundGroupChecks===true)checkAll();}
+    if(changes.settings){const next=Ledger.settings(changes.settings.newValue),debugChanged=debugMode!==next.groupDebugMode;theme=next.theme;debugMode=next.groupDebugMode;settingsReady=true;mount();if(debugChanged)render();if(changes.settings.oldValue?.backgroundGroupChecks===false&&changes.settings.newValue?.backgroundGroupChecks===true)checkAll();}
     if(changes['channelGroups:v1']){
       const previous=saved,group=previous.groups.find(g=>g.id===active);saved=changes['channelGroups:v1'].newValue||{groups:[],channels:{}};const next=saved.groups.find(g=>g.id===active);
       if(JSON.stringify(previous.groups)===JSON.stringify(saved.groups)&&previous.collapsed===saved.collapsed){
@@ -754,7 +762,7 @@
     }
   }
   browser.storage.onChanged.addListener(storageChanged);
-  browser.storage.local.get(['settings','channelGroups:v1',FeedLibrary.key,'channelUploads:v1']).then(value=>{if(disposed)return;theme=Ledger.settings(value.settings).theme;library=value[FeedLibrary.key]||library;uploads=value['channelUploads:v1']||uploads;saved=value['channelGroups:v1']||saved;settingsReady=true;mount();}).catch(()=>{if(disposed)return;settingsReady=true;mount();});
+  browser.storage.local.get(['settings','channelGroups:v1',FeedLibrary.key,'channelUploads:v1']).then(value=>{if(disposed)return;const settings=Ledger.settings(value.settings);theme=settings.theme;debugMode=settings.groupDebugMode;library=value[FeedLibrary.key]||library;uploads=value['channelUploads:v1']||uploads;saved=value['channelGroups:v1']||saved;settingsReady=true;mount();}).catch(()=>{if(disposed)return;settingsReady=true;mount();});
   function navigationStarted(){
     if(initialHash&&location.pathname!=='/feed/subscriptions')initialHash='';
     closeGroupMenu(false);closeVideoMenu(false,false);remember();
