@@ -232,11 +232,7 @@ globalThis.GroupFeeds = (() => {
       }
     }
     let nextCheckAt=attempt+interval,expectedAt=null;
-    if(channel?.error){
-      // A failed request is never evidence of a missed upload. Keep ordinary
-      // error backoff; server/global cooldowns are also enforced at dispatch.
-      nextCheckAt=Math.max(attempt+interval,channel.retryAt||0,channel.retryAfter||0);
-    }else if(pattern){
+    if(pattern){
       const first=pattern.origin+(Math.round((latest-pattern.origin)/pattern.period)+1)*pattern.period;
       expectedAt=first+Math.max(0,Math.floor((now-first)/pattern.period))*pattern.period;
       if(now>=expectedAt+day)expectedAt+=pattern.period;
@@ -248,7 +244,7 @@ globalThis.GroupFeeds = (() => {
         const target=targets.find(at=>at>confirmed);
         const due=Math.max(attempt+hour,target??attempt+backgroundTTL);
         if(due<end){nextCheckAt=due;interval=backgroundTTL;}
-      }else{
+      }else if(!channel?.error){
         const target=targets[0];
         // Avoid spending a request just before an expected upload. The daily
         // fallback is delayed by at most two hours to align this one check.
@@ -256,6 +252,12 @@ globalThis.GroupFeeds = (() => {
         else nextCheckAt=Math.min(nextCheckAt,target);
         nextCheckAt=Math.max(attempt+hour,nextCheckAt);
       }
+    }
+    if(channel?.error){
+      // Only a successful check can establish or advance the late window.
+      // Preserve its two-hour retry cadence after failures instead of reverting
+      // to the baseline daily interval; server/global pauses still apply.
+      nextCheckAt=Math.max(nextCheckAt,attempt+interval,channel.retryAt||0,channel.retryAfter||0);
     }
     return {mode,interval,nextCheckAt,expectedAt,label,reason};
   }

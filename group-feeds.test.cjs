@@ -316,6 +316,31 @@ test('automatic group visits and sweeps share predictions, late retries and pers
  s.clock.now+=M;await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',force:true},s.sender));assert.equal(calls.length,3,'Manual refresh stays available');
 });
 
+test('confirmed late checks recover from a failed follow-up across worker reloads while respecting server pauses',async()=>{
+ const s=refreshHarness(),id=s.ids[0],H=3600000,M=60000,expected=s.clock.now,last=expected-7*DAY,calls=[];
+ const entries=Array.from({length:8},(_,i)=>({videoId:String(i).padStart(11,'0'),channelId:id,title:'Weekly',publishedAt:last-i*7*DAY}));
+ s.data['channelUploads:v1']=s.feeds.merge(null,id,entries,expected-2*H);
+ s.box.fetch=async url=>{
+  calls.push(s.clock.now);
+  if(calls.length===2)throw Object.assign(Error('Timeout'),{name:'TimeoutError'});
+  return calls.length===4?s.response(url,429,String(4*3600)):s.response(url);
+ };
+ const sweep=()=>s.finish(s.feeds.handle({type:'groupFeed:checkAll'},s.sender));
+ const visit=()=>s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',automatic:true},s.sender));
+ s.clock.now=expected+15*M;await sweep();assert.equal(calls.length,1);
+ s.clock.now=expected+75*M;await visit();assert.equal(calls.length,2);assert.ok(s.cache(id).error);
+ assert.equal(s.cache(id).fetchedAt,expected+15*M);
+ s.load('youtube-requests.js');s.load('group-feeds.js');s.feeds=s.box.GroupFeeds;
+ s.clock.now=expected+194*M;await visit();await sweep();assert.equal(calls.length,2,'Visits cannot bypass the late retry delay');
+ s.clock.now=expected+195*M;await sweep();assert.equal(calls.length,3,'A timeout must not skip the +195-minute check');
+ assert.equal(s.cache(id).fetchedAt,s.clock.now);assert.equal(s.cache(id).error,'');
+ s.clock.now=expected+315*M;await visit();assert.equal(calls.length,4);assert.match(s.cache(id).error,/429/);
+ const retryAt=s.cache(id).retryAfter;assert.equal(retryAt,expected+555*M);
+ s.clock.now=expected+435*M;await sweep();await visit();assert.equal(calls.length,4,'Late monitoring cannot bypass Retry-After or the global pause');
+ s.clock.now=retryAt;await visit();assert.equal(calls.length,5);assert.equal(s.cache(id).error,'');
+ assert.equal(s.feeds.automaticSchedule(s.cache(id),s.clock.now).nextCheckAt,s.clock.now+2*H);
+});
+
 test('a predicted check respects a server pause and opt-out, then a new approximate upload cancels its old clock schedule',async()=>{
  const s=refreshHarness(),id=s.ids[0],expected=s.clock.now,last=expected-7*DAY,H=3600000,calls=[];
  const entries=Array.from({length:8},(_,i)=>({videoId:String(i).padStart(11,'0'),channelId:id,title:'Weekly',publishedAt:last-i*7*DAY}));

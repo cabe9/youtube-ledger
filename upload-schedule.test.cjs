@@ -55,6 +55,33 @@ test('network errors cannot trigger a late-upload retry and existing error deadl
  assert.equal(c.fetchedAt,expected-D);
 });
 
+test('failed follow-ups preserve the confirmed late window and apply retry deadlines',()=>{
+ const expected=last+7*D;let c=state(dates(),expected-2*H);
+ c=update(c,[],expected+15*M);
+ c=update(c,[],expected+75*M,'Timeout');
+ let plan=schedule(c,expected+75*M);
+ assert.equal(plan.mode,'late');assert.equal(plan.expectedAt,expected);assert.equal(plan.interval,2*H);
+ assert.equal(plan.nextCheckAt,expected+195*M,'A failed follow-up must not defer checking by a day');
+ assert.equal(c.fetchedAt,expected+15*M,'A failure is not evidence of another missing upload');
+ c=JSON.parse(JSON.stringify(c));assert.equal(schedule(c,expected+194*M).nextCheckAt,plan.nextCheckAt,'Reloads and visits do not advance the window');
+ c.retryAt=expected+240*M;assert.equal(schedule(c,expected+195*M).nextCheckAt,c.retryAt);
+ c.retryAfter=expected+300*M;assert.equal(schedule(c,expected+195*M).nextCheckAt,c.retryAfter);
+ c=update(c,[],expected+300*M,'Timeout');plan=schedule(c,expected+300*M);
+ assert.equal(plan.mode,'late');assert.equal(plan.expectedAt,expected);assert.equal(plan.nextCheckAt,expected+420*M);
+ assert.equal(c.fetchedAt,expected+15*M);
+ c=update(c,[],expected+420*M);assert.equal(schedule(c,expected+420*M).nextCheckAt,expected+540*M,'Recovery does not replay missed targets');
+ c=update(c,[expected+500*M],expected+540*M);assert.equal(schedule(c,expected+540*M).mode,'predicted','A late upload ends follow-ups after recovery');
+});
+
+test('failures and long retry deadlines cannot extend a confirmed late window',()=>{
+ const expected=last+7*D;let c=state(dates(),expected+15*M);
+ c=update(c,[],expected+23*H,'Timeout');
+ const end=schedule(c,expected+D);assert.equal(end.mode,'predicted');assert.equal(end.interval,D);assert.equal(end.nextCheckAt,expected+47*H);
+ c.retryAfter=expected+3*D;assert.equal(schedule(c,expected+23*H).nextCheckAt,c.retryAfter);
+ assert.equal(schedule(c,expected+2*D).nextCheckAt,c.retryAfter);
+ assert.equal(c.fetchedAt,expected+15*M);
+});
+
 test('unexpected early releases speed checks up promptly; a repeated new weekly time replaces the old phase',()=>{
  let c=state();const early=last+2*D;
  c=update(c,[early],early+M);assert.equal(schedule(c,early+M).mode,'activity');assert.equal(schedule(c,early+M).interval,2*H);

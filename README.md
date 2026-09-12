@@ -4,13 +4,13 @@ A local YouTube usage tracker for **Chrome and Firefox**. Records video titles, 
 
 ## Install
 
-Download the **0.16.29** package for your browser below. These ZIPs are ready
+Download the **0.16.30** package for your browser below. These ZIPs are ready
 to install; no build tools are needed. For development, clone the repository
 and follow [Build and test](#build-and-test).
 
 ### Chrome
 
-1. Download [the Chrome ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.29/youtube-ledger-chrome-store-0.16.29.zip) and extract it to a permanent folder.
+1. Download [the Chrome ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.30/youtube-ledger-chrome-store-0.16.30.zip) and extract it to a permanent folder.
 2. Open `chrome://extensions` and enable **Developer mode**.
 3. Click **Load unpacked** and select the extracted folder.
 4. Pin YouTube Ledger, refresh existing YouTube tabs, and click the extension icon for the dashboard.
@@ -19,7 +19,7 @@ Keep the folder in place. The installation survives browser restarts. To update,
 
 ### Firefox
 
-1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.29/youtube-ledger-firefox-store-0.16.29.zip).
+1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.30/youtube-ledger-firefox-store-0.16.30.zip).
 2. Open `about:debugging#/runtime/this-firefox`.
 3. Click **Load Temporary Add-on** and select the extracted `manifest.json`.
 4. Refresh YouTube tabs and open YouTube Ledger from the extension toolbar.
@@ -248,3 +248,5 @@ Version 0.16.27 adds **Settings → YouTube requests → RSS and page lookups**.
 Version 0.16.28 checks long-inactive channels at most once every 24 hours during automatic updates. A successful check must establish that the newest known upload is at least 90 days old; empty/unknown channels and failed checks alone do not establish inactivity. A recent upload restores the normal two-hour interval. Manual Refresh can check earlier while retaining existing pacing and cooldown protections. The expanded channel list identifies these channels with **Checked daily**. Latest-known upload dates survive video-cache trimming and profile transfer. Background checks still require an open YouTube tab and the existing setting; sleep or closed tabs can delay them. Checks: inactivity boundaries, failed/stale evidence, cache eviction, returning creators, manual refresh, profile transfer, packaged Chrome/Firefox checks and package validation.
 
 Version 0.16.29 adapts automatic upload checks to recent publishing habits. At least six accurate upload dates are required to learn daily or weekly timing; rounded dates, insufficient history, and failed requests cannot establish a clock schedule. Predictable channels receive fewer routine checks, plus a check targeted 15 minutes after an expected release. If a successful check finds no new upload, follow-ups target 75 and 195 minutes after that release, then two-hour checks for the remainder of the first day. Extra checks end after that day, and stale predictions expire. Recent schedule changes, bursts, and returns after long breaks restore frequent checks; recent evidence can establish a new pattern. Infrequent channels receive checks every 12–24 hours, while existing long-inactive daily checks remain. Channels with enough history also slow after successful checks establish a quiet period. The expanded channel list explains adaptive, late-upload, and increased checking. A bounded history of 32 upload dates survives cache trimming and profile transfer. Manual Refresh, opt-out, network pacing, and server cooldowns still apply. Checks run on existing roughly 30-minute background sweeps while YouTube is open, so target times are approximate and queues or sleep may delay them. No extra requests are made to learn patterns. Validation includes changing schedules, temporary bursts, late/skipped uploads, clock shifts, failures, storage/restore, request-count simulations and packaged Chrome/Firefox checks.
+
+Version 0.16.30 preserves an already-confirmed late-upload window after a failed follow-up. A successful empty check at +15 minutes followed by a timeout at +75 minutes now retains the +195-minute check instead of reverting to the channel’s daily interval. Failures do not count as successful checks or extend the late window. Retry deadlines, server cooldowns, and the normal two-hour error retry floor still apply. Regression checks cover repeated failures, worker reloads, automatic group visits and sweeps, late arrivals, window expiry, and HTTP 429 with Retry-After.
