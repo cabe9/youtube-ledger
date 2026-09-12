@@ -298,3 +298,32 @@ test('manual Refresh can check an inactive channel early but still respects serv
  await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',force:true},s.sender));assert.equal(calls,2);
  s.clock.now+=60000;await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',force:true},s.sender));assert.equal(calls,2);
 });
+
+test('automatic group visits and sweeps share predictions, late retries and persisted evidence across reloads',async()=>{
+ const s=refreshHarness(),id=s.ids[0],H=3600000,M=60000,expected=s.clock.now+H,last=expected-7*DAY,calls=[];
+ const entries=Array.from({length:8},(_,i)=>({videoId:String(i).padStart(11,'0'),channelId:id,title:'Weekly',publishedAt:last-i*7*DAY}));
+ s.data['channelUploads:v1']=s.feeds.merge(null,id,entries,s.clock.now-3*H);
+ s.box.fetch=async url=>{calls.push(s.clock.now);return s.response(url);};
+ await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',automatic:true},s.sender));
+ await s.finish(s.feeds.handle({type:'groupFeed:checkAll'},s.sender));assert.equal(calls.length,0);
+ let data=await s.feeds.handle({type:'groupFeed:get',groupId:'all'},s.sender);assert.equal(data.channels[0].checkSchedule.expectedAt,expected);assert.equal(data.channels[0].checkSchedule.label,'Adaptive checks');
+ s.clock.now=expected+15*M;await s.finish(s.feeds.handle({type:'groupFeed:checkAll'},s.sender));assert.equal(calls.length,1);
+ s.load('group-feeds.js');s.feeds=s.box.GroupFeeds;
+ s.clock.now=expected+74*M;await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',automatic:true},s.sender));assert.equal(calls.length,1);
+ s.clock.now=expected+75*M;await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',automatic:true},s.sender));assert.equal(calls.length,2,'Late retry must not wait for the regular two-hour cache');
+ data=await s.feeds.handle({type:'groupFeed:get',groupId:'all'},s.sender);assert.equal(data.channels[0].checkSchedule.mode,'late');
+ assert.equal(s.cache(id).uploadHistory.length,8);
+ s.clock.now+=M;await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',force:true},s.sender));assert.equal(calls.length,3,'Manual refresh stays available');
+});
+
+test('a predicted check respects a server pause and opt-out, then a new approximate upload cancels its old clock schedule',async()=>{
+ const s=refreshHarness(),id=s.ids[0],expected=s.clock.now,last=expected-7*DAY,H=3600000,calls=[];
+ const entries=Array.from({length:8},(_,i)=>({videoId:String(i).padStart(11,'0'),channelId:id,title:'Weekly',publishedAt:last-i*7*DAY}));
+ s.data['channelUploads:v1']=s.feeds.merge(null,id,entries,s.clock.now-3*H);
+ s.box.fetch=async url=>{calls.push(url);return s.response(url,429);};
+ s.clock.now=expected+H/4;await s.finish(s.feeds.handle({type:'groupFeed:checkAll'},s.sender));assert.equal(calls.length,1);
+ s.clock.now+=H;await s.finish(s.feeds.handle({type:'groupFeed:checkAll'},s.sender));assert.equal(calls.length,1);
+ s.data.settings={backgroundGroupChecks:false};s.clock.now+=2*DAY;await s.finish(s.feeds.handle({type:'groupFeed:checkAll'},s.sender));assert.equal(calls.length,1);
+ s.data['channelUploads:v1']=s.feeds.merge(s.data['channelUploads:v1'],id,[{videoId:'aaaaaaaaaaa',channelId:id,title:'Unexpected new upload',publishedAt:s.clock.now-H,publishedAtEstimated:true}],s.clock.now);
+ const plan=s.feeds.automaticSchedule(s.cache(id),s.clock.now);assert.equal(plan.expectedAt,null);assert.equal(plan.interval,2*H);
+});

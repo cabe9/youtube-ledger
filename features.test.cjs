@@ -48,3 +48,15 @@ test('profile transfer preserves latest upload dates even when all cached videos
  for(const value of [-1,0,'1000',null]){const bad=clone(backup);bad.data['channelUploads:v1'].channels[A].latestUploadAt=value;assert.throws(()=>B.validate(bad));}
  const old=clone(backup);delete old.data['channelUploads:v1'].channels[A].latestUploadAt;assert.doesNotThrow(()=>B.validate(old));
 });
+
+test('profile transfer preserves bounded schedule evidence and rejects malformed upload histories',async()=>{
+ const s=setup(),B=s.box.LedgerBackup,A='UC'+'a'.repeat(22),sender={url:'chrome-extension://test/dashboard.html'};
+ const history=[{videoId:'aaaaaaaaaaa',publishedAt:1000},{videoId:'bbbbbbbbbbb',publishedAt:900,publishedAtEstimated:true}];
+ s.data={'channelUploads:v1':{version:1,channels:{[A]:{entries:[],uploadHistory:history,fetchedAt:2000,attemptedAt:2000}}}};
+ const backup=await B.handle({type:'backup:export'},sender);s.data={};await B.handle({type:'backup:restore',backup},sender);
+ assert.deepEqual(clone(s.data['channelUploads:v1'].channels[A].uploadHistory),history);
+ for(const value of [null,{},[null],[{videoId:'bad',publishedAt:1000}],[{videoId:'aaaaaaaaaaa',publishedAt:0}],[{videoId:'aaaaaaaaaaa',publishedAt:'1000'}],[{videoId:'aaaaaaaaaaa',publishedAt:1000,publishedAtEstimated:'false'}],[history[0],history[0]],Array.from({length:33},(_,i)=>({videoId:String(i).padStart(11,'0'),publishedAt:1000}))]){
+   const bad=clone(backup);bad.data['channelUploads:v1'].channels[A].uploadHistory=value;assert.throws(()=>B.validate(bad));
+ }
+ const old=clone(backup);delete old.data['channelUploads:v1'].channels[A].uploadHistory;assert.doesNotThrow(()=>B.validate(old));
+});

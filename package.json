@@ -1,9 +1,9 @@
 {
   "name": "youtube-ledger",
-  "version": "0.16.28",
+  "version": "0.16.29",
   "private": true,
   "scripts": {
-    "test": "node --test tests.test.cjs channel-groups.test.cjs group-feeds.test.cjs uploads-page.test.cjs features.test.cjs discovery.test.cjs recording.test.cjs media.test.cjs video-length.test.cjs shorts.test.cjs group-sharing.test.cjs youtube-requests.test.cjs request-log.test.cjs",
+    "test": "node --test tests.test.cjs channel-groups.test.cjs group-feeds.test.cjs upload-schedule.test.cjs uploads-page.test.cjs features.test.cjs discovery.test.cjs recording.test.cjs media.test.cjs video-length.test.cjs shorts.test.cjs group-sharing.test.cjs youtube-requests.test.cjs request-log.test.cjs",
     "test:feeds": "node feeds-check.cjs",
     "test:group-images": "node group-images-check.cjs",
     "test:group-images:firefox": "node group-images-firefox-check.cjs",

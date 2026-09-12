@@ -2,6 +2,7 @@
 globalThis.GroupFeeds = (() => {
   const key='channelUploads:v1', launchKey='groupLaunches:v1', ttl=15*60*1000, backgroundTTL=2*3600000;
   const inactiveAfter=90*86400000,inactiveTTL=86400000;
+  const hour=3600000,day=86400000;
   const channelPattern=/^UC[A-Za-z0-9_-]{22}$/, videoPattern=/^[A-Za-z0-9_-]{11}$/;
   let writes=Promise.resolve(), launchWrites=Promise.resolve();
   const inFlight=new Map(),activeGroups=new Map();let epoch=0,checkingAll=null;
@@ -46,9 +47,9 @@ globalThis.GroupFeeds = (() => {
       Object.assign(cache.channels[channelId],{failures,retryAfter,retryAt:Math.max(retryAfter,at+Math.min(backgroundTTL,15*60000*2**(failures-1)))});
     }else for(const field of ['failures','retryAfter','retryAt'])delete cache.channels[channelId][field];
     if(!error){
-      const combined=new Map((old.entries||[]).map(v=>[v.videoId,v]));
+      const combined=new Map((old.entries||[]).map(v=>[v.videoId,v])),history=new Map((old.uploadHistory||[]).map(v=>[v.videoId,v]));
       for(const entry of entries){
-        const previous=combined.get(entry.videoId);
+        const previous=combined.get(entry.videoId)||history.get(entry.videoId);
         const classificationUpgrade=typeof entry.details?.shorts==='boolean'&&previous?.details?.shorts==='unknown';
         let details=previous?.details&&!classificationUpgrade&&!globalThis.Ledger?.videoDetailsDue(previous.details,at)?previous.details:entry.details||previous?.details;
         if(details&&typeof previous?.details?.shorts==='boolean'&&details.shorts==='unknown')details={...details,shorts:previous.details.shorts};
@@ -60,10 +61,17 @@ globalThis.GroupFeeds = (() => {
         combined.set(entry.videoId,next);
       }
       cache.channels[channelId].entries=[...combined.values()].sort((a,b)=>b.publishedAt-a.publishedAt||a.videoId.localeCompare(b.videoId)).slice(0,250);
+      // A small history of dates survives video-cache eviction. Only successful
+      // responses update evidence; repeated lookups never create extra samples.
+      cache.channels[channelId].uploadHistory=uploadEvidence(cache.channels[channelId]).slice(0,32);
       // Keep the newest known upload even if global storage limits later evict
       // every video from this channel. Use reconciled dates so a rounded page
       // age cannot replace an exact date or drift forward on every refresh.
-      const latest=latestUploadAt(cache.channels[channelId]);
+      // When an exact date corrects an estimate for the known latest video,
+      // replace its old scalar too. Keep a legacy scalar if its video identity
+      // was already evicted and we cannot establish which date it represented.
+      const represented=[...(old.entries||[]),...(old.uploadHistory||[])].some(entry=>entry.publishedAt===old.latestUploadAt);
+      const latest=latestUploadAt({...cache.channels[channelId],latestUploadAt:represented?undefined:old.latestUploadAt});
       if(latest!==undefined)cache.channels[channelId].latestUploadAt=latest;
       cache.channels[channelId].fetchedAt=at;
     }
@@ -110,10 +118,11 @@ globalThis.GroupFeeds = (() => {
       if(version!==epoch)return;
       let stored=await browser.storage.local.get([key,ChannelGroups.key]);
       // Reuse upload results without promoting an automatic refresh just because
-      // its cards are visible. Legacy count upgrades respect the same interval.
+      // its cards are visible. A one-time legacy count upgrade retains its
+      // two-hour floor: one shared feed avoids many individual watch requests.
       if(!job.shortsFirst&&checkViews&&(inFlight.has(channelId)||needsViewUpgrade(stored[key]?.channels?.[channelId]))){
         if(inFlight.has(channelId))await inFlight.get(channelId).promise;
-        else if(uploadsDue(stored[key]?.channels?.[channelId],{background:true})&&await backgroundAllowed(channelId))await getChannelUploads(channelId,false,true);
+        else if(uploadsDue(stored[key]?.channels?.[channelId],{background:true,countUpgrade:true})&&await backgroundAllowed(channelId))await getChannelUploads(channelId,false,true,false,true);
         if(version!==epoch)return;
         stored=await browser.storage.local.get([key,ChannelGroups.key]);
       }
@@ -155,21 +164,108 @@ globalThis.GroupFeeds = (() => {
     return !!channel&&channel.viewsAttemptedAt===undefined&&(channel.entries||[]).slice(0,15).some(entry=>!Ledger.validVideoViews(entry.views));
   }
   function latestUploadAt(channel){
-    const dates=[channel?.latestUploadAt,...(channel?.entries||[]).map(entry=>entry.publishedAt)].filter(at=>Number.isFinite(at)&&at>0);
+    const dates=[channel?.latestUploadAt,...(channel?.entries||[]).map(entry=>entry.publishedAt),...(channel?.uploadHistory||[]).map(entry=>entry.publishedAt)].filter(at=>Number.isFinite(at)&&at>0);
     return dates.length?Math.max(...dates):undefined;
   }
-  function automaticInterval(channel,now=Date.now()){
-    const latest=latestUploadAt(channel),confirmed=channel?.fetchedAt;
-    // Judge inactivity at a successful check, not by time passing while checks
-    // fail. Empty/unknown channels retain the normal cadence. Legacy caches can
-    // supply their retained dates until the next successful refresh saves one.
-    return latest!==undefined&&Number.isFinite(confirmed)&&confirmed>0&&Math.min(confirmed,now)-latest>=inactiveAfter?inactiveTTL:backgroundTTL;
+  function uploadEvidence(channel){
+    const known=new Map();
+    for(const entry of [...(channel?.uploadHistory||[]),...(channel?.entries||[])]){
+      if(!videoPattern.test(entry.videoId)||!Number.isFinite(entry.publishedAt)||entry.publishedAt<=0)continue;
+      const old=known.get(entry.videoId),estimated=entry.publishedAtEstimated===true;
+      if(old&&estimated&&(!old.publishedAtEstimated||old.publishedAt<entry.publishedAt))continue;
+      known.set(entry.videoId,{videoId:entry.videoId,publishedAt:entry.publishedAt,...(estimated?{publishedAtEstimated:true}:{})});
+    }
+    return [...known.values()].sort((a,b)=>b.publishedAt-a.publishedAt||a.videoId.localeCompare(b.videoId));
   }
-  function uploadsDue(stored,{force=false,background=false,retryCooldown=false}={},now=Date.now()){
+  const median=values=>{const sorted=[...values].sort((a,b)=>a-b),middle=Math.floor(sorted.length/2);return sorted.length%2?sorted[middle]:(sorted[middle-1]+sorted[middle])/2;};
+  function uploadPattern(dates){
+    // Prefer the latest six releases, not a lifetime average. Time-of-day
+    // fitting is circular so midnight, year boundaries and modest clock shifts
+    // do not split a cluster. No creator time zone is guessed.
+    const sample=dates.slice(0,6);if(sample.length<6)return null;
+    const gaps=sample.slice(1).map((at,i)=>sample[i]-at),typical=median(gaps),tolerance=90*60000;
+    for(const period of [day,7*day]){
+      if(typical<period*.75||typical>period*1.25||gaps[0]<period*.6||gaps.some(gap=>gap>3*period))continue;
+      for(const anchor of sample){
+        const aligned=sample.map(at=>at-Math.round((at-anchor)/period)*period),origin=median(aligned);
+        if(aligned.filter(at=>Math.abs(at-origin)<=tolerance).length<5)continue;
+        if(new Set(sample.map(at=>Math.round((at-origin)/period))).size!==sample.length)continue;
+        if(Math.abs(sample[0]-origin-Math.round((sample[0]-origin)/period)*period)>Math.min(day,period/4))continue;
+        return {period,origin};
+      }
+    }
+    return null;
+  }
+  function automaticSchedule(channel,now=Date.now()){
+    const latest=latestUploadAt(channel),confirmed=Math.min(channel?.fetchedAt||0,now),attempt=channel?.attemptedAt||0;
+    let interval=backgroundTTL,mode='regular',pattern=null,label='',reason='Regular checks while there is not yet a reliable upload pattern.';
+    if(latest!==undefined&&confirmed>0&&confirmed-latest>=inactiveAfter){
+      interval=inactiveTTL;mode='inactive';label='Checked daily';reason='No known uploads for at least 90 days at the last successful check.';
+    }else if(latest!==undefined&&confirmed>=latest){
+      const evidence=uploadEvidence(channel).filter(entry=>entry.publishedAt<=confirmed&&entry.publishedAt>=confirmed-365*day);
+      // Rounded page ages and future/unconfirmed timestamps cannot establish a
+      // clock schedule. A new approximate upload also invalidates an old model.
+      const dates=[...new Set(evidence.filter(entry=>!entry.publishedAtEstimated).map(entry=>entry.publishedAt))].slice(0,12);
+      if(dates.length>=6&&dates[0]===latest){
+        const gaps=dates.slice(1,6).map((at,i)=>dates[i]-at),typical=median(gaps),previous=uploadPattern(dates.slice(1));
+        const offset=previous?latest-previous.origin-Math.round((latest-previous.origin)/previous.period)*previous.period:0;
+        // An ordinary late arrival fulfills this release; it is not a burst or
+        // a new schedule. Repeated shifts still move the recent sample's center.
+        const offSchedule=previous&&(offset< -90*60000||offset>Math.min(day,previous.period/4));
+        const burst=gaps[0]<typical*.55||previous&&gaps[0]<previous.period*.6,returning=gaps[0]>Math.max(30*day,typical*3);
+        if(now-latest<3*day&&(offSchedule||burst||returning)){
+          mode='activity';label='Checking more often';reason='Recent uploads differ from the previous pattern. Checking every two hours while the schedule settles.';
+        }else{
+          pattern=uploadPattern(dates);
+          if(pattern&&now-latest>Math.min(3*pattern.period,28*day))pattern=null;
+          if(gaps.filter(gap=>gap>=2*day).length>=4&&gaps[0]>=2*day&&gaps.every(gap=>gap<=typical*3)&&typical>=3*day)interval=typical>=6*day?day:12*hour;
+          if(pattern)interval=pattern.period===day?6*hour:day;
+          // A temporary burst may end without immediately providing six new
+          // slow uploads. Successful checks can then establish a quieter period.
+          if(confirmed-latest>=30*day)interval=day;
+          else if(confirmed-latest>=7*day)interval=Math.max(interval,12*hour);
+          if(interval>backgroundTTL){
+            mode=pattern?'predicted':'infrequent';label=pattern?'Adaptive checks':interval===day?'Checked daily':'Less frequent checks';
+            reason=pattern?'Usually uploads '+(pattern.period===day?'daily':'weekly')+'. Checks slow down between expected uploads.':'Recent upload history supports checking '+(interval===day?'daily':'every twelve hours')+'.';
+          }
+        }
+      }
+    }
+    let nextCheckAt=attempt+interval,expectedAt=null;
+    if(channel?.error){
+      // A failed request is never evidence of a missed upload. Keep ordinary
+      // error backoff; server/global cooldowns are also enforced at dispatch.
+      nextCheckAt=Math.max(attempt+interval,channel.retryAt||0,channel.retryAfter||0);
+    }else if(pattern){
+      const first=pattern.origin+(Math.round((latest-pattern.origin)/pattern.period)+1)*pattern.period;
+      expectedAt=first+Math.max(0,Math.floor((now-first)/pattern.period))*pattern.period;
+      if(now>=expectedAt+day)expectedAt+=pattern.period;
+      const targets=[15,75,195].map(minutes=>expectedAt+minutes*60000),end=expectedAt+day;
+      if(confirmed>=targets[0]&&confirmed<end&&now<end){
+        // Follow-ups are anchored to one expected release, not to failures or
+        // repeated visits. Waking after several targets produces just one check.
+        mode='late';label='Checking for an upload';reason='The expected upload has not appeared. Extra checks stop after one day.';
+        const target=targets.find(at=>at>confirmed);
+        const due=Math.max(attempt+hour,target??attempt+backgroundTTL);
+        if(due<end){nextCheckAt=due;interval=backgroundTTL;}
+      }else{
+        const target=targets[0];
+        // Avoid spending a request just before an expected upload. The daily
+        // fallback is delayed by at most two hours to align this one check.
+        if(target>=now&&target>=nextCheckAt&&target-nextCheckAt<=Math.min(interval/2,2*hour))nextCheckAt=target;
+        else nextCheckAt=Math.min(nextCheckAt,target);
+        nextCheckAt=Math.max(attempt+hour,nextCheckAt);
+      }
+    }
+    return {mode,interval,nextCheckAt,expectedAt,label,reason};
+  }
+  const automaticInterval=(channel,now=Date.now())=>automaticSchedule(channel,now).interval;
+  function uploadsDue(stored,{force=false,background=false,retryCooldown=false,countUpgrade=false}={},now=Date.now()){
     if(!stored)return true;
-    if(stored.error)return retryCooldown||now>=Math.max(stored.retryAt||0,stored.retryAfter||0,(stored.attemptedAt||0)+(background?automaticInterval(stored,now):ttl));
+    if(stored.error)return retryCooldown||now>=(background?automaticSchedule(stored,now).nextCheckAt:Math.max(stored.retryAt||0,stored.retryAfter||0,(stored.attemptedAt||0)+ttl));
     if(force)return now>=(stored.attemptedAt||0)+60000;
-    return !background&&needsViewUpgrade(stored)||now>=(stored.attemptedAt||0)+(background?automaticInterval(stored,now):stored.feedSource!=='uploads-page'?ttl:backgroundTTL);
+    if(background)return countUpgrade&&needsViewUpgrade(stored)&&now>=(stored.attemptedAt||0)+backgroundTTL||now>=automaticSchedule(stored,now).nextCheckAt;
+    return needsViewUpgrade(stored)||now>=(stored.attemptedAt||0)+(stored.feedSource!=='uploads-page'?ttl:backgroundTTL);
   }
   async function backgroundAllowed(channelId){
     const local=await browser.storage.local.get(['settings',...(channelId?[ChannelGroups.key]:[])]);
@@ -189,7 +285,7 @@ globalThis.GroupFeeds = (() => {
     globalThis.YouTubeRequests?.wake();
   }
   globalThis.browser?.tabs?.onRemoved?.addListener(tabId=>{void leaveGroup(tabId).catch(()=>{});});
-  async function getChannelUploads(channelId,force=false,background=false,retryCooldown=false){
+  async function getChannelUploads(channelId,force=false,background=false,retryCooldown=false,countUpgrade=false){
     if(!channelPattern.test(channelId))throw new Error('Choose a valid channel.');
     if(inFlight.has(channelId)){
       globalThis.YouTubeRequestLog?.skip({kind:'feed'},'reused');
@@ -204,7 +300,7 @@ globalThis.GroupFeeds = (() => {
       const now=Date.now();
       // Only an explicit, accepted local-cooldown reset retries failed channels
       // early. The shared scheduler still blocks every server-imposed pause.
-      if(!uploadsDue(stored,{force,background:options.priority<2,retryCooldown},now)){globalThis.YouTubeRequestLog?.skip(options,stored.error?'cooldown':'cache');return {outcome:stored.error?'waiting':'cached'};}
+      if(!uploadsDue(stored,{force,background:options.priority<2,retryCooldown,countUpgrade},now)){globalThis.YouTubeRequestLog?.skip(options,stored.error?'cooldown':'cache');return {outcome:stored.error?'waiting':'cached'};}
       let entries,error='',retryAfter=0,feedSource='rss';
       const page=async()=>{
         feedSource='uploads-page';
@@ -337,7 +433,7 @@ globalThis.GroupFeeds = (() => {
     }
     if(message.type!=='groupFeed:get')throw new Error('Unknown feed request.');
     const cache=data[key]?.channels||{}, entries=[...new Map(ids.flatMap(id=>cache[id]?.entries||[]).map(v=>[v.videoId,v])).values()].sort((a,b)=>b.publishedAt-a.publishedAt||a.videoId.localeCompare(b.videoId));
-    return {...(await globalThis.YouTubeRequests?.status()),refresh:refreshRuns.get(group.id)?{...refreshRuns.get(group.id).progress}:null,progress:globalThis.WatchStatus?await WatchStatus.read():{version:1,videos:{}},group,channels:ids.map(id=>({...groups.channels[id],id,fetchedAt:cache[id]?.fetchedAt||null,error:cache[id]?.error||'',retryAt:cache[id]?.retryAt||0,feedSource:cache[id]?.feedSource||'rss',dailyChecks:automaticInterval(cache[id])===inactiveTTL})),entries,launchToken:entries.length?await launchContext(group,entries):null};
+    return {...(await globalThis.YouTubeRequests?.status()),refresh:refreshRuns.get(group.id)?{...refreshRuns.get(group.id).progress}:null,progress:globalThis.WatchStatus?await WatchStatus.read():{version:1,videos:{}},group,channels:ids.map(id=>({...groups.channels[id],id,fetchedAt:cache[id]?.fetchedAt||null,error:cache[id]?.error||'',retryAt:cache[id]?.retryAt||0,feedSource:cache[id]?.feedSource||'rss',dailyChecks:automaticInterval(cache[id])===inactiveTTL,checkSchedule:automaticSchedule(cache[id])})),entries,launchToken:entries.length?await launchContext(group,entries):null};
   }
-  return {invalidate(){epoch++;inFlight.clear();refreshRuns.clear();void publishProgress();},key,parse,parseVideoDetails,readPlayer,merge,automaticInterval,getChannelUploads,handle,prune};
+  return {invalidate(){epoch++;inFlight.clear();refreshRuns.clear();void publishProgress();},key,parse,parseVideoDetails,readPlayer,merge,automaticInterval,automaticSchedule,getChannelUploads,handle,prune};
 })();

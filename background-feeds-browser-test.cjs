@@ -36,10 +36,33 @@ module.exports=async function checkBackgroundFeeds(){
   verify(!(await GroupFeeds.handle({type:'groupFeed:get',groupId:'background'},sender)).channels[0].dailyChecks,'A new upload must remove the daily-check state');
   const active=(await browser.storage.local.get('channelUploads:v1'))['channelUploads:v1'];active.channels[ids[0]].attemptedAt=Date.now()-3*3600000;await browser.storage.local.set({'channelUploads:v1':active});
   await GroupFeeds.handle({type:'groupFeed:checkAll'},sender);verify(calls.length===5,'The returning creator must resume the two-hour cadence');
+  const H=3600000,D=24*H,M=60000,seedWeekly=async expected=>{
+   const key='channelUploads:v1',cache=(await browser.storage.local.get(key))[key],latest=expected-7*D;
+   const entries=Array.from({length:8},(_,i)=>({videoId:String(i).padStart(11,'0'),channelId:ids[0],channel:'Weekly fixture',title:'Weekly release',publishedAt:latest-i*7*D}));
+   cache.channels[ids[0]]=GroupFeeds.merge(null,ids[0],entries,Date.now()-3*H).channels[ids[0]];
+   await browser.storage.local.set({[key]:cache});
+  };
+  returning=false;await seedWeekly(Date.now()+2*D);
+  await GroupFeeds.handle({type:'groupFeed:refresh',groupId:'background',automatic:true},sender);
+  await GroupFeeds.handle({type:'groupFeed:checkAll'},sender);verify(calls.length===5,'Predictable channels should skip routine two-hour checks');
+  verify((await GroupFeeds.handle({type:'groupFeed:get',groupId:'background'},sender)).channels[0].checkSchedule.label==='Adaptive checks','The feed must explain adaptive scheduling');
+  await seedWeekly(Date.now()-16*M);
+  await GroupFeeds.handle({type:'groupFeed:checkAll'},sender);verify(calls.length===6,'The predicted release should receive a check');
+  let result=(await GroupFeeds.handle({type:'groupFeed:get',groupId:'background'},sender)).channels[0].checkSchedule;
+  verify(result.mode==='late'&&result.nextCheckAt>Date.now(),'A missing release should schedule a later retry, never an immediate loop');
+  const waiting=(await browser.storage.local.get('channelUploads:v1'))['channelUploads:v1'],c=waiting.channels[ids[0]],shift=H+M;
+  for(const field of ['fetchedAt','attemptedAt','latestUploadAt'])c[field]-=shift;
+  for(const entry of [...c.entries,...c.uploadHistory])entry.publishedAt-=shift;
+  await browser.storage.local.set({'channelUploads:v1':waiting});
+  await GroupFeeds.handle({type:'groupFeed:checkAll'},sender);verify(calls.length===7,'The first late retry should happen before two hours');
+  returning=true;const manual=(await browser.storage.local.get('channelUploads:v1'))['channelUploads:v1'];manual.channels[ids[0]].attemptedAt-=2*M;await browser.storage.local.set({'channelUploads:v1':manual});
+  await GroupFeeds.getChannelUploads(ids[0],true);verify(calls.length===8,'Manual refresh should remain available during adaptive checking');
+  result=(await GroupFeeds.handle({type:'groupFeed:get',groupId:'background'},sender)).channels[0].checkSchedule;
+  verify(result.mode==='predicted'&&result.interval===D,'Finding the late upload should stop follow-up checks');
   const key='channelUploads:v1',cache=(await browser.storage.local.get(key))[key];for(const c of Object.values(cache.channels))c.attemptedAt=1;await browser.storage.local.set({[key]:cache,settings:{backgroundGroupChecks:false}});
-  await GroupFeeds.handle({type:'groupFeed:checkAll'},sender);verify(calls.length===5,'Opt-out must stop background requests');
+  await GroupFeeds.handle({type:'groupFeed:checkAll'},sender);verify(calls.length===8,'Opt-out must stop background requests');
   await browser.storage.local.set({settings:{backgroundGroupChecks:true}});open=false;
-  await GroupFeeds.handle({type:'groupFeed:checkAll'},sender);verify(calls.length===5,'No YouTube tabs means no background requests');
+  await GroupFeeds.handle({type:'groupFeed:checkAll'},sender);verify(calls.length===8,'No YouTube tabs means no background requests');
   const report={ok:true,requests:calls.length};await browser.storage.local.set({'test:result':report});return report;
  }finally{browser.tabs.query=query;}
 };

@@ -520,7 +520,12 @@
       let error=row.querySelector('small');
       if(channel.error){if(!error){error=el('small');row.append(error);}error.textContent=channel.error;error.title=channel.retryAt?'Retry available after '+new Date(channel.retryAt).toLocaleTimeString():'';}else error?.remove();
       let cadence=row.querySelector('.channel-cadence');
-      if(channel.dailyChecks){if(!cadence){cadence=el('span','Checked daily',{class:'channel-cadence',title:'No known uploads for at least 90 days at the last successful check. Manual Refresh can check sooner.'});row.append(cadence);}}else cadence?.remove();
+      const schedule=channel.checkSchedule,label=schedule?.label||(channel.dailyChecks?'Checked daily':'');
+      if(label){
+        if(!cadence){cadence=el('span','',{class:'channel-cadence'});row.append(cadence);}
+        cadence.textContent=label;
+        cadence.title=(schedule?.reason||'No known uploads for at least 90 days at the last successful check.')+(schedule?.expectedAt?' Expected upload around '+new Date(schedule.expectedAt).toLocaleString()+'.':'')+' Manual Refresh can check sooner. Automatic checks require YouTube to be open.';
+      }else cadence?.remove();
       rows.push(row);
     }
     reconcileChildren(members,rows);return details;
