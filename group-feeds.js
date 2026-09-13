@@ -3,6 +3,8 @@ globalThis.GroupFeeds = (() => {
   const key='channelUploads:v1', launchKey='groupLaunches:v1', ttl=15*60*1000, backgroundTTL=2*3600000;
   const inactiveAfter=90*86400000,inactiveTTL=86400000;
   const hour=3600000,day=86400000;
+  const automaticKey='groupAutomaticChecks:v1',automaticWindow=30*60000,automaticBatch=5;
+  let automaticWrites=Promise.resolve();
   const channelPattern=/^UC[A-Za-z0-9_-]{22}$/, videoPattern=/^[A-Za-z0-9_-]{11}$/;
   let writes=Promise.resolve(), launchWrites=Promise.resolve();
   const inFlight=new Map(),activeGroups=new Map();let epoch=0,checkingAll=null;
@@ -122,7 +124,13 @@ globalThis.GroupFeeds = (() => {
       // two-hour floor: one shared feed avoids many individual watch requests.
       if(!job.shortsFirst&&checkViews&&(inFlight.has(channelId)||needsViewUpgrade(stored[key]?.channels?.[channelId]))){
         if(inFlight.has(channelId))await inFlight.get(channelId).promise;
-        else if(uploadsDue(stored[key]?.channels?.[channelId],{background:true,countUpgrade:true})&&await backgroundAllowed(channelId))await getChannelUploads(channelId,false,true,false,true);
+        else if(uploadsDue(stored[key]?.channels?.[channelId],{background:true,countUpgrade:true})&&await backgroundAllowed(channelId)){
+          const targets=await reserveAutomatic({channelId});
+          // A deferred shared feed must not fan out into individual watch-page
+          // requests just to upgrade legacy view counts.
+          if(!targets.length||version!==epoch)return;
+          await getChannelUploads(channelId,false,true,false,true);
+        }
         if(version!==epoch)return;
         stored=await browser.storage.local.get([key,ChannelGroups.key]);
       }
@@ -276,6 +284,43 @@ globalThis.GroupFeeds = (() => {
     const tabs=await browser.tabs.query({url:['https://www.youtube.com/*','https://m.youtube.com/*'],discarded:false});
     return tabs.some(tab=>!tab.incognito);
   }
+  function automaticPriority(id,channel,now){
+    const schedule=automaticSchedule(channel,now),latest=latestUploadAt(channel);
+    const expected=schedule.expectedAt,urgent=expected!==null&&now>=expected+15*60000&&now<expected+day;
+    const dates=[...new Set(uploadEvidence(channel).map(entry=>entry.publishedAt).filter(at=>at<=now))].slice(0,12);
+    const gaps=dates.slice(1).map((at,i)=>dates[i]-at).filter(gap=>gap>0);
+    const period=gaps.length?Math.max(hour,median(gaps)):day;
+    const tier=urgent?0:schedule.mode==='activity'?1:schedule.mode==='inactive'?5:latest!==undefined&&latest<=now&&now-latest<=30*day?2:latest===undefined?3:4;
+    return {id,tier,likelihood:Math.max(0,now-(channel?.attemptedAt||now))/period,due:schedule.nextCheckAt};
+  }
+  function reserveAutomatic({groupId,channelId}={}){
+    const version=epoch,kind=groupId||channelId?'visit':'background';
+    // Reserve before dispatch, in one shared writer. Reloads, overlapping tabs,
+    // and repeated group clicks cannot each acquire another batch. Unused slots
+    // after a cancellation remain reserved until expiry instead of causing loops.
+    const task=automaticWrites.then(async()=>{
+      if(version!==epoch||!await backgroundAllowed()||(await globalThis.YouTubeRequests?.status())?.pausedUntil>Date.now())return [];
+      const local=await browser.storage.local.get([automaticKey,ChannelGroups.key,key]),now=Date.now(),cache=local[key]?.channels||{};
+      const groups=local[ChannelGroups.key]?.groups||[],saved=local[automaticKey];
+      const recent=(Array.isArray(saved?.checks)?saved.checks:[]).filter(item=>item&&channelPattern.test(item.id)&&['visit','background'].includes(item.kind)&&Number.isFinite(item.at)&&item.at<=now&&now-item.at<automaticWindow);
+      const available=Math.max(0,Math.min(automaticBatch-recent.filter(item=>item.kind===kind).length,2*automaticBatch-recent.length));
+      if(!available)return [];
+      const grouped=new Set(groups.flatMap(group=>group.channelIds)),reserved=new Set(recent.map(item=>item.id));
+      const ids=channelId?[channelId]:groupId?(groups.find(group=>group.id===groupId)?.channelIds||[]):[...grouped];
+      const candidates=[...new Set(ids)].filter(id=>channelPattern.test(id)&&grouped.has(id)&&!reserved.has(id)&&!inFlight.has(id)&&uploadsDue(cache[id],{background:true,countUpgrade:!!channelId})&&(kind==='background'||automaticSchedule(cache[id],now).mode!=='inactive'));
+      const ranked=candidates.map(id=>automaticPriority(id,cache[id],now)).sort((a,b)=>a.tier-b.tier||b.likelihood-a.likelihood||a.due-b.due||a.id.localeCompare(b.id));
+      // Keep two background slots for the longest-waiting channels, including
+      // quiet creators and channels whose publishing pattern is still unknown.
+      const fair=kind==='background'?[...ranked].sort((a,b)=>a.due-b.due||a.id.localeCompare(b.id)).slice(0,Math.min(2,available)):[];
+      const priority=ranked.filter(item=>!fair.some(old=>old.id===item.id)).slice(0,available-fair.length);
+      const chosen=new Set([...priority,...fair].map(item=>item.id));
+      const selected=ranked.filter(item=>chosen.has(item.id)).map(item=>item.id);
+      if(!selected.length||version!==epoch)return [];
+      await browser.storage.local.set({[automaticKey]:{version:1,checks:[...recent,...selected.map(id=>({id,kind,at:now}))]}});
+      return version===epoch?selected:[];
+    });
+    automaticWrites=task.catch(()=>{});return task;
+  }
   async function leaveGroup(tabId){
     if(!activeGroups.delete(tabId))return;
     const local=await browser.storage.local.get(ChannelGroups.key),active=new Set(activeGroups.values());
@@ -348,6 +393,10 @@ globalThis.GroupFeeds = (() => {
   }
   async function refreshGroup(group,channelIds,{force=false,retryCooldown=false,failedOnly=false,automatic=false}={}){
     const previous=refreshRuns.get(group.id);
+    if(previous?.progress.running&&previous.automatic&&!automatic){
+      const version=epoch;await previous.promise;if(version!==epoch)return {ok:true};
+      return refreshGroup(group,channelIds,{force,retryCooldown,failedOnly,automatic});
+    }
     if(previous?.progress.running){if(!retryCooldown){if(!automatic){previous.automatic=false;previous.force||=force;}return previous.promise;}await previous.promise;}
     const version=epoch,targets=[...new Set(channelIds)],job={automatic,force,progress:{total:targets.length,checked:0,refreshed:0,cached:0,failed:0,running:true,paused:false,failedOnly}};
     refreshRuns.delete(group.id);refreshRuns.set(group.id,job);
@@ -397,8 +446,7 @@ globalThis.GroupFeeds = (() => {
       if(checkingAll)return checkingAll;
       const version=epoch;checkingAll=(async()=>{
         if((await globalThis.YouTubeRequests?.status())?.pausedUntil>Date.now()||!await backgroundAllowed())return {ok:true};
-        const local=await browser.storage.local.get([ChannelGroups.key,key]),cache=local[key]?.channels||{};
-        const ids=[...new Set((local[ChannelGroups.key]?.groups||[]).flatMap(g=>g.channelIds))].filter(id=>channelPattern.test(id)&&uploadsDue(cache[id],{background:true})).sort((a,b)=>(cache[a]?.attemptedAt||0)-(cache[b]?.attemptedAt||0)).slice(0,200);
+        const ids=await reserveAutomatic();
         for(const id of ids){if(version!==epoch||!await backgroundAllowed()||(await globalThis.YouTubeRequests?.status())?.pausedUntil>Date.now())break;await getChannelUploads(id,false,true);}return {ok:true};
       })();try{return await checkingAll;}finally{checkingAll=null;}
     }
@@ -431,6 +479,12 @@ globalThis.GroupFeeds = (() => {
       const automatic=message.automatic===true;
       // Warm visits do not create a progress run or per-channel cache attempts.
       if(automatic&&(!targets.some(id=>uploadsDue(data[key]?.channels?.[id],{background:true}))||!await backgroundAllowed()||(await globalThis.YouTubeRequests?.status())?.pausedUntil>Date.now()))return {ok:true};
+      if(automatic){
+        const previous=refreshRuns.get(group.id);if(previous?.progress.running)return previous.promise;
+        const version=epoch,selected=await reserveAutomatic({groupId:group.id});
+        if(!selected.length||version!==epoch)return {ok:true};
+        return refreshGroup(group,selected,{automatic:true});
+      }
       return refreshGroup(group,targets,{force:!automatic&&message.force===true,failedOnly:message.failedOnly===true,automatic});
     }
     if(message.type!=='groupFeed:get')throw new Error('Unknown feed request.');

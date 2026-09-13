@@ -573,10 +573,11 @@
     const options=button('',()=>openFeedMenu(options,'Group options',[
       ['Add channels',()=>ChannelGroupsUI.bulk(groupId,theme)],['Edit this group',()=>ChannelGroupsUI.manageGroup(group,theme,focusOptions)],
       ['Share group',()=>ChannelGroupsUI.shareGroup(groupId,theme,focusOptions)],['Manage all groups',manage],
+      ['Refresh all channels',()=>load(true,true),refreshing||data?.pausedUntil>Date.now()],
       ['Debug mode',()=>setDebugMode(!debugMode),false,debugMode]
     ]),{class:'group-options feed-menu-trigger','aria-label':'Group options','aria-haspopup':'menu','aria-expanded':'false','data-focus':'group-options',title:'Group options'});
     options.append(outlineIcon('M4 12h.01M12 12h.01M20 12h.01'));options.firstChild.setAttribute('stroke-width','4');actions.append(options);top.append(heading,actions);header.replaceChildren(top);
-    const freshness=el('div',undefined,{class:'refresh-line'}),refresh=button('',()=>load(true,true),{'data-focus':'refresh','aria-label':refreshing?'Refreshing uploads':'Refresh uploads',title:'Refresh uploads'});refresh.append(outlineIcon('M20 7v5h-5M4 17v-5h5M6.1 6.1a8 8 0 0 1 13.2 3M4.7 14.9a8 8 0 0 0 13.2 3'));refresh.disabled=refreshing||data?.pausedUntil>Date.now();freshness.append(el('span','',{class:'freshness'}),refresh);header.append(freshness);
+    const freshness=el('div',undefined,{class:'refresh-line'}),refresh=button('',()=>load(true,true),{'data-focus':'refresh','aria-label':refreshing?'Refreshing uploads':'Refresh uploads',title:'Refresh all channels in this group'});refresh.append(outlineIcon('M20 7v5h-5M4 17v-5h5M6.1 6.1a8 8 0 0 1 13.2 3M4.7 14.9a8 8 0 0 0 13.2 3'));refresh.disabled=refreshing||data?.pausedUntil>Date.now();freshness.append(el('span','',{class:'freshness'}),refresh);header.append(freshness);
     const uploadProgress=el('div',undefined,{class:'upload-progress',hidden:''});uploadProgress.append(el('p','',{class:'upload-progress-label'}),el('progress',undefined,{max:'1',value:'0','aria-label':'Channel upload checks'}),el('p','',{class:'upload-progress-note'}));header.append(uploadProgress);
     const tools=el('div',undefined,{class:'browse-tools'}),search=el('input',undefined,{type:'search',class:'search-group',placeholder:'Search titles or channels','aria-label':'Search this group',maxlength:'200',title:'Search titles and channels in the available uploads'});search.value=query;
     search.addEventListener('compositionstart',()=>{composing=true;});search.addEventListener('compositionend',()=>{composing=false;query=search.value;limit=48;render();});search.addEventListener('input',()=>{query=search.value;limit=48;if(!composing)render();});tools.append(search);
@@ -642,14 +643,14 @@
       const members=renderMembers(root,group,sameView);
       if(members.isConnected){retainedMembers=members;membersSlot=el('div');content.append(membersSlot);}else content.append(members);
       const failed=data.channels.filter(c=>c.error).length,missing=data.channels.filter(c=>!c.fetchedAt).length,paused=data.pausedUntil>Date.now();
-      status.textContent=paused?(data.pauseMessage||'YouTube checks are paused until '+new Date(data.pausedUntil).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'.')+' Cached videos are still available.':refreshing?'Checking uploads in the background…':failed?failed+' '+(failed===1?'channel could':'channels could')+' not refresh. Available cached videos are shown. Ledger will retry automatically.':missing?'Some channels have not loaded yet.':'';
-      if(failed)status.classList.add('error');
-      if(paused&&data.pauseScope==='automatic'&&!refreshing)status.append(
+      status.textContent=paused?(debugMode?(data.pauseMessage||'YouTube checks are paused.'):'Upload checks are paused until '+new Date(data.pausedUntil).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'.')+' Cached videos are still available.':refreshing?'Checking uploads in the background…':debugMode&&failed?failed+' '+(failed===1?'channel could':'channels could')+' not refresh. Available cached videos are shown. Ledger will retry automatically.':missing?'Some channels have not loaded yet.':'';
+      if(debugMode&&failed)status.classList.add('error');
+      if(debugMode&&paused&&data.pauseScope==='automatic'&&!refreshing)status.append(
         button('Retry now',()=>load(true,true,false,data.pausedUntil),{'data-focus':'retry-cooldown',title:'End Ledger’s cooldown and retry this group at a slower pace. If checks keep failing, Ledger will pause again.'})
       );
-      if(failed&&!refreshing&&!paused){
+      if(debugMode&&failed&&!refreshing&&!paused){
         status.append(button('Retry failed channels',()=>load(true,true,true),{'data-focus':'retry-failed',title:'Retry affected channels. Recent attempts and YouTube’s retry limits are respected.'}));
-        if(debugMode)status.append(button('Show details',()=>{saveMembersExpanded(group.id,true);members.open=true;members.querySelector('summary').focus({preventScroll:true});},{'data-focus':'refresh-details'}));
+        status.append(button('Show details',()=>{saveMembersExpanded(group.id,true);members.open=true;members.querySelector('summary').focus({preventScroll:true});},{'data-focus':'refresh-details'}));
       }
       if(debugMode&&data.channels.some(c=>c.feedSource==='uploads-page'))content.append(el('p','Some uploads were recovered from YouTube’s public uploads pages. Only the first page is checked; ~ marks approximate dates or view counts.',{class:'note fallback-note'}));
       if(!data.entries.length){const empty=el('div',undefined,{class:'empty'});empty.append(el('p',!data.channels.length?'This group has no channels yet. Use “Add to group” on a channel or video page, or add a channel in Manage groups.':refreshing?'Fetching recent uploads from these channels.':'No uploads are available yet. Try Refresh to check these channels again.'));content.append(empty);}

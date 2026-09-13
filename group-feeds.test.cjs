@@ -278,7 +278,7 @@ test('inactive channels skip automatic group visits and sweeps until daily due t
  s.box.fetch=async url=>{const id=new URL(url).searchParams.get('channel_id');calls.push(id);return s.response(url);};
  await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',automatic:true},s.sender));assert.deepEqual(calls,[active]);
  let data=await s.feeds.handle({type:'groupFeed:get',groupId:'all'},s.sender);assert.equal(data.channels[0].dailyChecks,true);assert.equal(data.channels[1].dailyChecks,false);
- assert.equal(data.refresh.cached,1);assert.equal(data.refresh.refreshed,1);
+ assert.equal(data.refresh.total,1);assert.equal(data.refresh.cached,0);assert.equal(data.refresh.refreshed,1);
  // Worker reloads must not lose the saved inactivity evidence or reset its timer.
  s.load('group-feeds.js');await s.finish(s.box.GroupFeeds.handle({type:'groupFeed:checkAll'},s.sender));assert.deepEqual(calls,[active]);
  s.clock.now=start+21*3600000-1;await s.finish(s.feeds.getChannelUploads(old,false,true));assert.deepEqual(calls,[active]);
@@ -351,4 +351,64 @@ test('a predicted check respects a server pause and opt-out, then a new approxim
  s.data.settings={backgroundGroupChecks:false};s.clock.now+=2*DAY;await s.finish(s.feeds.handle({type:'groupFeed:checkAll'},s.sender));assert.equal(calls.length,1);
  s.data['channelUploads:v1']=s.feeds.merge(s.data['channelUploads:v1'],id,[{videoId:'aaaaaaaaaaa',channelId:id,title:'Unexpected new upload',publishedAt:s.clock.now-H,publishedAtEstimated:true}],s.clock.now);
  const plan=s.feeds.automaticSchedule(s.cache(id),s.clock.now);assert.equal(plan.expectedAt,null);assert.equal(plan.interval,2*H);
+});
+
+test('a large group opens with five due priority checks, leaving inactive, fresh and retry-protected channels alone',async()=>{
+ const s=refreshHarness(14),now=s.clock.now,H=3600000,calls=[],cache=s.data['channelUploads:v1'].channels;
+ const seed=(index,age=DAY,attempt=3*H)=>cache[s.ids[index]]={entries:[],fetchedAt:now-attempt,attemptedAt:now-attempt,latestUploadAt:now-age};
+ seed(0,100*DAY,26*H);seed(1,DAY,H);Object.assign(seed(2),{error:'Timeout',retryAfter:now+H});
+ seed(3,45*DAY);seed(4, -DAY);
+ for(const i of [5,6,7,8,9])seed(i);
+ cache[s.ids[9]].uploadHistory=Array.from({length:4},(_,i)=>({videoId:String(i).padStart(11,'0'),publishedAt:now-DAY-i*6*H}));
+ // A weekly upload was expected 20 minutes ago, even though the baseline daily check is not due.
+ const id=s.ids[13],latest=now-20*60000-7*DAY;
+ cache[id]=s.feeds.merge(null,id,Array.from({length:8},(_,i)=>({videoId:String(i).padStart(11,'0'),channelId:id,title:'Weekly',publishedAt:latest-i*7*DAY})),now-3*H).channels[id];
+ s.box.fetch=async url=>{calls.push(new URL(url).searchParams.get('channel_id'));return s.response(url);};
+ await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',automatic:true},s.sender));
+ assert.deepEqual(calls,[id,s.ids[9],...s.ids.slice(5,8)]);
+ const data=await s.feeds.handle({type:'groupFeed:get',groupId:'all'},s.sender);assert.equal(data.refresh.total,5);assert.equal(data.refresh.refreshed,5);
+ assert.equal(s.cache(s.ids[0]).attemptedAt,now-26*H,'An overdue inactive channel belongs in background work');
+});
+
+test('visit allowances survive overlapping groups, tabs and worker reloads, and unused room is filled only by due channels',async()=>{
+ const s=refreshHarness(20),calls=[];s.data['channelGroups:v1'].groups[0].channelIds=s.ids.slice(0,2);
+ s.box.fetch=async url=>{calls.push(new URL(url).searchParams.get('channel_id'));return s.response(url);};
+ const visit=(groupId,tabId=1)=>s.feeds.handle({type:'groupFeed:refresh',groupId,automatic:true},{...s.sender,tab:{id:tabId}});
+ await s.finish(visit('all'));assert.deepEqual(calls,s.ids.slice(0,2));
+ await s.finish(Promise.all([visit('other',2),visit('other',3)]));assert.equal(calls.length,5);assert.equal(new Set(calls).size,5);
+ s.load('group-feeds.js');s.feeds=s.box.GroupFeeds;
+ await s.finish(visit('other',4));assert.equal(calls.length,5,'Reloading cannot reset the shared allowance');
+ s.clock.now+=30*60000;await s.finish(visit('other'));assert.equal(calls.length,10);assert.equal(new Set(calls).size,10);
+});
+
+test('background batches reserve independent capacity and rotate through the oldest quiet channels',async()=>{
+ const s=refreshHarness(24),now=s.clock.now,H=3600000,calls=[],cache=s.data['channelUploads:v1'].channels;
+ for(const [i,id] of s.ids.entries())cache[id]={entries:[],fetchedAt:now-(i<6?100*H:3*H),attemptedAt:now-(i<6?100*H:3*H),latestUploadAt:now-(i<6?120:1)*DAY};
+ s.box.fetch=async url=>{calls.push(new URL(url).searchParams.get('channel_id'));return s.response(url);};
+ const visit=()=>s.feeds.handle({type:'groupFeed:refresh',groupId:'all',automatic:true},s.sender),sweep=()=>s.feeds.handle({type:'groupFeed:checkAll'},s.sender);
+ await s.finish(Promise.all([visit(),sweep()]));assert.equal(calls.length,10);assert.equal(new Set(calls).size,10);
+ assert.ok(s.ids.slice(0,2).every(id=>calls.includes(id)),'Two background slots must reach overdue quiet creators');
+ await s.finish(Promise.all([visit(),sweep()]));assert.equal(calls.length,10);
+ s.clock.now+=30*60000;await s.finish(sweep());assert.equal(calls.length,15);assert.ok(s.ids.slice(2,4).every(id=>calls.includes(id)));
+ s.clock.now+=30*60000;await s.finish(sweep());assert.equal(calls.length,20);assert.ok(s.ids.slice(4,6).every(id=>calls.includes(id)));
+});
+
+test('manual refresh during a priority batch checks the whole group and retains the recent-attempt floor',async()=>{
+ const s=refreshHarness(12),calls=[];let release;
+ s.box.fetch=async url=>{calls.push(new URL(url).searchParams.get('channel_id'));if(calls.length===1)await new Promise(resolve=>release=resolve);return s.response(url);};
+ const automatic=s.feeds.handle({type:'groupFeed:refresh',groupId:'all',automatic:true},s.sender);await refreshTurn();assert.equal(calls.length,1);
+ const manual=s.feeds.handle({type:'groupFeed:refresh',groupId:'all',force:true},s.sender);release();await s.finish(Promise.all([automatic,manual]));
+ assert.deepEqual(new Set(calls),new Set(s.ids));assert.equal(calls.length,12);
+ const data=await s.feeds.handle({type:'groupFeed:get',groupId:'all'},s.sender);assert.equal(data.refresh.total,12);assert.equal(data.refresh.checked,12);assert.equal(data.refresh.cached,5);
+ await s.finish(s.feeds.handle({type:'groupFeed:checkAll'},s.sender));assert.equal(calls.length,12,'Manual results also satisfy background checks');
+});
+
+test('automatic reservations stop at server pauses and cannot be replenished by repeated visits',async()=>{
+ const s=refreshHarness(12),calls=[];
+ s.box.fetch=async url=>{calls.push(url);return s.response(url,429,'60');};
+ await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'all',automatic:true},s.sender));assert.equal(calls.length,1);
+ s.clock.now+=2*60000;await s.finish(s.feeds.handle({type:'groupFeed:refresh',groupId:'other',automatic:true},s.sender));assert.equal(calls.length,1);
+ assert.equal(s.data['groupAutomaticChecks:v1'].checks.length,5,'Cancelled reservations remain bounded until the window expires');
+ s.data.settings={backgroundGroupChecks:false};s.clock.now+=30*60000;
+ await s.finish(s.feeds.handle({type:'groupFeed:checkAll'},s.sender));assert.equal(calls.length,1);
 });

@@ -89,7 +89,7 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   assert.equal(await evaluate(`return ${feed}.querySelectorAll('.new-upload:not([hidden])').length;`),1);
   await wait(`return [...${feed}.querySelectorAll('article img')].every(image=>image.complete&&image.naturalWidth>0);`);
   if(process.env.LEDGER_TEST_REFRESH_ONLY==='1'){
-   await wait(`return !!${feed}.querySelector('[data-focus=retry-failed]');`);
+   assert.equal(await evaluate(`return ${feed}.querySelectorAll('[data-focus=retry-failed]').length;`),0);
    assert.equal(await evaluate(`return ${feed}.querySelectorAll('.members small').length;`),0);
    await evaluate(`${feed}.querySelector('[data-focus=group-options]').click();${feed}.querySelector('[role=menuitemcheckbox]').click();`);
    await wait(`return !!${feed}.querySelector('[data-focus=refresh-details]');`);

@@ -90,7 +90,19 @@ test('expired legacy caches recover fifteen view counts with one shared RSS requ
  assert.equal(urls.length,1);assert.equal(Object.keys(result.views).length,12);
  const cached=s.data['channelUploads:v1'].channels[A];assert.equal(cached.entries.filter(e=>Ledger.validVideoViews(e.views)).length,15);assert.ok(cached.viewsAttemptedAt>=now);
  await s.box.GroupFeeds.handle(message,sender);assert.equal(urls.length,1);
- assert.deepEqual(LedgerBackup.validate({format:'youtube-ledger-backup',schemaVersion:1,data:s.data}),s.data);
+ const {['groupAutomaticChecks:v1']:budget,...portable}=s.data;
+ assert.equal(budget.checks.length,1);assert.equal(budget.checks[0].kind,'visit');
+ assert.deepEqual(LedgerBackup.validate({format:'youtube-ledger-backup',schemaVersion:1,data:portable}),portable);
+});
+test('legacy feed count upgrades share the visit allowance and cannot fan out when it is exhausted',async()=>{
+ const s=setup(),now=Date.now(),channel=s.data['channelUploads:v1'].channels[A],calls=[];
+ delete channel.viewsAttemptedAt;channel.attemptedAt=channel.fetchedAt=now-3*3600000;
+ s.data['channelGroups:v1'].groups[0].sort='views-desc';
+ s.data['groupAutomaticChecks:v1']={version:1,checks:Array.from({length:5},(_,i)=>({id:'UC'+String(i).padStart(22,'0'),at:now,kind:'visit'}))};
+ s.box.fetch=async url=>{calls.push(url);throw Error('Unexpected metadata request');};
+ const result=await s.box.GroupFeeds.handle({type:'groupFeed:details',groupId:'podcasts',videoIds:[V,W,X]},{tab:{id:1},url:'https://www.youtube.com/feed/subscriptions'});
+ assert.deepEqual(calls,[],'Deferred view-count upgrades must not issue a feed or watch-page request');
+ assert.equal(Object.keys(result.views).length,0);assert.equal(s.data['channelUploads:v1'].channels[A].viewsAttemptedAt,undefined);
 });
 test('parallel metadata work stays limited to four downloads across callers',async()=>{
  const s=setup(),entries=Array.from({length:8},(_,i)=>({videoId:String(i).padStart(11,'0'),channelId:A,channel:'Alpha',title:'Episode',publishedAt:1000}));

@@ -1,6 +1,6 @@
 {
   "name": "youtube-ledger",
-  "version": "0.16.31",
+  "version": "0.16.32",
   "private": true,
   "scripts": {
     "test": "node --test tests.test.cjs channel-groups.test.cjs group-feeds.test.cjs upload-schedule.test.cjs uploads-page.test.cjs features.test.cjs discovery.test.cjs recording.test.cjs media.test.cjs video-length.test.cjs shorts.test.cjs group-sharing.test.cjs youtube-requests.test.cjs request-log.test.cjs",
@@ -47,6 +47,7 @@
     "test:uploads-fallback": "node uploads-page-check.cjs",
     "test:uploads-fallback:firefox": "node refresh-firefox-check.cjs --uploads-fallback",
     "test:cooldown": "node cooldown-check.cjs",
+    "test:group-debug:firefox": "node group-debug-firefox-check.cjs",
     "test:background-feeds": "node background-feeds-check.cjs",
     "test:background-feeds:firefox": "node refresh-firefox-check.cjs --background-feeds"
   },
