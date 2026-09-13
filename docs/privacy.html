@@ -24,7 +24,7 @@
   <header>
     <a class="brand" href="https://github.com/cabe9/youtube-ledger">YouTube Ledger</a>
     <h1>Privacy policy</h1>
-    <p class="date">Effective and last updated: September 9, 2026</p>
+    <p class="date">Effective and last updated: September 12, 2026</p>
     <p>This policy describes how YouTube Ledger, the Chrome and Firefox extension maintained by <a href="https://github.com/cabe9">cabe9</a>, handles information.</p>
   </header>
 
@@ -41,7 +41,7 @@
     <li><strong>Request diagnostics:</strong> seven days of local counts of Ledger’s public YouTube lookups and up to 1,000 recent records with timestamps, lookup purpose, request type (RSS or page lookup), priority, public channel/video/upload-list addresses, HTTP results and elapsed time. The most recent recorded attempt and successful lookup time for each request type are kept until the log is cleared. Cache checks and cooldown stops are counted separately. This log does not include cookies, response bodies, playback/image traffic, other extensions or YouTube’s own requests. It can be exported or cleared in Settings and is excluded from profile backups.</li>
     <li><strong>Preferences:</strong> settings such as the dashboard theme, animation preference, recommendation visibility, and whether tracking is paused.</li>
   </ul>
-  <p>The extension also reads playback position, playback speed, audio status, and page focus to calculate activity durations. It also stores unique played position ranges, video duration, the last recorded playhead for Resume, and manual watch-state overrides to show Started/Watched status. It does not record video, audio, screenshots, passwords, cookies, or activity on unrelated websites. Private or incognito use is disabled.</p>
+  <p>The extension also reads playback position, playback speed, audio status, and page focus to calculate activity durations. It also stores unique played position ranges, video duration, a natural-finish timestamp when observed, the last recorded playhead for Resume, and manual watch-state overrides to show Started/Watched status. It does not record video, audio, screenshots, passwords, cookies, or activity on unrelated websites. Private or incognito use is disabled.</p>
 
   <h2>How the information is used</h2>
   <p>Information is used to provide the local viewing history, daily and period summaries, recommendation controls and activity counts, labels, notes, and exports you request. The extension does not use your information for advertising, profiling for third parties, or selling data.</p>
@@ -54,6 +54,10 @@
 
   <p>Background group refreshes can run while a YouTube tab is open, including a background tab, and unfinished group refreshes can continue after leaving the group. They reuse cached uploads and use the same paced request queue and cooldowns. Automatic upload checks reuse each channel’s cache for two hours and stay at background priority, including in visible groups. Returning to a tab does not start an upload refresh. Turn off “Refresh subscription groups in background” in Settings to stop automatic upload refreshes; the Refresh button remains available. Closing all YouTube tabs also stops new background requests; browser suspension can delay checks. No extra browser permissions are required for this option.</p>
 
+  <h2>YouTube watch evidence and optional imports</h2>
+  <p>When “Learn watch status from YouTube” is enabled and tracking is not paused, Ledger can read supported thumbnail progress bars and video entries on YouTube history pages you visit. It saves video IDs, observed progress percentages when available, observation timestamps, and the evidence source locally. These observations use content already loaded by the page and make no extra page requests. Progress of 90% or more can mark a video watched; a history entry without progress shows “Seen before,” with completion unknown. Evidence does not add playback time or invent a resume position.</p>
+  <p>“Update watch status” can open YouTube's signed-in history page for an explicit check. Scroll to load older entries through YouTube itself. This explicit action remains available while passive learning or tracking is off. You can also preview a Google Takeout YouTube watch-history JSON or HTML file locally and choose “Import seen videos.” Ledger retains only video IDs and available viewing dates, not the file's titles or other personal fields. HTML entries without parsed dates are treated as older evidence. The input file is not uploaded. Files over 50 MB are rejected; imports and retained evidence are limited to 20,000 videos. JSON imports prioritize recent entries, and the oldest retained evidence can be replaced at that limit. Manual Unwatched choices suppress previous YouTube evidence until you restore automatic status.</p>
+
   <h2>Storage and retention</h2>
   <p>Records and preferences are stored using the browser's local extension storage (<code>storage.local</code>). The extension does not send them to a developer-operated server or use browser sync storage. Chrome and Firefox profiles keep separate histories.</p>
   <p>History, Review and group controls display available video thumbnails and channel portraits from YouTube image hosts. These image requests go directly to those hosts without a page referrer; they do not go through a Ledger server. Images load as needed, and missing images have a text or placeholder fallback. Portrait URLs and available channel addresses are included in profile backups.</p>
@@ -64,17 +68,17 @@
 
   <h2>Your controls and deletion</h2>
   <ul>
-    <li><strong>Pause tracking</strong> stops saving new activity and recommendation events. It does not delete existing records.</li>
+    <li><strong>Pause tracking</strong> stops saving new activity, recommendation events and passive watch evidence. Explicit history checks and local imports remain available. It does not delete existing records.</li>
     <li><strong>Delete this day</strong> removes that day's recorded activity, recommendation events, and purpose labels. It currently does not remove the day's notes; erase those in the Notes field separately.</li>
     <li>You can edit or clear notes and custom review instructions in the dashboard. Restoring default settings does not delete viewing history or daily notes.</li>
     <li>The Groups tab lets you rename or delete a group and remove individual channel memberships. Removing a channel from one group keeps memberships in other groups. Deleting groups does not delete viewing history.</li>
-    <li>To remove all local extension data, remove its stored data through your browser's available controls or uninstall the extension. The separate watch-progress record remains when a single history day is deleted. Files you previously exported remain wherever you saved them until you delete those files yourself.</li>
+    <li>To remove all local extension data, remove its stored data through your browser's available controls or uninstall the extension. The separate watch-progress and YouTube evidence records remain when a single history day is deleted. Files you previously exported remain wherever you saved them until you delete those files yourself.</li>
   </ul>
   <p>The developer cannot access or delete records that remain only in your browser profile.</p>
 
   <h2>Exports and third-party services</h2>
   <p>JSON exports and LLM review-prompt exports are created locally as downloadable files. Depending on the export, they can include viewing activity, recommendation events, labels, notes, preferences, dates, and the time zone reported by your browser.</p>
-  <p>Full backup files also include groups, chosen icons, upload cache, hidden-video preferences, last visit times, resume positions and watch state. Temporary link, queue and undo contexts are excluded. Restore validates a selected backup and replaces standard Ledger data only after you choose Restore. A recovery backup downloads first. Files can be moved manually between Chrome and Firefox; there is no automatic synchronization.</p>
+  <p>Full backup files also include groups, chosen icons, upload cache, hidden-video preferences, last visit times, resume positions, watch state and YouTube/imported watch evidence. Temporary link, queue and undo contexts are excluded. Restore validates a selected backup and replaces standard Ledger data only after you choose Restore. A recovery backup downloads first. Files can be moved manually between Chrome and Firefox; there is no automatic synchronization.</p>
   <p>No automatic LLM or AI service connection is included. If you choose to upload, paste, or send an export to an AI provider or anyone else, that recipient receives the information you share and handles it under its own policies. Exporting a file by itself does not send it to the developer.</p>
 
   <h2>Permissions</h2>

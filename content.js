@@ -39,7 +39,7 @@
   function snapshot() {
     const u = new URL(location.href);
     const videoId = u.searchParams.get('v') || (/^\/shorts\/([^/?]+)/.exec(u.pathname)||[])[1] || '';
-    const v = document.querySelector('video');
+    const v = u.pathname.startsWith('/shorts/')?document.querySelector('ytd-reel-video-renderer[is-active] video, ytd-reel-video-renderer[active] video')||document.querySelector('video'):document.querySelector('#movie_player video.html5-main-video')||document.querySelector('video');
     const entry=globalThis.PlaybackSource?.read(videoId);
     if(entry===null)return null;
     const key = (videoId || 'browse')+'|'+(entry?.id||'');
@@ -52,7 +52,7 @@
     const channelUrl=Ledger.channelURL(owner?.querySelector('#channel-name a')?.href);
     const channelAvatarUrl=channelUrl?Ledger.avatarURL(owner?.querySelector('#avatar img')?.src):'';
     return {
-      id:session, videoId, source:entry?.source, journey:entry?.journey,
+      media:v, seeking:!!v?.seeking, id:session, videoId, source:entry?.source, journey:entry?.journey,
       ...(channelUrl?{channelUrl,...(channelAvatarUrl?{channelAvatarUrl}:{})}:{}),
       title:videoId ? (document.querySelector('ytd-watch-metadata h1, h1.ytd-watch-metadata')?.textContent?.trim() || document.title.replace(/ - YouTube$/, '')) : 'Browsing YouTube',
       channel:document.querySelector('ytd-watch-metadata #channel-name a, #owner #channel-name a')?.textContent?.trim() || '',
@@ -66,15 +66,20 @@
     if(disposed)return;
     const now = snapshot();
     if(!now){prior=undefined;return;}
-    if (enabled && prior && prior.id === now.id) {
+    if (enabled && prior && prior.id === now.id && prior.media === now.media) {
       const elapsed = now.mono-prior.mono;
       const delta = now.position-prior.position;
       // Ignore sleep, suspended timers, seeking and intervals without playback progress.
+      // Express playhead jitter in wall time, then scale it with playback speed.
       if (elapsed > 0 && elapsed <= 5000 && Math.abs(now.wall-prior.wall-elapsed) < 1000) {
-        const progressed = prior.playing && delta > 0 && delta <= elapsed/1000*prior.rate+0.75;
+        const progressed = prior.playing && !now.seeking && delta > 0 && delta <= (elapsed/1000+0.75)*prior.rate;
         let state = prior.ad ? 'ad' : !prior.videoId ? 'browsing' : !progressed ? 'paused' : prior.focused ? 'foreground' : prior.audio ? 'backgroundAudio' : 'backgroundSilent';
         // A parked, paused tab is not activity. Actual background playback still counts.
-        if (!(['browsing','paused','ad'].includes(state) && !prior.focused)) buffer.add({...prior, start:now.wall-elapsed, end:now.wall, positionEnd:now.position, state});
+        if (!(['browsing','paused','ad'].includes(state) && !prior.focused)) {
+          const {media,seeking,...sample}=prior;
+          buffer.add({...sample,start:now.wall-elapsed,end:now.wall,positionEnd:now.position,state,
+            ...(now.media?.ended&&progressed?{finished:true}:{})});
+        }
       }
     }
     prior = now;
@@ -82,6 +87,10 @@
   }
   const flush=()=>void buffer.flush(true);
   listen(document,'ended',()=>{tick();flush();},true);
+  // Capture the start and last fraction of playback instead of losing up to a
+  // second at every play/pause. Seeking starts a fresh sampling interval.
+  for(const name of ['playing','pause','ratechange','seeked'])listen(document,name,event=>{if(event.target===snapshot()?.media){tick();if(name==='pause')flush();}},true);
+  listen(document,'seeking',event=>{if(event.target===snapshot()?.media){tick();prior=undefined;}},true);
   listen(document,'ledger-queue-ended',()=>{tick();flush();});
   const timer=setInterval(tick,1000);
   listen(document,'visibilitychange',()=>{tick();flush();});

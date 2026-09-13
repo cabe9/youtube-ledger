@@ -96,7 +96,7 @@ test('saved header filters validate writes and reset only browsing controls, pre
  for(const fields of [{hiddenChannels:['invalid']},{lengthFilter:'invalid'},{uploadedFilter:'invalid'}]){const bad=clone(backup);Object.assign(bad.data[F.key].groups.podcasts,fields);assert.throws(()=>b.LedgerBackup.validate(bad));}
  s.local[b.ChannelGroups.key].groups[0].watchFilter='watched';s.local[b.ChannelGroups.key].groups[0].hideShorts=true;
  await F.handle({type:'feedLibrary:resetFilters',groupId:'podcasts'},sender);
- assert.deepEqual(s.local[F.key].groups.podcasts,{...prefs,lengthFilter:'all',uploadedFilter:'all'});assert.equal(s.local[b.ChannelGroups.key].groups[0].watchFilter,'all');assert.equal(s.local[b.ChannelGroups.key].groups[0].hideShorts,false);
+ assert.deepEqual(s.local[F.key].groups.podcasts,{...prefs,lengthFilter:'all',uploadedFilter:'all',hidePreviouslyPlayed:false});assert.equal(s.local[b.ChannelGroups.key].groups[0].watchFilter,'all');assert.equal(s.local[b.ChannelGroups.key].groups[0].hideShorts,false);
 });
 test('metadata sorts reverse independently, retain zeroes, put unknowns last, and use upload age at the view-count snapshot',()=>{
  const {box:b}=setup(),F=b.FeedLibrary,at=100*86400000;

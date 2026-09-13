@@ -13,7 +13,7 @@ FILES = ['LICENSE', 'compat.js', 'core.js', 'background.js', 'content.js',
          'recommendations.js', 'recommendations.css', 'dashboard.html',
          'dashboard.css', 'frutiger-aero.css', 'settings.js', 'trends.js', 'dashboard.js',
          'retrowave.svg', 'retrowave-animated.svg']
-FILES += ['recording.js', 'recording-buffer.js', 'recording-ui.js', 'ledger-undo.js', 'undo-ui.js', 'feed-library.js', 'group-queue.js', 'queue-content.js', 'review-period.js', 'ledger-storage.js', 'watch-status.js', 'source-contexts.js', 'backup.js', 'backup-ui.js', 'gif-codec.js', 'gif-resize.js', 'THIRD-PARTY-LICENSES.txt']
+FILES += ['watch-evidence.js', 'watch-evidence-content.js', 'watch-evidence-ui.js', 'recording.js', 'recording-buffer.js', 'recording-ui.js', 'ledger-undo.js', 'undo-ui.js', 'feed-library.js', 'group-queue.js', 'queue-content.js', 'review-period.js', 'ledger-storage.js', 'watch-status.js', 'source-contexts.js', 'backup.js', 'backup-ui.js', 'gif-codec.js', 'gif-resize.js', 'THIRD-PARTY-LICENSES.txt']
 FILES += ['icons/logo.svg'] + [f'icons/icon-{n}.png' for n in [16,32,48,64,128,256]]
 FILES += ['assets/frutiger-aero/water-desktop.png', 'assets/frutiger-aero/skyline-desktop.png', 'assets/frutiger-aero/landscape-mobile.png',
           'assets/frutiger-aero/foliage-left.png', 'assets/frutiger-aero/foliage-right.png']

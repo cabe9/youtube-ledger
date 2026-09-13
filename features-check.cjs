@@ -23,7 +23,7 @@ const A='UC'+'a'.repeat(22),B='UC'+'b'.repeat(22),V='a'.repeat(11),W='b'.repeat(
   assert.match(await feed.locator('time').first().innerText(),/2 hours ago/);assert.match(await feed.locator('time').nth(1).innerText(),/2 days ago/);assert.ok(await feed.locator('time').first().getAttribute('title'));
   assert.equal(await feed.locator('article select').count(),0,'Cards have no persistent dropdown');
   const firstOptions=feed.getByRole('button',{name:'More options for Episode one',exact:true}),secondOptions=feed.getByRole('button',{name:'More options for Episode two',exact:true}),menu=feed.getByRole('menu',{name:'Watch options'});
-  await secondOptions.click();assert.equal(await menu.getByRole('menuitem').count(),3);assert.equal(await menu.getByRole('menuitem',{name:'Use recorded playback'}).count(),0,'Automatic state needs no reset action');
+  await secondOptions.click();assert.equal(await menu.getByRole('menuitem').count(),3);assert.equal(await menu.getByRole('menuitem',{name:'Use automatic watch status'}).count(),0,'Automatic state needs no reset action');
   await firstOptions.click();assert.equal(await menu.count(),1);assert.equal(await secondOptions.getAttribute('aria-expanded'),'false');assert.equal(await menu.getByRole('menuitem').count(),4);
   await page.keyboard.press('ArrowDown');assert.equal(await menu.getByRole('menuitem',{name:'Mark unwatched',exact:true}).evaluate(node=>node.getRootNode().activeElement===node),true);
   await page.keyboard.press('Home');assert.equal(await menu.getByRole('menuitem',{name:'Mark watched',exact:true}).evaluate(node=>node.getRootNode().activeElement===node),true);
@@ -33,12 +33,12 @@ const A='UC'+'a'.repeat(22),B='UC'+'b'.repeat(22),V='a'.repeat(11),W='b'.repeat(
   await page.waitForTimeout(250);assert.equal(await menu.evaluate(node=>node===window.openWatchMenu),true);
   await page.keyboard.press('Enter');await menu.waitFor({state:'detached'});await feed.locator('.watch-badge[title="Marked manually"]').filter({hasText:'Watched'}).waitFor();
   assert.equal(await firstOptions.evaluate(node=>node.getRootNode().activeElement===node),true,'Saving returns focus to the menu trigger');
-  await firstOptions.press('ArrowDown');await menu.getByRole('menuitem',{name:'Use recorded playback',exact:true}).waitFor();
+  await firstOptions.press('ArrowDown');await menu.getByRole('menuitem',{name:'Use automatic watch status',exact:true}).waitFor();
   await page.keyboard.press('Escape');await menu.waitFor({state:'detached'});assert.equal(await firstOptions.evaluate(node=>node.getRootNode().activeElement===node),true);
-  await firstOptions.click();await menu.getByRole('menuitem',{name:'Use recorded playback',exact:true}).click();await menu.waitFor({state:'detached'});await feed.locator('article').first().getByText('Started',{exact:true}).waitFor();
-  await firstOptions.click();assert.equal(await menu.getByRole('menuitem',{name:'Use recorded playback'}).count(),0);await feed.getByRole('heading',{name:'Podcasts',exact:true}).click();await menu.waitFor({state:'detached'});
-  await page.setViewportSize({width:390,height:850});await firstOptions.click();const box=await menu.boundingBox();assert.ok(box.x>=0&&box.x+box.width<=390&&box.y>=0&&box.y+box.height<=850,'Menu fits a narrow viewport');
-  await menu.screenshot({path:path.join(__dirname,'group-watch-menu-preview.png')});await page.keyboard.press('Escape');await page.setViewportSize({width:1440,height:1000});
+  await firstOptions.click();await menu.getByRole('menuitem',{name:'Use automatic watch status',exact:true}).click();await menu.waitFor({state:'detached'});await feed.locator('article').first().getByText('Started',{exact:true}).waitFor();
+  await firstOptions.click();assert.equal(await menu.getByRole('menuitem',{name:'Use automatic watch status'}).count(),0);await feed.getByRole('heading',{name:'Podcasts',exact:true}).click();await menu.waitFor({state:'detached'});
+  await page.setViewportSize({width:390,height:850});await firstOptions.scrollIntoViewIfNeeded();await page.waitForTimeout(500);await firstOptions.click();await menu.waitFor();const box=await menu.boundingBox();assert.ok(box.x>=0&&box.x+box.width<=390&&box.y>=0&&box.y+box.height<=850,'Menu fits a narrow viewport');
+  await page.keyboard.press('Escape');await menu.waitFor({state:'detached'});await page.setViewportSize({width:1440,height:1000});
   // Filtering a changed card out should leave usable keyboard focus.
   await feed.getByRole('button',{name:'Unwatched',exact:true}).click();await firstOptions.click();await menu.getByRole('menuitem',{name:'Mark watched',exact:true}).click();await firstOptions.waitFor({state:'detached'});
   assert.equal(await feed.getByRole('button',{name:'Unwatched',exact:true}).evaluate(node=>node.getRootNode().activeElement===node),true);

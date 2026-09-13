@@ -337,8 +337,8 @@
     }));
   }
   function updateCard(card){
-    const value=data?.progress?.videos?.[card.dataset.videoId],state=WatchStatus.state(value),badge=card.querySelector('.watch-badge');
-    if(badge){badge.hidden=state==='unwatched';badge.textContent=state==='watched'?'Watched':'Started';badge.title=value?.manual?'Marked manually':'Based on recorded playback';}
+    const value=WatchStatus.entry(data?.progress,card.dataset.videoId),state=WatchStatus.state(value),badge=card.querySelector('.watch-badge');
+    if(badge){badge.hidden=state==='unwatched';badge.textContent=state==='watched'?'Watched':state==='seen'?'Seen before':'Started';badge.title=WatchStatus.description(value);}
     let progress=card.querySelector('.playback-progress');const fraction=WatchStatus.fraction(value);
     if(fraction>0){if(!progress){progress=el('span',undefined,{class:'playback-progress'});progress.append(el('i'));card.querySelector('.thumbnail').append(progress);}progress.firstChild.style.width=(fraction*100)+'%';progress.setAttribute('aria-label',Math.round(fraction*100)+'% recorded playback');}else progress?.remove();
     const fresh=card.querySelector('.new-upload');if(fresh)fresh.hidden=!(visitBoundary&&Number(card.dataset.publishedAt)>visitBoundary&&Number(card.dataset.publishedAt)<=Date.now());
@@ -377,18 +377,18 @@
   }
   function openVideoMenu(card,trigger){
     if(videoMenu?.trigger===trigger){closeVideoMenu();return;}closeVideoMenu(false);
-    const videoId=card.dataset.videoId,value=data?.progress?.videos?.[videoId],state=WatchStatus.state(value),panel=el('div',undefined,{class:'video-menu',id:'ledger-video-menu',role:'menu','aria-label':'Watch options'});
+    const videoId=card.dataset.videoId,value=WatchStatus.entry(data?.progress,videoId),state=WatchStatus.state(value),panel=el('div',undefined,{class:'video-menu',id:'ledger-video-menu',role:'menu','aria-label':'Watch options'});
     const opened={videoId,trigger,panel};videoMenu=opened;trigger.setAttribute('aria-expanded','true');trigger.setAttribute('aria-controls',panel.id);
     async function save(status){
       for(const item of panel.querySelectorAll('button'))item.disabled=true;
-      try{const result=await request({type:'watchStatus:set',videoId,status});if(videoMenu===opened)closeVideoMenu();LedgerUndoUI.show(host.shadowRoot,status==='recorded'?'Using recorded playback.':'Marked '+status+'.',result.undoToken);}
+      try{const result=await request({type:'watchStatus:set',videoId,status});if(videoMenu===opened)closeVideoMenu();LedgerUndoUI.show(host.shadowRoot,status==='recorded'?'Using automatic watch status.':'Marked '+status+'.',result.undoToken);}
       catch(error){if(videoMenu!==opened)return;let note=panel.querySelector('.menu-error');if(!note){note=el('p','',{class:'menu-error',role:'alert'});panel.append(note);}note.textContent=error.message;positionVideoMenu();}
       finally{for(const item of panel.querySelectorAll('button'))item.disabled=false;}
     }
     const choice=(label,status,attrs={})=>button(label,()=>save(status),{role:'menuitem',tabindex:'-1',...attrs});
     panel.append(choice(state==='watched'?'Mark unwatched':'Mark watched',state==='watched'?'unwatched':'watched'));
-    if(state==='started')panel.append(choice('Mark unwatched','unwatched'));
-    if(value?.manual)panel.append(choice('Use recorded playback','recorded',{class:'reset-watch'}));
+    if(state==='started'||state==='seen')panel.append(choice('Mark unwatched','unwatched'));
+    if(value?.manual||value?.externalIgnored)panel.append(choice('Use automatic watch status','recorded',{class:'reset-watch'}));
     const resume=WatchStatus.resume(value);
     if(resume)panel.append(button('Resume at '+playhead(resume),()=>playGroup(videoId,resume),{role:'menuitem',tabindex:'-1'}));
     const groupId=active,hidden=library.groups[groupId]?.hidden?.includes(videoId);
@@ -573,6 +573,7 @@
     const options=button('',()=>openFeedMenu(options,'Group options',[
       ['Add channels',()=>ChannelGroupsUI.bulk(groupId,theme)],['Edit this group',()=>ChannelGroupsUI.manageGroup(group,theme,focusOptions)],
       ['Share group',()=>ChannelGroupsUI.shareGroup(groupId,theme,focusOptions)],['Manage all groups',manage],
+      ['Update watch status',()=>WatchEvidenceUI.open(theme,focusOptions)],
       ['Refresh all channels',()=>load(true,true),refreshing||data?.pausedUntil>Date.now()],
       ['Debug mode',()=>setDebugMode(!debugMode),false,debugMode]
     ]),{class:'group-options feed-menu-trigger','aria-label':'Group options','aria-haspopup':'menu','aria-expanded':'false','data-focus':'group-options',title:'Group options'});
@@ -585,11 +586,11 @@
     for(const [value,label] of [['date','Upload date'],['views','Views'],['rate','Views per hour'],['length','Video length']])sort.append(el('option',label,{value}));sort.value=order.metric;sort.addEventListener('change',()=>{const value=sort.value;sort.blur();groupChange('sort',{sort:Ledger.groupSortKey(value,value!=='length')});});
     const direction=button('',()=>groupChange('sort',{sort:Ledger.groupSortKey(order.metric,!order.descending)}),{class:'sort-direction','data-focus':'sort-direction','data-direction':order.descending?'descending':'ascending','aria-label':order.descending?'Sort ascending':'Sort descending',title:order.label+'. '+(order.descending?'Switch to ascending order':'Switch to descending order')});direction.append(outlineIcon(order.descending?'M12 5v14m-5-5 5 5 5-5':'M12 19V5m-5 5 5-5 5 5'));sortControls.append(sort,direction);tools.append(sortControls);
     const isExpanded=expandedFilters.has(groupId),extra=el('div',undefined,{class:'extra-filters',id:'ledger-extra-filters'});extra.hidden=!isExpanded;
-    const extraCount=Number(group.hideShorts===true)+Number(watch==='hidden')+Number(!!prefs.uploadedFilter&&prefs.uploadedFilter!=='all')+Number(!!prefs.lengthFilter&&prefs.lengthFilter!=='all')+hiddenChannels.length;
+    const extraCount=Number(group.hideShorts===true)+Number(watch==='hidden')+Number(!!prefs.uploadedFilter&&prefs.uploadedFilter!=='all')+Number(!!prefs.lengthFilter&&prefs.lengthFilter!=='all')+hiddenChannels.length+Number(prefs.hidePreviouslyPlayed===true);
     const toggle=button('',()=>{isExpanded?expandedFilters.delete(groupId):expandedFilters.add(groupId);render();},{class:'filter-toggle','aria-expanded':String(isExpanded),'aria-controls':extra.id,'data-focus':'filters'});toggle.append(outlineIcon('M4 7h6m4 0h6M4 17h10m4 0h2M10 4v6M14 14v6'),el('span','Filters'));if(extraCount)toggle.append(el('span',String(extraCount),{class:'filter-count','aria-label':extraCount+' active filters'}));tools.append(toggle);header.append(tools);
     header.append(el('p','',{class:'sort-note'}),el('p','',{class:'shorts-note',role:'status'}));
     const watchFilters=el('div',undefined,{class:'watch-filters',role:'group','aria-label':'Filter by watch state'});
-    for(const [value,label] of [['all','All videos'],['unwatched','Unwatched'],['started','Continue watching'],['watched','Watched']])watchFilters.append(button(label,()=>groupChange('filter',{filter:value}),{'aria-pressed':String(watch===value),'data-focus':'watch-'+value,title:value==='unwatched'?'Includes videos you have started':'Based on playback recorded by Ledger'}));header.append(watchFilters);
+    for(const [value,label] of [['all','All videos'],['unwatched','Unwatched'],['started','Continue watching'],['watched','Watched']])watchFilters.append(button(label,()=>groupChange('filter',{filter:value}),{'aria-pressed':String(watch===value),'data-focus':'watch-'+value,title:value==='unwatched'?'Includes started videos and history entries with unknown completion':'Uses recorded playback and YouTube watch evidence'}));header.append(watchFilters);
     const fields=el('div',undefined,{class:'filter-fields'}),chips=[];
     function addSelect(field,label,choices){
       const holder=el('label',label,{class:'filter-field'}),control=el('select',undefined,{'data-focus':field,'aria-label':label});
@@ -600,6 +601,7 @@
     addSelect('lengthFilter','Video length',[['all','Any length'],['short','Under 10 minutes'],['medium','10–30 minutes'],['long','Over 30 minutes']]);extra.append(fields);
     if(prefs.lengthFilter&&prefs.lengthFilter!=='all')extra.append(el('p','Videos with unknown length stay visible until their length is checked.',{class:'length-note'}));
     const checks=el('div',undefined,{class:'filter-checks'}),shortsLabel=el('label',undefined,{class:'shorts-filter',title:'Known Shorts hide immediately; nearby uploads are checked first.'}),shorts=el('input',undefined,{type:'checkbox','data-focus':'hide-shorts'});shorts.checked=group.hideShorts===true;shorts.addEventListener('change',()=>groupChange('shorts',{hideShorts:shorts.checked}));shortsLabel.append(shorts,document.createTextNode('Hide Shorts'));checks.append(shortsLabel);
+    const playedLabel=el('label',undefined,{class:'shorts-filter'}),played=el('input',undefined,{type:'checkbox','data-focus':'hide-played'});played.checked=prefs.hidePreviouslyPlayed===true;played.addEventListener('change',()=>browsingChange({hidePreviouslyPlayed:played.checked}));playedLabel.append(played,document.createTextNode('Hide previously played'));playedLabel.title='Hide watched, started, and seen-before videos. Videos without watch evidence remain visible.';checks.append(playedLabel);
     const hiddenLabel=el('label',undefined,{class:'shorts-filter'}),hidden=el('input',undefined,{type:'checkbox','data-focus':'hidden-videos'});hidden.checked=watch==='hidden';hidden.addEventListener('change',()=>groupChange('filter',{filter:hidden.checked?'hidden':'all'}));hiddenLabel.append(hidden,document.createTextNode('Show hidden videos only'));checks.append(hiddenLabel);extra.append(checks);
     if(hiddenChannels.length){
       extra.append(el('p','Hidden channels · '+hiddenChannels.length,{class:'hidden-channels-note'}));const list=el('ul',undefined,{class:'hidden-channels','aria-label':'Hidden channels'});
@@ -608,6 +610,7 @@
     header.append(extra);
     const activeFilters=el('div',undefined,{class:'active-filters','aria-label':'Active filters'});
     if(group.hideShorts)chips.push(['Hide Shorts',()=>groupChange('shorts',{hideShorts:false}),'shorts']);
+    if(prefs.hidePreviouslyPlayed)chips.push(['Hide previously played',()=>browsingChange({hidePreviouslyPlayed:false}),'played']);
     if(watch==='hidden')chips.push(['Hidden videos',()=>groupChange('filter',{filter:'all'}),'hidden']);
     for(const [label,clear,id] of chips){const chip=button('',clear,{class:'filter-chip','aria-label':'Remove filter: '+label,'data-focus':'chip-'+id});chip.append(el('span',label),outlineIcon('m6 6 12 12M6 18 18 6'));activeFilters.append(chip);}
     for(const id of hiddenChannels){
@@ -731,7 +734,7 @@
     if(disposed||area!=='local')return;
     if(changes['groupRefreshProgress:v1']&&data){data.refresh=changes['groupRefreshProgress:v1'].newValue?.[active]||null;updateFreshness();}
     if(changes['youtubeRequests:v1']&&data){const next=changes['youtubeRequests:v1'].newValue||{},until=next.pausedUntil||0,message=next.pauseMessage||'',scope=next.pauseScope||'all';if(until!==(data.pausedUntil||0)||message!==(data.pauseMessage||'')||scope!==data.pauseScope){Object.assign(data,{pausedUntil:until,pauseMessage:message,pauseScope:scope,pauseReason:next.pauseReason||'unknown'});render();}}
-    if(changes['videoProgress:v1']&&data){data.progress=changes['videoProgress:v1'].newValue||{version:1,videos:{}};render();}
+    if(data&&(changes['videoProgress:v1']||changes[WatchEvidence.key])){data.progress={...(changes['videoProgress:v1']?changes['videoProgress:v1'].newValue:data.progress),evidence:changes[WatchEvidence.key]?changes[WatchEvidence.key].newValue?.videos||{}:data.progress?.evidence};render();}
     if(changes[FeedLibrary.key]){library=changes[FeedLibrary.key].newValue||{version:1,groups:{}};updateNavigation();render();}
     if(changes.settings){const next=Ledger.settings(changes.settings.newValue),debugChanged=debugMode!==next.groupDebugMode;theme=next.theme;debugMode=next.groupDebugMode;settingsReady=true;mount();if(debugChanged)render();if(changes.settings.oldValue?.backgroundGroupChecks===false&&changes.settings.newValue?.backgroundGroupChecks===true)checkAll();}
     if(changes['channelGroups:v1']){

@@ -7,6 +7,7 @@ browser.runtime.onMessage.addListener((message, sender) => {
   if(message?.type==='ledger:undo')return LedgerUndo.handle(message,sender);
   if(message?.type?.startsWith('feedLibrary:'))return FeedLibrary.handle(message,sender);
   if(message?.type?.startsWith('groupQueue:'))return GroupQueue.handle(message,sender);
+  if(message?.type?.startsWith('watchEvidence:'))return WatchEvidence.handle(message,sender).catch(error=>({error:String(error.message)}));
   if(message?.type==='watchStatus:set')return WatchStatus.handle(message,sender).catch(error=>({groupFeedError:String(error.message)}));
   if(message?.type?.startsWith('backup:'))return LedgerBackup.handle(message,sender).catch(error=>({error:String(error.message)}));
   if(message?.type?.startsWith('sourceContext:'))return SourceContexts.handle(message,sender).catch(()=>null);

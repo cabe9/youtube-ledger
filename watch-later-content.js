@@ -43,8 +43,9 @@
     updateTools();
   }
   function watched(row){
-    const state=progress.videos?.[identity(row)];if(state?.manual==='unwatched')return false;
+    const state=WatchStatus.entry(progress,identity(row));if(state?.manual==='unwatched')return false;
     if(WatchStatus.state(state)==='watched')return true;
+    if(state?.externalIgnored)return false;
     const width=row.querySelector('ytd-thumbnail-overlay-resume-playback-renderer #progress')?.style.width;
     return typeof width==='string'&&/^\d+(?:\.\d+)?%$/.test(width)&&parseFloat(width)>=90&&parseFloat(width)<=100;
   }
@@ -78,7 +79,7 @@
     if(!container){cancel(true);host?.remove();resizeObserver.disconnect();for(const {host:choice} of choices.values())choice.remove();choices.clear();clearSelection();selecting=false;return;}
     if(!progressReady&&!loadingProgress){
       loadingProgress=true;
-      browser.storage.local.get(WatchStatus.key).then(value=>{if(!disposed){progress=value[WatchStatus.key]||{videos:{}};progressReady=true;mount();}}).catch(()=>{if(!disposed){progressReady=true;message='Ledger watch status is unavailable. YouTube’s progress bars can still be used.';mount();}});
+      browser.storage.local.get([WatchStatus.key,WatchEvidence.key]).then(value=>{if(!disposed){progress={...value[WatchStatus.key],evidence:value[WatchEvidence.key]?.videos||{}};progressReady=true;mount();}}).catch(()=>{if(!disposed){progressReady=true;message='Ledger watch status is unavailable. YouTube’s progress bars can still be used.';mount();}});
     }
     ensureTools(container);const current=rows(),ids=new Set(current.map(identity));
     for(const id of selected)if(!ids.has(id))selected.delete(id);
@@ -152,7 +153,7 @@
   function visibility(){if(document.visibilityState!=='visible')cancel(true);}
   document.addEventListener('visibilitychange',visibility);
   window.addEventListener('resize',scheduleAlign);
-  function changed(changes,area){if(area==='local'&&changes[WatchStatus.key]){progress=changes[WatchStatus.key].newValue||{videos:{}};progressReady=true;schedule();}}
+  function changed(changes,area){if(area==='local'&&(changes[WatchStatus.key]||changes[WatchEvidence.key])){progress={...(changes[WatchStatus.key]?changes[WatchStatus.key].newValue:progress),evidence:changes[WatchEvidence.key]?changes[WatchEvidence.key].newValue?.videos||{}:progress.evidence};progressReady=true;schedule();}}
   browser.storage.onChanged.addListener(changed);schedule();
   document.addEventListener(disposeEvent,()=>{
     disposed=true;cancel(true);clearTimeout(timer);cancelAnimationFrame(layoutFrame);observer.disconnect();resizeObserver.disconnect();host?.remove();styleNode?.remove();for(const item of choices.values())item.host.remove();choices.clear();

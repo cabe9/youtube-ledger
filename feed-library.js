@@ -31,7 +31,8 @@ globalThis.FeedLibrary=(()=>{
       const excluded=hidden.has(e.videoId)||hiddenChannels.has(e.channelId);
       if(options.filter==='hidden')return excluded&&matches(e);
       if(excluded)return false;
-      const state=WatchStatus.state(progress?.videos?.[e.videoId]);
+      const state=WatchStatus.state(WatchStatus.entry(progress,e.videoId));
+      if(preferences.hidePreviouslyPlayed&&state!=='unwatched')return false;
       return (!options.filter||options.filter==='all'||(options.filter==='unwatched'?state!=='watched':state===options.filter))&&matches(e);
     }).sort((a,b)=>{
       const order=Ledger.groupSort(options.sort),left=metric(a,progress,order.metric),right=metric(b,progress,order.metric);
@@ -60,12 +61,13 @@ globalThis.FeedLibrary=(()=>{
         prefs.channelsExpanded=message.expanded;await browser.storage.local.set({[key]:state});return {ok:true};
       }
       if(message.type==='feedLibrary:filters'){
-        if(!message.filters||typeof message.filters!=='object'||Array.isArray(message.filters)||!Object.keys(message.filters).length||Object.keys(message.filters).some(k=>!['uploadedFilter','lengthFilter'].includes(k)))throw new Error('Choose a feed filter.');
+        if(!message.filters||typeof message.filters!=='object'||Array.isArray(message.filters)||!Object.keys(message.filters).length||Object.keys(message.filters).some(k=>!['uploadedFilter','lengthFilter','hidePreviouslyPlayed'].includes(k)))throw new Error('Choose a feed filter.');
         for(const [field,choices] of [['uploadedFilter',uploadedFilters],['lengthFilter',lengthFilters]])if(field in message.filters&&!choices.includes(message.filters[field]))throw new Error('Choose a supported feed filter.');
+        if('hidePreviouslyPlayed' in message.filters&&typeof message.filters.hidePreviouslyPlayed!=='boolean')throw new Error('Choose whether to hide previously played videos.');
         Object.assign(prefs,message.filters);await browser.storage.local.set({[key]:state});return {ok:true};
       }
       if(message.type==='feedLibrary:resetFilters'){
-        prefs.uploadedFilter='all';prefs.lengthFilter='all';group.watchFilter='all';group.hideShorts=false;
+        prefs.uploadedFilter='all';prefs.lengthFilter='all';prefs.hidePreviouslyPlayed=false;group.watchFilter='all';group.hideShorts=false;
         await browser.storage.local.set({[key]:state,[ChannelGroups.key]:data[ChannelGroups.key]});return {ok:true};
       }
       if(message.type==='feedLibrary:hideChannel'){

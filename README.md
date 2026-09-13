@@ -4,13 +4,13 @@ A local YouTube usage tracker for **Chrome and Firefox**. Records video titles, 
 
 ## Install
 
-Download the **0.16.32** package for your browser below. These ZIPs are ready
+Download the **0.16.33** package for your browser below. These ZIPs are ready
 to install; no build tools are needed. For development, clone the repository
 and follow [Build and test](#build-and-test).
 
 ### Chrome
 
-1. Download [the Chrome ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.32/youtube-ledger-chrome-store-0.16.32.zip) and extract it to a permanent folder.
+1. Download [the Chrome ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.33/youtube-ledger-chrome-store-0.16.33.zip) and extract it to a permanent folder.
 2. Open `chrome://extensions` and enable **Developer mode**.
 3. Click **Load unpacked** and select the extracted folder.
 4. Pin YouTube Ledger, refresh existing YouTube tabs, and click the extension icon for the dashboard.
@@ -19,7 +19,7 @@ Keep the folder in place. The installation survives browser restarts. To update,
 
 ### Firefox
 
-1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.32/youtube-ledger-firefox-store-0.16.32.zip).
+1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.33/youtube-ledger-firefox-store-0.16.33.zip).
 2. Open `about:debugging#/runtime/this-firefox`.
 3. Click **Load Temporary Add-on** and select the extracted `manifest.json`.
 4. Refresh YouTube tabs and open YouTube Ledger from the extension toolbar.
@@ -53,7 +53,12 @@ Daily JSON and LLM exports include each visit’s `source` and combined videos�
 
 Recent releases show relative timestamps such as “2 hours ago” or “3 days ago”, updating each minute. Hover over a timestamp for the exact local publication date and time. Older releases show their date.
 
-**Watch state:** feed controls offer All videos, Unwatched (including Started), Continue watching (Started), Watched and Hidden videos. A video starts only after Ledger records playback; at least 90% unique position coverage marks it watched. Replaying the same range does not count twice, and seeking or ads do not add coverage. Older history establishes Started only, since it lacks duration/position coverage. A small three-dot button beside each video title opens watch actions. Started/Watched labels sit beside the upload time. The menu offers relevant Mark watched/Mark unwatched actions; Use recorded playback appears only for a manual override. It supports touch, keyboard arrows, Escape, and outside-click dismissal. Marking Unwatched starts fresh coverage on the next playback. Manual changes do not delete session history, and deleting a history day does not erase this separate progress record.
+**Watch state:** group cards distinguish **Watched**, **Started**, and **Seen before**. Recorded coverage of at least 90% marks a video watched; a natural finish also qualifies with at least 80% coverage and a played final stretch. Replays do not add duplicate coverage, and seeks or ads do not count. Play/pause events capture short playback stretches that the one-second timer can miss. Supported native YouTube thumbnail progress bars can also establish Started or Watched (90%+). A history entry without progress becomes Seen before because completion is unknown. Hover a badge to see its basis. External evidence never adds playback time or invents a resume position.
+
+In a group's three-dot menu, choose **Update watch status**, or use the same button in Settings. **Check YouTube history** opens the signed-in history page: scroll to load older entries, and Ledger learns from the loaded native cards. It does not crawl additional history pages in the background. Alternatively, preview and import a Google Takeout `watch-history.json` or `watch-history.html` file (up to 50 MB). Only video IDs and available dates are saved, with a 20,000-video evidence limit; JSON imports prioritize recent entries. HTML entries without dates are treated as older evidence. Imports are local and contain no measured watch time. This evidence is included in full profile backups for transfer between browsers.
+
+**Hide previously played** in Filters hides Watched, Started, and Seen before videos; remove its chip to show them again. Unwatched includes unfinished videos and history entries with unknown completion. Continue watching includes Started videos. Use each video's menu to mark watched/unwatched or restore automatic status. A manual Unwatched choice suppresses prior YouTube evidence; the next real playback starts fresh recorded coverage. **Use automatic watch status** restores automatic evidence. Manual changes do not delete session history, and deleting one history day does not erase this separate progress/evidence record. Turn off **Learn watch status from YouTube** in Settings to stop passive observations. Pause tracking also stops them, while an explicitly opened history check or file import remains available.
+
 
 **Find and revisit:** search the available uploads by title or channel, and sort by Upload date, Views, Views per hour or Video length. A separate arrow button reverses the order. Upload date starts newest first, Views and Views per hour start highest first, and Video length starts shortest first. Sorting saves per group; the query and scroll position stay in the tab session. A sidebar dot means cached, non-hidden uploads were published since the last group visit. The feed shows a New divider and badges using that visit boundary; opening a group never marks videos watched. “Uploads checked” shows the oldest successful refresh among its channels; failures remain visible. Thin thumbnail bars show unique recorded playback coverage. Continue watching filters Started videos; their menu offers Resume when Ledger has a valid last playhead. Resume opens a normal timestamped YouTube link and retains the group source. Older records without playhead data cannot offer Resume.
 
@@ -254,3 +259,5 @@ Version 0.16.30 preserves an already-confirmed late-upload window after a failed
 Version 0.16.31 hides group refresh progress and per-channel diagnostics by default. Enable **Debug mode** in a group’s three-dot menu or **Settings → Group debug mode** to show the progress bar, channel errors, adaptive scheduling details, and uploads-page fallback notes. The choice saves automatically, applies across groups and open tabs, and survives reloads and profile transfer. The compact refresh status, cooldown notices, and retry controls remain available in the normal view. Debug mode only changes presentation and does not request more uploads.
 
 Version 0.16.32 limits automatic group openings to five due priority checks and background sweeps to five channels, reserving two background slots for the longest-waiting creators. Separate shared allowances across tabs prevent repeated group clicks from triggering whole-library sweeps; reservations persist for 30 minutes across worker reloads. Schedule-based and late-upload checks retain their retry safeguards. Manual **Refresh all channels** remains available through the refresh icon and group menu. Failed-channel summaries, retry-failed buttons and local-cooldown overrides now appear only in Debug mode. Validation covers priority selection, inactive-channel fairness, concurrent tabs, allowance persistence, manual refresh during automatic work, metadata upgrades, and packaged Chrome/Firefox behavior.
+
+Version 0.16.33 improves watched detection with passive YouTube progress/history observations, explicit native-history and local-file backfills, distinct Seen before badges, and a Hide previously played filter. Recorded playback now captures play/pause boundaries and recognizes natural completion at 80% unique coverage. Manual overrides retain precedence; imported evidence remains separate from measured playback and travels in profile backups.

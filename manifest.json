@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YouTube Ledger",
-  "version": "0.16.32",
+  "version": "0.16.33",
   "description": "Local YouTube playback history with foreground, background and idle time.",
   "permissions": [
     "storage"
@@ -17,6 +17,7 @@
       "ledger-storage.js",
       "ledger-undo.js",
       "watch-status.js",
+      "watch-evidence.js",
       "group-icons.js",
       "request-log.js",
       "youtube-requests.js",
@@ -45,6 +46,8 @@
         "compat.js",
         "core.js",
         "watch-status.js",
+        "watch-evidence.js",
+        "watch-evidence-content.js",
         "recommendations.js",
         "gif-codec.js",
         "gif-resize.js",
@@ -52,6 +55,7 @@
         "undo-ui.js",
         "media-ui.js",
         "groups-ui.js",
+        "watch-evidence-ui.js",
         "groups-content.js",
         "feed-library.js",
         "groups-feed.js",

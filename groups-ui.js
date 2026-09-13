@@ -358,5 +358,5 @@ globalThis.ChannelGroupsUI = (() => {
       dialog.replaceChildren(el('h3','Add multiple channels'),el('p','Choose saved channels or channels currently loaded on this YouTube page. Scroll the subscriptions page to load more, then scan again.',{class:'muted'}),tools,list,paste,el('h3','Add to groups'),destinations,actions,note);scan();status(note,state.groups.length?'Your YouTube subscriptions stay as they are.':'Create a group first, then return here.');
     }catch(e){status(note,e.message,true);dialog.append(button('Close',()=>dialog.close()));}
   }
-  return {manager,picker,editIcon,manageGroup,bulk,themeCss,shareGroup:(id,theme,onClose)=>shareGroups('Share',id,theme,onClose,true)};
+  return {root,modalLifecycle,manager,picker,editIcon,manageGroup,bulk,themeCss,shareGroup:(id,theme,onClose)=>shareGroups('Share',id,theme,onClose,true)};
 })();

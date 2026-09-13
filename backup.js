@@ -2,7 +2,7 @@
 globalThis.LedgerBackup=(()=>{
   const format='youtube-ledger-backup', maxBytes=100*1024*1024;
   const dateKey=/^(day|recommendations|purposes|goals):\d{4}-\d{2}-\d{2}$/;
-  const fixed=['settings','paused','channelGroups:v1','channelUploads:v1','videoProgress:v1','groupBrowsing:v1'];
+  const fixed=['settings','paused','channelGroups:v1','channelUploads:v1','videoProgress:v1','watchEvidence:v1','groupBrowsing:v1'];
   const known=k=>fixed.includes(k)||dateKey.test(k);
   const fail=()=>{throw new Error('This backup contains invalid or unsupported Ledger data.');};
   const object=v=>v&&typeof v==='object'&&!Array.isArray(v);
@@ -76,11 +76,15 @@ globalThis.LedgerBackup=(()=>{
           if(!text(id,100)||!id||!object(g)||!Array.isArray(g.hidden)||g.hidden.length>5000||g.hidden.some(v=>!video(v))||g.lastVisitedAt!==undefined&&!number(g.lastVisitedAt)||g.channelsExpanded!==undefined&&typeof g.channelsExpanded!=='boolean')fail();
           if(g.hiddenChannels!==undefined&&(!Array.isArray(g.hiddenChannels)||g.hiddenChannels.length>2000||g.hiddenChannels.some(v=>!channel(v))))fail();
           if(g.uploadedFilter!==undefined&&!['all','visit','day','week','month'].includes(g.uploadedFilter))fail();
+          if(g.hidePreviouslyPlayed!==undefined&&typeof g.hidePreviouslyPlayed!=='boolean')fail();
           if(g.lengthFilter!==undefined&&!['all','short','medium','long'].includes(g.lengthFilter))fail();
         }
+      }else if(key==='watchEvidence:v1'){
+        if(value?.version!==1||!object(value.videos)||Object.keys(value.videos).length>20000)fail();
+        for(const [id,v] of Object.entries(value.videos))if(!video(id)||!object(v)||!number(v.seenAt)||v.seenAt<1||v.seenAt>Date.now()+300000||!['youtube-progress','youtube-history','history-file'].includes(v.source)||v.percent!==undefined&&(!number(v.percent)||v.percent<=0||v.percent>100))fail();
       }else if(key==='videoProgress:v1'){
         if(value?.version!==1||!object(value.videos))fail();
-        for(const [id,v] of Object.entries(value.videos))if(!video(id)||typeof v.observed!=='boolean'||!Array.isArray(v.segments)||v.segments.length>500||v.segments.some(s=>!Array.isArray(s)||s.length!==2||!number(s[0])||!number(s[1])||s[1]<=s[0])||v.manual&&!['watched','unwatched'].includes(v.manual)||v.duration!==undefined&&(!number(v.duration)||v.duration>604800)||v.position!==undefined&&(!number(v.position)||!number(v.duration)||v.position>v.duration)||v.lastWatchedAt!==undefined&&!number(v.lastWatchedAt))fail();
+        for(const [id,v] of Object.entries(value.videos))if(!video(id)||typeof v.observed!=='boolean'||!Array.isArray(v.segments)||v.segments.length>500||v.segments.some(s=>!Array.isArray(s)||s.length!==2||!number(s[0])||!number(s[1])||s[1]<=s[0])||v.manual&&!['watched','unwatched'].includes(v.manual)||v.duration!==undefined&&(!number(v.duration)||v.duration>604800)||v.position!==undefined&&(!number(v.position)||!number(v.duration)||v.position>v.duration)||v.lastWatchedAt!==undefined&&!number(v.lastWatchedAt)||v.externalIgnored!==undefined&&typeof v.externalIgnored!=='boolean'||v.finishedAt!==undefined&&(!number(v.finishedAt)||v.finishedAt===0))fail();
       }
     }
     return data;

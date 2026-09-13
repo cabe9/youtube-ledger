@@ -2,7 +2,7 @@
 globalThis.Ledger = (() => {
   const states = ['foreground', 'backgroundAudio', 'backgroundSilent', 'paused', 'browsing', 'ad'];
   const labels = ['Unsorted', 'Work', 'Learning', 'Leisure', 'Background', 'Unplanned'];
-  const defaults = {theme:'dark-green', animateRetrowave:true, hideRecommendations:true, resetOnNavigate:true, showHeaderButton:true, showPausedOnly:false, backgroundGroupChecks:true, groupDebugMode:false, reviewPreference:''};
+  const defaults = {theme:'dark-green', animateRetrowave:true, hideRecommendations:true, resetOnNavigate:true, showHeaderButton:true, showPausedOnly:false, backgroundGroupChecks:true, groupDebugMode:false, learnYouTubeProgress:true, reviewPreference:''};
   const groupSorts={
     newest:{metric:'date',descending:true,label:'Newest first'},oldest:{metric:'date',descending:false,label:'Oldest first'},
     'views-desc':{metric:'views',descending:true,label:'Most views first'},'views-asc':{metric:'views',descending:false,label:'Fewest views first'},
@@ -48,7 +48,7 @@ globalThis.Ledger = (() => {
   function settings(value = {}) {
     const result = {...defaults};
     if (['retrowave','classic','dark-green','frutiger-aero'].includes(value?.theme)) result.theme=value.theme;
-    for (const key of ['animateRetrowave','hideRecommendations','resetOnNavigate','showHeaderButton','showPausedOnly','backgroundGroupChecks','groupDebugMode']) if (typeof value?.[key] === 'boolean') result[key] = value[key];
+    for (const key of ['animateRetrowave','hideRecommendations','resetOnNavigate','showHeaderButton','showPausedOnly','backgroundGroupChecks','groupDebugMode','learnYouTubeProgress']) if (typeof value?.[key] === 'boolean') result[key] = value[key];
     // Clear the former built-in prompt; keep other saved prompts unchanged.
     const legacyPrompt='I want to avoid random YouTube recommendations and choose other activities for leisure. Help me be thoughtful about revealing recommendations.';
     if (typeof value?.reviewPreference === 'string' && value.reviewPreference !== legacyPrompt) result.reviewPreference=value.reviewPreference.slice(0,2000);
