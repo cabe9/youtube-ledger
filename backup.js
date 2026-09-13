@@ -63,6 +63,7 @@ globalThis.LedgerBackup=(()=>{
           if(!channel(id)||!Array.isArray(c.entries)||c.entries.length>250||c.entries.some(e=>!video(e.videoId)||e.channelId!==id||!text(e.title,500)||!text(e.channel,200)||!number(e.publishedAt)))fail();count+=c.entries.length;
           if(c.entries.some(e=>e.details!==undefined&&!Ledger.validVideoDetails(e.details)))fail();
           if(c.entries.some(e=>e.views!==undefined&&!Ledger.validVideoViews(e.views)))fail();
+          if(c.entries.some(e=>e.creatorReturn!==undefined&&(!object(e.creatorReturn)||!number(e.creatorReturn.previousUploadAt)||e.creatorReturn.previousUploadAt<=0||e.publishedAt-e.creatorReturn.previousUploadAt<90*86400000||!number(e.creatorReturn.detectedAt)||e.creatorReturn.detectedAt<e.publishedAt||typeof e.creatorReturn.estimated!=='boolean')))fail();
           if(c.entries.some(e=>e.publishedAtEstimated!==undefined&&typeof e.publishedAtEstimated!=='boolean'||e.views?.approximate!==undefined&&typeof e.views.approximate!=='boolean'))fail();
           if(c.feedSource!==undefined&&!['rss','uploads-page'].includes(c.feedSource)||c.rssRetryAt!==undefined&&!number(c.rssRetryAt))fail();
           if(c.latestUploadAt!==undefined&&(!number(c.latestUploadAt)||c.latestUploadAt===0))fail();
@@ -72,6 +73,8 @@ globalThis.LedgerBackup=(()=>{
         }if(count>5000)fail();
       }else if(key==='groupBrowsing:v1'){
         if(value?.version!==1||!object(value.groups)||Object.keys(value.groups).length>200)fail();
+        if(value.newVideos!==undefined&&(!object(value.newVideos)||!object(value.newVideos.reviewed)||Object.keys(value.newVideos.reviewed).length>5000||Object.entries(value.newVideos.reviewed).some(([id,at])=>!video(id)||!number(at)||at<=0)))fail();
+        if(value.newVideos?.hideShorts!==undefined&&typeof value.newVideos.hideShorts!=='boolean')fail();
         for(const [id,g] of Object.entries(value.groups)){
           if(!text(id,100)||!id||!object(g)||!Array.isArray(g.hidden)||g.hidden.length>5000||g.hidden.some(v=>!video(v))||g.lastVisitedAt!==undefined&&!number(g.lastVisitedAt)||g.channelsExpanded!==undefined&&typeof g.channelsExpanded!=='boolean')fail();
           if(g.hiddenChannels!==undefined&&(!Array.isArray(g.hiddenChannels)||g.hiddenChannels.length>2000||g.hiddenChannels.some(v=>!channel(v))))fail();

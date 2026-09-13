@@ -9,9 +9,11 @@
   for(const node of document.querySelectorAll('style'))if(node.id==='ledger-group-view-style'||node.textContent===feedStyle)node.remove();
   document.querySelectorAll('[data-ledger-group-view]').forEach(node=>node.removeAttribute('data-ledger-group-view'));
   let disposed=false;
+  const newViewId=FeedLibrary.newViewId;
+  let arrivalsMode='new',arrivalsHideShorts=false;
   let saved={groups:[],channels:{}},theme=Ledger.settings().theme,nav,mini,host,style,active='',generation=0,data,refreshing=false,limit=48,restore=null;
   let navigationGroups,navigationActive,navigationCollapsed,cacheTimer,settingsReady=false,loadedGeneration=-1,lastPath=location.pathname,pendingGroup='',pendingPath='',nativeNavigation=false;
-  let initialHash=location.pathname==='/feed/subscriptions'&&/^(?:#ledger-group=|#ledger-groups(?:$|&))/.test(location.hash)?location.hash:'';
+  let initialHash=location.pathname==='/feed/subscriptions'&&/^#ledger-(?:group=|groups(?:$|&)|new(?:$|&))/.test(location.hash)?location.hash:'';
   let videoMenu=null,menuRenderPending=false,groupMenu=null,debugMode=false;
   let library={version:1,groups:{}},uploads={channels:{}},navigationNew='',query='',visitBoundary,visitAt=0,visitPromise=null,composing=false;
   const memberExpansionWrites=new Map();
@@ -26,10 +28,10 @@
   const el=(tag,text,attrs={})=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=text;for(const [k,v] of Object.entries(attrs))node.setAttribute(k,v);return node;};
   const button=(text,fn,attrs={})=>{const node=el('button',text,{type:'button',...attrs});node.addEventListener('click',fn);return node;};
   async function request(message){if(['groupFeed:get','groupFeed:refresh','groupFeed:retryCooldown'].includes(message.type))message={...message,visible:document.visibilityState==='visible'};const result=await browser.runtime.sendMessage(message);if(result?.groupFeedError||result?.channelGroupError)throw new Error(result.groupFeedError||result.channelGroupError);return result;}
-  const groupURL=id=>'/feed/subscriptions#ledger-group='+encodeURIComponent(id);
+  const groupURL=id=>id===newViewId?'/feed/subscriptions#ledger-new':'/feed/subscriptions#ledger-group='+encodeURIComponent(id);
   const channelURL=id=>'https://www.youtube.com/channel/'+id;
   const manage=()=>request({type:'channelGroups:open'}).catch(error=>showError(error.message));
-  function route(){if(pendingGroup)return pendingGroup;if(location.pathname!=='/feed/subscriptions')return '';const hash=new URLSearchParams((initialHash||location.hash).slice(1));return hash.get('ledger-group')||(hash.has('ledger-groups')?'overview':'');}
+  function route(){if(pendingGroup)return pendingGroup;if(location.pathname!=='/feed/subscriptions')return '';const hash=new URLSearchParams((initialHash||location.hash).slice(1));return hash.has('ledger-new')?newViewId:hash.get('ledger-group')||(hash.has('ledger-groups')?'overview':'');}
   function readPositions(){try{return JSON.parse(sessionStorage.getItem(storageKey)||'{}');}catch{return {};}}
   function remember(){if(!active||active==='overview'||!host?.isConnected)return;try{sessionStorage.setItem(storageKey,JSON.stringify({...readPositions(),[active]:{top:window.scrollY,limit,query}}));}catch{}}
   function enterSubscriptions(){
@@ -60,13 +62,13 @@
     const path=event.composedPath();if(!path.includes(nav)&&!path.includes(mini)&&!path.includes(host)&&!path.some(node=>node?.id==='ledger-group-queue'))return;
     const link=path.find(node=>node?.tagName==='A'&&node.href);if(!link||link.target==='_blank')return;
     const url=new URL(link.href),hash=new URLSearchParams(url.hash.slice(1));
-    if(url.origin!==location.origin||url.pathname!=='/feed/subscriptions'||(!hash.has('ledger-group')&&!hash.has('ledger-groups')))return;
-    event.preventDefault();event.stopImmediatePropagation();chooseGroup(hash.get('ledger-group')||'overview');
+    if(url.origin!==location.origin||url.pathname!=='/feed/subscriptions'||(!hash.has('ledger-group')&&!hash.has('ledger-groups')&&!hash.has('ledger-new')))return;
+    event.preventDefault();event.stopImmediatePropagation();chooseGroup(hash.has('ledger-new')?newViewId:hash.get('ledger-group')||'overview');
   }
   function nativeExitIntent(event){
     if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
     const link=event.composedPath().find(n=>n?.tagName==='A'&&n.href);if(!link||link.target==='_blank')return;
-    try{const url=new URL(link.href);if(url.origin===location.origin&&(url.pathname!=='/feed/subscriptions'||!/^#ledger-group(?:=|s(?:$|&))/.test(url.hash)))initialHash='';}catch{}
+    try{const url=new URL(link.href);if(url.origin===location.origin&&(url.pathname!=='/feed/subscriptions'||!/^#ledger-(?:group=|groups(?:$|&)|new(?:$|&))/.test(url.hash)))initialHash='';}catch{}
   }
   window.addEventListener('click',nativeExitIntent,true);
   window.addEventListener('click',groupClick,true);
@@ -91,12 +93,15 @@
     .nav-options:hover svg,.nav-options[aria-expanded=true] svg{opacity:1}
     .nav-item:has(.nav-options:hover)>a>.group-icon,.nav-item:has(.nav-options[aria-expanded=true])>a>.group-icon{opacity:0}
     @media(hover:none){.nav-item>a{padding-right:48px}.nav-options{left:auto;right:8px}.nav-options svg{opacity:1}.nav-item>a>.group-icon{opacity:1!important}}
-    small{display:block;color:var(--yt-spec-text-secondary,var(--quiet));padding:5px 12px;font-size:12px}
+    .new-count{margin-left:auto;font-size:11px;font-variant-numeric:tabular-nums}small{display:block;color:var(--yt-spec-text-secondary,var(--quiet));padding:5px 12px;font-size:12px}
     .compact{padding:16px 3px;display:grid;justify-items:center;gap:9px;border-radius:10px;font-size:10px;background:transparent}
     .compact:hover{background:#8882}.new-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:0 0 6px}
   `;
-  const feedCss=`:host{display:block!important;box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:none!important;align-self:stretch!important;color:var(--ink)!important;background:var(--page-bg)!important;font:14px/1.45 Roboto,Arial,sans-serif!important;padding:28px 32px!important;min-height:calc(100vh - 64px)!important}*{box-sizing:border-box}a{color:inherit;text-decoration:none}a:hover{text-decoration:underline}button,select{font:inherit;color:inherit}button,select{background:var(--group-control-bg);border:1px solid var(--control-border);padding:9px 13px;border-radius:9px}button{cursor:pointer}button:hover{background:var(--control-hover)}button:disabled{opacity:.6;cursor:wait}button:focus-visible,a:focus-visible,summary:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:3px}h1{font-size:28px;line-height:1.2;overflow-wrap:anywhere;margin:0 0 8px}header{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap;margin-bottom:18px}.heading{min-width:0;flex:1}.group-title{display:flex;align-items:center;gap:12px}.group-title>span:last-child{min-width:0}.directory-label{display:flex;align-items:center;gap:14px;min-width:0}.directory-label>span:last-child{min-width:0}.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.sort{color:var(--quiet);white-space:nowrap;font-size:13px;margin-right:8px}.status{color:var(--quiet);margin:0 0 20px;font-size:13px}.fallback-note{color:var(--quiet);font-size:12px;margin:0 0 16px}.error{color:var(--danger-ink)}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:28px 18px}article{min-width:0}.thumbnail{position:relative;display:block;aspect-ratio:16/9;background:var(--panel);border-radius:12px;overflow:hidden}.thumbnail img{display:block;width:100%;height:100%;object-fit:cover}.video-duration{position:absolute;right:8px;bottom:8px;z-index:1;padding:2px 5px;border-radius:4px;background:#000d;color:#fff;font:600 12px/1.3 Roboto,Arial,sans-serif;font-variant-numeric:tabular-nums;pointer-events:none}.video-duration.is-live{background:#b90000}.video-title{display:block;margin:10px 0 6px;font-size:16px;font-weight:600;line-height:1.35;overflow-wrap:anywhere}.channel{display:flex;gap:7px;align-items:center;color:var(--quiet);width:fit-content;max-width:100%;overflow-wrap:anywhere}.avatar{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--panel);border:1px solid var(--line);font-size:11px;flex-shrink:0;color:var(--ink)}time{display:block;color:var(--quiet);font-size:12px;margin:4px 0 0 31px}details{margin-bottom:22px}summary{width:fit-content;cursor:pointer;color:var(--quiet)}.group-members summary{min-height:32px;padding:4px 0;color:var(--ink);font-weight:500}.member-count{margin-left:8px;color:var(--quiet);font-weight:400}.members{list-style:none;margin:12px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(210px,100%),1fr));gap:2px 16px;background:transparent}.members li{display:grid;align-content:start;gap:4px;min-width:0}.members .channel{width:100%;min-height:44px;padding:2px 8px;gap:10px;border-radius:7px;color:var(--ink);line-height:20px;overflow-wrap:normal}.members .channel:hover{background:var(--control-hover)}.members .ledger-avatar{width:28px;height:28px;flex-basis:28px}.members .channel>span:last-child{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;min-width:0;overflow:hidden}.members .channel-cadence{font-size:12px;color:var(--quiet);margin:0 8px 4px 46px}.members small{color:var(--danger-ink);margin:0 8px 4px 46px;overflow-wrap:anywhere}.empty{padding:32px 0;color:var(--quiet)}.empty p{max-width:560px}.empty a{color:var(--accent);text-decoration:underline}.more{display:block;margin:28px auto 0}.coverage{margin:30px 0 0;padding-top:15px;border-top:1px solid var(--line);font-size:12px;color:var(--quiet)}.group-directory{display:grid;gap:8px;max-width:480px}.group-directory a{display:flex;justify-content:space-between;gap:15px;background:var(--panel);border:1px solid var(--line);padding:15px;border-radius:10px;overflow-wrap:anywhere}.group-directory small{white-space:nowrap;color:var(--quiet)}.group-switch{display:none;width:min(100%,400px);margin-bottom:8px}:host([data-compact]) .group-switch{display:block}:host([data-compact]) h1{display:none}@media(max-width:700px){:host{padding:20px 16px!important}.grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}.actions{width:100%}.sort{margin-right:auto}.video-title{font-size:15px}.group-switch{display:block}h1{display:none}}@media(max-width:380px){.grid{grid-template-columns:minmax(0,1fr)}button{padding:8px 10px}}`;
+  const feedCss=`:host{display:block!important;box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:none!important;align-self:stretch!important;color:var(--ink)!important;background:var(--page-bg)!important;font:14px/1.45 Roboto,Arial,sans-serif!important;padding:28px 32px!important;min-height:calc(100vh - 64px)!important}*{box-sizing:border-box}a{color:inherit;text-decoration:none}a:hover{text-decoration:underline}button,select{font:inherit;color:inherit}button,select{background:var(--group-control-bg);border:1px solid var(--control-border);padding:9px 13px;border-radius:9px}button{cursor:pointer}button:hover{background:var(--control-hover)}button:disabled{opacity:.6;cursor:wait}button:focus-visible,a:focus-visible,summary:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:3px}h1{font-size:28px;line-height:1.2;overflow-wrap:anywhere;margin:0 0 8px}header{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap;margin-bottom:18px}.heading{min-width:0;flex:1}.group-title{display:flex;align-items:center;gap:12px}.group-title>span:last-child{min-width:0}.directory-label{display:flex;align-items:center;gap:14px;min-width:0}.directory-label>span:last-child{min-width:0}.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.sort{color:var(--quiet);white-space:nowrap;font-size:13px;margin-right:8px}.status{color:var(--quiet);margin:0 0 20px;font-size:13px}.fallback-note{color:var(--quiet);font-size:12px;margin:0 0 16px}.error{color:var(--danger-ink)}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:28px 18px}article{min-width:0}.thumbnail{position:relative;display:block;aspect-ratio:16/9;background:var(--panel);border-radius:12px;overflow:hidden}.thumbnail img{display:block;width:100%;height:100%;object-fit:cover}.video-duration{position:absolute;right:8px;bottom:8px;z-index:1;padding:2px 5px;border-radius:4px;background:#000d;color:#fff;font:600 12px/1.3 Roboto,Arial,sans-serif;font-variant-numeric:tabular-nums;pointer-events:none}.video-duration.is-live{background:#b90000}.video-title{display:block;margin:10px 0 6px;font-size:16px;font-weight:600;line-height:1.35;overflow-wrap:anywhere}.channel{display:flex;gap:7px;align-items:center;color:var(--quiet);width:fit-content;max-width:100%;overflow-wrap:anywhere}.avatar{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--panel);border:1px solid var(--line);font-size:11px;flex-shrink:0;color:var(--ink)}time{display:block;color:var(--quiet);font-size:12px;margin:4px 0 0 31px}details{margin-bottom:22px}summary{width:fit-content;cursor:pointer;color:var(--quiet)}.group-members summary{min-height:32px;padding:4px 0;color:var(--ink);font-weight:500}.member-count{margin-left:8px;color:var(--quiet);font-weight:400}.members{list-style:none;margin:12px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(210px,100%),1fr));gap:2px 16px;background:transparent}.members li{display:grid;align-content:start;gap:4px;min-width:0}.members .channel{width:100%;min-height:44px;padding:2px 8px;gap:10px;border-radius:7px;color:var(--ink);line-height:20px;overflow-wrap:normal}.members .channel:hover{background:var(--control-hover)}.members .ledger-avatar{width:28px;height:28px;flex-basis:28px}.members .channel>span:last-child{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;min-width:0;overflow:hidden}.members .channel-cadence{font-size:12px;color:var(--quiet);margin:0 8px 4px 46px}.members small{color:var(--danger-ink);margin:0 8px 4px 46px;overflow-wrap:anywhere}.empty{padding:32px 0;color:var(--quiet)}.empty p{max-width:560px}.empty a{color:var(--accent);text-decoration:underline}.more{display:block;margin:28px auto 0}.coverage{margin:30px 0 0;padding-top:15px;border-top:1px solid var(--line);font-size:12px;color:var(--quiet)}.group-directory{display:grid;gap:8px;max-width:480px}.group-directory a{display:flex;justify-content:space-between;gap:15px;background:var(--panel);border:1px solid var(--line);padding:15px;border-radius:10px;overflow-wrap:anywhere}.group-directory small{white-space:nowrap;color:var(--quiet)}.group-switch{display:none;width:min(100%,400px);margin-bottom:8px}:host([data-compact]) .group-switch{display:block}:host([data-compact]) h1{display:none}@media(max-width:700px){:host{padding:20px 16px!important}.grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}.actions{width:100%}.sort{margin-right:auto}.video-title{font-size:15px}.group-switch{display:block}.group-title{display:none}}@media(max-width:380px){.grid{grid-template-columns:minmax(0,1fr)}button{padding:8px 10px}}`;
   const videoMenuCss=`
+    .arrival-memberships{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0 0 31px}.arrival-memberships a{font-size:11px;color:var(--quiet);padding:3px 7px;border:1px solid var(--line);border-radius:5px;max-width:100%;overflow-wrap:anywhere}.arrival-memberships a:hover{background:var(--control-hover)}
+    .creator-return{display:block;width:fit-content;margin:8px 0 0 31px;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:500;background:var(--control-hover);color:var(--accent)}
+    .new-count{margin-left:auto;font-size:11px;font-variant-numeric:tabular-nums}.arrivals-note{font-size:13px;color:var(--quiet);margin:10px 0 0}.caught-up{background:var(--group-primary-bg);color:var(--button-ink);border-color:var(--accent)}
     .actions [data-focus=refresh]{min-width:calc(12ch + 28px)}
     .shorts-filter{display:flex;align-items:center;gap:7px;white-space:nowrap;cursor:pointer;padding:9px 5px}.shorts-filter input{margin:0;width:16px;height:16px;accent-color:var(--accent);cursor:pointer}.shorts-filter input:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
     .search-group{min-width:120px;width:200px;max-width:100%;font:inherit;color:var(--ink);background:var(--field-bg);border:1px solid var(--control-border);border-radius:9px;padding:9px 12px}.search-group:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.search-group::placeholder{color:var(--quiet)}
@@ -154,6 +159,7 @@
       mini=el('div',undefined,{id:'ledger-groups-mini'});const root=styleRoot(mini,navCss),link=el('a',undefined,{class:'compact',href:'/feed/subscriptions#ledger-groups'});link.append(GroupIcons.create(),el('span','Groups'));root.append(link);
     }
     const counts=Object.fromEntries(saved.groups.map(g=>[g.id,g.id===active?0:FeedLibrary.newCount(g.channelIds.flatMap(id=>uploads.channels?.[id]?.entries||[]),library.groups[g.id])]));
+    counts[newViewId]=FeedLibrary.newEntries(saved,uploads,library).filter(e=>FeedLibrary.isArrival(e,library)).length;
     const newSignature=JSON.stringify(counts);
     if(navigationGroups!==saved.groups||navigationActive!==active||navigationCollapsed!==saved.collapsed||navigationNew!==newSignature){
       navigationNew=newSignature;
@@ -165,6 +171,12 @@
       add.append(outlineIcon('M12 5v14M5 12h14'));
       settings.append(outlineIcon('m9 3-.5 2-1.4.8L5 5.2 2 10l1.5 1.4v1.2L2 14l3 4.8 2.1-.6 1.4.8.5 2h6l.5-2 1.4-.8 2.1.6 3-4.8-1.5-1.4v-1.2L22 10l-3-4.8-2.1.6-1.4-.8L15 3H9Z M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z'));
       actions.append(add,settings);header.append(toggle,actions);section.append(header);
+      const arrivals=el('div',undefined,{class:'nav-item'}),arrivalLink=el('a',undefined,{href:groupURL(newViewId),'data-new-videos':''});
+      if(active===newViewId)arrivalLink.setAttribute('aria-current','page');
+      const arrivalIcon=GroupIcons.create({kind:'symbol',value:'sparkles'});
+      arrivalLink.append(arrivalIcon,el('span','New videos',{class:'group-name'}));
+      if(counts[newViewId])arrivalLink.append(el('span',String(counts[newViewId]),{class:'new-count','aria-label':counts[newViewId]+' new arrivals'}));
+      arrivals.append(arrivalLink);section.append(arrivals);
       for(const group of saved.collapsed?[]:saved.groups){
         const row=el('div',undefined,{class:'nav-item','data-group-id':group.id}),link=el('a',undefined,{href:groupURL(group.id)});if(group.id===active)link.setAttribute('aria-current','page');link.append(GroupIcons.create(group.icon),el('span',group.name,{class:'group-name'}));if(counts[group.id]){link.append(el('span','',{class:'new-dot','aria-hidden':'true'}));link.title=counts[group.id]+' new uploads available since your last visit';}
         const menu=button('',()=>openGroupMenu(group,menu),{class:'nav-options','aria-label':'Options for '+group.name,title:'Group options','aria-haspopup':'menu','aria-expanded':'false'});
@@ -259,7 +271,7 @@
     let text=length,title=length?'Video length: '+length:'';
     if(details?.status==='live'){text='Live';title='Live now';}
     else if(details?.status==='upcoming'){text='Upcoming';title='Scheduled video';}
-    else if(!length){const unavailable=details?.status==='unavailable'||durationFailures.has(id);text=unavailable?'—':'…';title=unavailable?'Video length unavailable':'Loading video length';}
+    else if(!length){const unavailable=active===newViewId||details?.status==='unavailable'||durationFailures.has(id);text=unavailable?'—':'…';title=unavailable?'Video length unavailable':'Loading video length';}
     let badge=card.querySelector('.video-duration');
     if(!badge){badge=el('span',undefined,{class:'video-duration',id:'ledger-duration-'+id});const thumbnail=card.querySelector('.thumbnail');thumbnail.append(badge);thumbnail.setAttribute('aria-describedby',badge.id);}
     badge.textContent=text;badge.title=title;badge.classList.toggle('is-live',details?.status==='live');
@@ -282,7 +294,7 @@
     if([...shortsBatch.ids].every(id=>!byId.has(id)||!Ledger.videoDetailsDue(byId.get(id).details,now,true)||now-(durationFailures.get(id)||0)<=60000))shortsBatch=null;
   }
   async function loadDurations(){
-    if(disposed||!data||!active||active==='overview'||document.visibilityState!=='visible'||data.pausedUntil>Date.now())return;
+    if(disposed||!data||!active||active==='overview'||active===newViewId||document.visibilityState!=='visible'||data.pausedUntil>Date.now())return;
     finishShortsBatch();
     const group=saved.groups.find(g=>g.id===active),metric=Ledger.groupSort(group?.sort).metric,now=Date.now(),byId=new Map(data.entries.map(e=>[e.videoId,e]));
     const candidates=shortsCandidates(group,byId,now);
@@ -310,6 +322,7 @@
     }
   }
   function displayEntries(group){
+    if(active===newViewId)return FeedLibrary.visible(data?.entries||[],data?.progress,{uploadedFilter:'week'},{query,hideShorts:arrivalsHideShorts}).filter(e=>arrivalsMode==='returning'?!!FeedLibrary.returnLabel(e):arrivalsMode==='new'?FeedLibrary.isArrival(e,library):true);
     finishShortsBatch();
     // Hold newly identified Shorts until this small nearby batch settles. Queue
     // actions still use the latest classifications, independently of presentation.
@@ -332,7 +345,7 @@
     for(const card of durationCards){updateDuration(card);updateViews(card);}
   }
   function uploadView(cache){
-    return JSON.stringify((saved.groups.find(g=>g.id===active)?.channelIds||[]).map(id=>{
+    return JSON.stringify((active===newViewId?[...new Set(saved.groups.flatMap(g=>g.channelIds))]:saved.groups.find(g=>g.id===active)?.channelIds||[]).map(id=>{
       const c=cache.channels?.[id];return c?{...c,entries:c.entries?.map(({details,views,...entry})=>entry)}:null;
     }));
   }
@@ -341,7 +354,14 @@
     if(badge){badge.hidden=state==='unwatched';badge.textContent=state==='watched'?'Watched':state==='seen'?'Seen before':'Started';badge.title=WatchStatus.description(value);}
     let progress=card.querySelector('.playback-progress');const fraction=WatchStatus.fraction(value);
     if(fraction>0){if(!progress){progress=el('span',undefined,{class:'playback-progress'});progress.append(el('i'));card.querySelector('.thumbnail').append(progress);}progress.firstChild.style.width=(fraction*100)+'%';progress.setAttribute('aria-label',Math.round(fraction*100)+'% recorded playback');}else progress?.remove();
-    const fresh=card.querySelector('.new-upload');if(fresh)fresh.hidden=!(visitBoundary&&Number(card.dataset.publishedAt)>visitBoundary&&Number(card.dataset.publishedAt)<=Date.now());
+    const entry=data?.entries.find(e=>e.videoId===card.dataset.videoId);
+    const fresh=card.querySelector('.new-upload');if(fresh)fresh.hidden=active===newViewId?!FeedLibrary.isArrival(entry,library):!(visitBoundary&&Number(card.dataset.publishedAt)>visitBoundary&&Number(card.dataset.publishedAt)<=Date.now());
+    let comeback=card.querySelector('.creator-return');const returnText=FeedLibrary.returnLabel(entry);
+    if(returnText){if(!comeback){comeback=el('span',undefined,{class:'creator-return'});card.append(comeback);}comeback.textContent=returnText;comeback.title='First new upload Ledger found after a quiet period. Previous known upload: '+new Date(entry.creatorReturn.previousUploadAt).toLocaleDateString()+'. Based on locally observed uploads.';}else comeback?.remove();
+    if(active===newViewId){
+      const signature=JSON.stringify(entry?.groups||[]);let memberships=card.querySelector('.arrival-memberships');
+      if(!memberships||memberships.dataset.groups!==signature){const labels=el('nav',undefined,{class:'arrival-memberships','aria-label':'Video groups','data-groups':signature});for(const g of entry?.groups||[])labels.append(el('a',g.name,{href:groupURL(g.id)}));if(memberships)memberships.replaceWith(labels);else card.append(labels);}
+    }
     const time=card.querySelector('time');if(time){
       const estimated=data?.entries.find(e=>e.videoId===card.dataset.videoId)?.publishedAtEstimated===true;
       time.textContent=(estimated?'~':'')+Ledger.relativeTime(Number(card.dataset.publishedAt));
@@ -392,13 +412,13 @@
     const resume=WatchStatus.resume(value);
     if(resume)panel.append(button('Resume at '+playhead(resume),()=>playGroup(videoId,resume),{role:'menuitem',tabindex:'-1'}));
     const groupId=active,hidden=library.groups[groupId]?.hidden?.includes(videoId);
-    panel.append(button(hidden?'Restore to feed':'Hide from this group',async()=>{
+    if(active!==newViewId)panel.append(button(hidden?'Restore to feed':'Hide from this group',async()=>{
       for(const item of panel.querySelectorAll('button'))item.disabled=true;
       try{const result=await request({type:'feedLibrary:hide',groupId,videoId,hidden:!hidden});if(videoMenu===opened)closeVideoMenu();LedgerUndoUI.show(host.shadowRoot,hidden?'Video restored.':'Video hidden from this group.',result.undoToken);}
       catch(error){if(videoMenu===opened){panel.append(el('p',error.message,{class:'menu-error',role:'alert'}));positionVideoMenu();}}finally{for(const item of panel.querySelectorAll('button'))item.disabled=false;}
     },{role:'menuitem',tabindex:'-1'}));
     const entry=data?.entries.find(v=>v.videoId===videoId),channelHidden=library.groups[groupId]?.hiddenChannels?.includes(entry?.channelId);
-    if(entry)panel.append(button(channelHidden?'Restore channel to this group':'Hide this channel',async()=>{
+    if(entry&&active!==newViewId)panel.append(button(channelHidden?'Restore channel to this group':'Hide this channel',async()=>{
       for(const item of panel.querySelectorAll('button'))item.disabled=true;
       try{await hideChannel(groupId,entry.channelId,!channelHidden);if(videoMenu===opened)closeVideoMenu();}
       catch(error){if(videoMenu===opened){panel.append(el('p',error.message,{class:'menu-error',role:'alert'}));positionVideoMenu();}}
@@ -620,6 +640,23 @@
     if(chips.length||query||watch!=='all')activeFilters.append(button('Clear filters',()=>{query='';limit=48;saveHeader({type:'feedLibrary:resetFilters',groupId});},{class:'clear-filters','data-focus':'clear-filters',title:'Reset search and browsing filters. Hidden channels and videos stay hidden until restored.'}));
     if(activeFilters.childElementCount)header.append(activeFilters);
   }
+  function renderArrivalsHeader(header,heading){
+    header.classList.add('feed-header');const top=el('div',undefined,{class:'feed-heading'});top.append(heading);header.append(top);
+    const entries=data?.entries||[],fresh=entries.filter(e=>FeedLibrary.isArrival(e,library));
+    const actions=el('div',undefined,{class:'header-actions'}),caughtUp=button('Caught up',async()=>{
+      const videoIds=displayEntries().filter(e=>FeedLibrary.isArrival(e,library)).map(e=>e.videoId);caughtUp.disabled=true;
+      try{await request({type:'feedLibrary:caughtUp',videoIds});}catch(error){caughtUp.disabled=false;showError(error.message);}
+    },{class:'caught-up','data-focus':'caught-up',title:'Clear new indicators for all matching videos, including those below Load more. Watch status stays unchanged.'});
+    caughtUp.disabled=!displayEntries().some(e=>FeedLibrary.isArrival(e,library));actions.append(caughtUp);top.append(actions);
+    header.append(el('p',fresh.length+' new arrivals · '+entries.length+' recent videos across your groups',{class:'group-meta'}));
+    header.append(el('p','Last 7 days · Uses saved uploads and your existing background checks.',{class:'arrivals-note'}));
+    const tools=el('div',undefined,{class:'browse-tools'}),search=el('input',undefined,{type:'search',class:'search-group',placeholder:'Search titles or channels','aria-label':'Search new videos'});search.value=query;
+    search.addEventListener('compositionstart',()=>{composing=true;});search.addEventListener('compositionend',()=>{composing=false;query=search.value;limit=48;render();});
+    search.addEventListener('input',()=>{query=search.value;limit=48;if(!composing)render();});tools.append(search);
+    const shorts=el('label',undefined,{class:'shorts-filter'}),check=el('input',undefined,{type:'checkbox','data-focus':'arrivals-shorts'});check.checked=arrivalsHideShorts;check.addEventListener('change',async()=>{arrivalsHideShorts=check.checked;limit=48;render();try{await request({type:'feedLibrary:arrivalFilters',hideShorts:check.checked});}catch(error){arrivalsHideShorts=library.newVideos?.hideShorts===true;render();showError(error.message);}});shorts.append(check,el('span','Hide Shorts'));tools.append(shorts);header.append(tools);
+    const modes=el('div',undefined,{class:'watch-filters','aria-label':'New video views'});
+    for(const [value,label] of [['new','New arrivals'],['all','All recent'],['returning','Returning creators']])modes.append(button(label,()=>{arrivalsMode=value;limit=48;render();},{'aria-pressed':String(arrivalsMode===value),'data-focus':'arrivals-'+value}));header.append(modes);
+  }
   function render(){
     if(disposed||!host?.isConnected||!active)return;
     if(composing)return;
@@ -630,19 +667,21 @@
       return;
     }
     const previousContent=root.querySelector('.content'),sameView=host.dataset.renderedGroup===active;let retainedGrid,gridSlot,retainedMembers,membersSlot;
-    const content=el('div',undefined,{class:'content'}),header=el('header'),heading=el('div',undefined,{class:'heading'}),group=saved.groups.find(g=>g.id===active);
+    const content=el('div',undefined,{class:'content'}),header=el('header'),heading=el('div',undefined,{class:'heading'}),group=active===newViewId?{name:'New videos',icon:{kind:'symbol',value:'sparkles'},sort:'newest',...data?.group}:saved.groups.find(g=>g.id===active);
     const title=active==='overview'?'Groups':group?.name||'Group unavailable';const titleNode=el('h1',undefined,{class:'group-title'});if(group)titleNode.append(GroupIcons.create(group.icon));titleNode.append(el('span',title));heading.append(titleNode);
-    const select=el('select',undefined,{class:'group-switch','aria-label':'Select a group'});select.append(el('option','Groups',{value:'overview'}));for(const g of saved.groups)select.append(el('option',g.name,{value:g.id}));select.value=active;select.addEventListener('change',()=>chooseGroup(select.value));heading.append(select);header.append(heading);
-    if(group)renderFeedHeader(header,heading,group);
+    const select=el('select',undefined,{class:'group-switch','aria-label':'Select a group'});select.append(el('option','Groups',{value:'overview'}),el('option','New videos',{value:newViewId}));for(const g of saved.groups)select.append(el('option',g.name,{value:g.id}));select.value=active;select.addEventListener('change',()=>chooseGroup(select.value));heading.append(select);header.append(heading);
+    if(active===newViewId)renderArrivalsHeader(header,heading);
+    else if(group)renderFeedHeader(header,heading,group);
     else {const actions=el('div',undefined,{class:'actions'});actions.append(button('Manage groups',manage,{'data-focus':'manage'}));header.append(actions);}
     content.append(header);
     const status=el('p','',{class:'status',role:'status'});content.append(status);
     if(active==='overview'){
-      const directory=el('nav',undefined,{class:'group-directory','aria-label':'Choose a group'});for(const g of saved.groups){const link=el('a',undefined,{href:groupURL(g.id)});const label=el('span',undefined,{class:'directory-label'});label.append(GroupIcons.create(g.icon),el('span',g.name));link.append(label,el('small',g.channelIds.length+' channels'));directory.append(link);}content.append(directory);
+      const directory=el('nav',undefined,{class:'group-directory','aria-label':'Choose a group'});directory.append(el('a','New videos',{href:groupURL(newViewId)}));for(const g of saved.groups){const link=el('a',undefined,{href:groupURL(g.id)});const label=el('span',undefined,{class:'directory-label'});label.append(GroupIcons.create(g.icon),el('span',g.name));link.append(label,el('small',g.channelIds.length+' channels'));directory.append(link);}content.append(directory);
       if(!saved.groups.length)content.append(el('p','Create your first group, then add channels from their YouTube pages.',{class:'empty'}));
     }else if(!group){status.textContent='This group was deleted or is no longer available. Choose another group in the sidebar.';}
     else if(!data){status.textContent='Loading '+group.name+'…';}
     else{
+      if(active!==newViewId){
       const members=renderMembers(root,group,sameView);
       if(members.isConnected){retainedMembers=members;membersSlot=el('div');content.append(membersSlot);}else content.append(members);
       const failed=data.channels.filter(c=>c.error).length,missing=data.channels.filter(c=>!c.fetchedAt).length,paused=data.pausedUntil>Date.now();
@@ -657,10 +696,12 @@
       }
       if(debugMode&&data.channels.some(c=>c.feedSource==='uploads-page'))content.append(el('p','Some uploads were recovered from YouTube’s public uploads pages. Only the first page is checked; ~ marks approximate dates or view counts.',{class:'note fallback-note'}));
       if(!data.entries.length){const empty=el('div',undefined,{class:'empty'});empty.append(el('p',!data.channels.length?'This group has no channels yet. Use “Add to group” on a channel or video page, or add a channel in Manage groups.':refreshing?'Fetching recent uploads from these channels.':'No uploads are available yet. Try Refresh to check these channels again.'));content.append(empty);}
+      }
       const grid=(sameView&&root.querySelector('.grid'))||el('div',undefined,{class:'grid'}),gridChildren=[],existing=new Map([...grid.querySelectorAll('article')].map(card=>[card.dataset.videoId,card]));
       const visible=displayEntries(group);let previousNew;
       const isNew=entry=>!!visitBoundary&&entry.publishedAt>visitBoundary&&entry.publishedAt<=Date.now();
-      if(data.entries.length&&!visible.length)content.append(el('p',query?'No available uploads match your search.':group.watchFilter==='hidden'?'No hidden videos match these filters.':'No videos match these filters. Clear filters or restore a hidden channel to see more.',{class:'empty'}));
+      if(active===newViewId&&!visible.length)content.append(el('p',query?'No recent uploads match your search.':arrivalsMode==='returning'?'No returning creators in the last 7 days. Ledger highlights a new upload after it has observed at least 90 days of inactivity.':arrivalsMode==='new'&&data.entries.length?'You’re caught up. All recent keeps these videos available.':'No recent uploads saved yet. Your groups will fill this view as their uploads are checked.',{class:'empty'}));
+      else if(data.entries.length&&!visible.length)content.append(el('p',query?'No available uploads match your search.':group.watchFilter==='hidden'?'No hidden videos match these filters.':'No videos match these filters. Clear filters or restore a hidden channel to see more.',{class:'empty'}));
       for(const entry of visible.slice(0,limit)){
         const fresh=isNew(entry);if(Ledger.groupSort(group.sort).metric==='date'&&fresh!==previousNew&&(fresh||previousNew===true))gridChildren.push(el('div',fresh?'New since your last visit':'Previously available',{class:'new-divider'}));previousNew=fresh;
         const url='https://www.youtube.com/watch?v='+entry.videoId+'#ledger-launch='+encodeURIComponent(data.launchToken),channel=saved.channels[entry.channelId]||{id:entry.channelId,name:entry.channel};
@@ -695,7 +736,7 @@
       reconcileChildren(grid,gridChildren);
       if(grid.isConnected){retainedGrid=grid;gridSlot=el('div');content.append(gridSlot);}else content.append(grid);
       if(visible.length>limit)content.append(button('Load more',()=>{limit+=48;render();},{class:'more','data-focus':'more'}));
-      content.append(el('p','Recent uploads plus videos Ledger has saved locally. YouTube’s feed is limited; this is not a complete channel archive.'+(group.hideShorts?' Nearby uploads are checked for Shorts first; unclassified videos stay available.':''),{class:'coverage'}));
+      content.append(el('p',active===newViewId?'Caught up clears new indicators here without marking videos watched. Group links open the original feed. Missing lengths or Shorts classifications appear when existing group checks learn them.':'Recent uploads plus videos Ledger has saved locally. YouTube’s feed is limited; this is not a complete channel archive.'+(group.hideShorts?' Nearby uploads are checked for Shorts first; unclassified videos stay available.':''),{class:'coverage'}));
     }
     if(previousContent&&sameView)reconcileChildren(previousContent,[...content.childNodes].map(node=>node===gridSlot?retainedGrid:node===membersSlot?retainedMembers:node));
     else if(previousContent)previousContent.replaceWith(content);else root.append(content);host.dataset.renderedGroup=active;
@@ -709,7 +750,8 @@
     else if(focus?.tagName==='SUMMARY')root.querySelector('summary')?.focus({preventScroll:true});
     else if(focus?.tagName==='A'){
       const videoId=focus.closest('article')?.dataset.videoId;
-      const replacement=videoId?root.querySelector('article[data-video-id="'+videoId+'"] .'+focus.className):[...root.querySelectorAll('.members a')].find(link=>link.href===focus.href);
+      const card=videoId?root.querySelector('article[data-video-id="'+videoId+'"]'):null;
+      const replacement=card?(focus.matches('.thumbnail,.video-title')?card.querySelector(focus.matches('.thumbnail')?'.thumbnail':'.video-title'):[...card.querySelectorAll('a')].find(link=>link.href===focus.href)):[...root.querySelectorAll('.members a')].find(link=>link.href===focus.href);
       replacement?.focus({preventScroll:true});
     }
     if(restore&&data?.entries.length){
@@ -725,6 +767,7 @@
     // A warm group visit should never flash "Checking uploads".
     if(refresh&&force){refreshing=true;render();}
     try{
+      if(id===newViewId){const result=await request({type:'groupFeed:new'});if(version!==generation||id!==active)return;data=result;render();return;}
       if(visitBoundary===undefined){if(!visitPromise)visitPromise=request({type:'feedLibrary:visit',groupId:id});const visit=await visitPromise;if(id!==active)return;visitBoundary=visit.previous;visitAt=visit.at;}
       const result=await request({type:'groupFeed:get',groupId:id});if(version!==generation||id!==active)return;data=result;render();if(refresh&&!retryUntil&&document.visibilityState==='visible')LedgerMedia.portraits(result.channels.map(c=>c.id));
       if(refresh){await request(retryUntil?{type:'groupFeed:retryCooldown',groupId:id,pausedUntil:retryUntil}:{type:'groupFeed:refresh',groupId:id,force,failedOnly,automatic:!force});if(version!==generation||id!==active)return;const latest=await request({type:'groupFeed:get',groupId:id});if(version!==generation||id!==active)return;data=latest;refreshing=false;render();}
@@ -735,7 +778,7 @@
     if(changes['groupRefreshProgress:v1']&&data){data.refresh=changes['groupRefreshProgress:v1'].newValue?.[active]||null;updateFreshness();}
     if(changes['youtubeRequests:v1']&&data){const next=changes['youtubeRequests:v1'].newValue||{},until=next.pausedUntil||0,message=next.pauseMessage||'',scope=next.pauseScope||'all';if(until!==(data.pausedUntil||0)||message!==(data.pauseMessage||'')||scope!==data.pauseScope){Object.assign(data,{pausedUntil:until,pauseMessage:message,pauseScope:scope,pauseReason:next.pauseReason||'unknown'});render();}}
     if(data&&(changes['videoProgress:v1']||changes[WatchEvidence.key])){data.progress={...(changes['videoProgress:v1']?changes['videoProgress:v1'].newValue:data.progress),evidence:changes[WatchEvidence.key]?changes[WatchEvidence.key].newValue?.videos||{}:data.progress?.evidence};render();}
-    if(changes[FeedLibrary.key]){library=changes[FeedLibrary.key].newValue||{version:1,groups:{}};updateNavigation();render();}
+    if(changes[FeedLibrary.key]){library=changes[FeedLibrary.key].newValue||{version:1,groups:{}};arrivalsHideShorts=library.newVideos?.hideShorts===true;updateNavigation();if(active===newViewId)load();else render();}
     if(changes.settings){const next=Ledger.settings(changes.settings.newValue),debugChanged=debugMode!==next.groupDebugMode;theme=next.theme;debugMode=next.groupDebugMode;settingsReady=true;mount();if(debugChanged)render();if(changes.settings.oldValue?.backgroundGroupChecks===false&&changes.settings.newValue?.backgroundGroupChecks===true)checkAll();}
     if(changes['channelGroups:v1']){
       const previous=saved,group=previous.groups.find(g=>g.id===active);saved=changes['channelGroups:v1'].newValue||{groups:[],channels:{}};const next=saved.groups.find(g=>g.id===active);
@@ -748,7 +791,7 @@
       host?.shadowRoot.querySelectorAll('.hidden-channel-chip').forEach(updateHiddenChannelChip);
       }else{
       // Appearance changes update in place; they don't invalidate uploads or launch context.
-      const feedChanged=JSON.stringify([group?.name,group?.channelIds])!==JSON.stringify([next?.name,next?.channelIds]);
+      const feedChanged=active===newViewId?JSON.stringify(previous.groups)!==JSON.stringify(saved.groups):JSON.stringify([group?.name,group?.channelIds])!==JSON.stringify([next?.name,next?.channelIds]);
       if(feedChanged){generation++;refreshing=false;}
       if(data&&next&&!feedChanged)data.channels=data.channels.map(c=>({...c,...saved.channels[c.id]}));
       mount();if(!feedChanged||active==='overview')render();
@@ -766,7 +809,7 @@
     }
   }
   browser.storage.onChanged.addListener(storageChanged);
-  browser.storage.local.get(['settings','channelGroups:v1',FeedLibrary.key,'channelUploads:v1']).then(value=>{if(disposed)return;const settings=Ledger.settings(value.settings);theme=settings.theme;debugMode=settings.groupDebugMode;library=value[FeedLibrary.key]||library;uploads=value['channelUploads:v1']||uploads;saved=value['channelGroups:v1']||saved;settingsReady=true;mount();}).catch(()=>{if(disposed)return;settingsReady=true;mount();});
+  browser.storage.local.get(['settings','channelGroups:v1',FeedLibrary.key,'channelUploads:v1']).then(value=>{if(disposed)return;const settings=Ledger.settings(value.settings);theme=settings.theme;debugMode=settings.groupDebugMode;library=value[FeedLibrary.key]||library;arrivalsHideShorts=library.newVideos?.hideShorts===true;uploads=value['channelUploads:v1']||uploads;saved=value['channelGroups:v1']||saved;settingsReady=true;mount();}).catch(()=>{if(disposed)return;settingsReady=true;mount();});
   function navigationStarted(){
     if(initialHash&&location.pathname!=='/feed/subscriptions')initialHash='';
     closeGroupMenu(false);closeVideoMenu(false,false);remember();
@@ -784,7 +827,7 @@
   }
   document.addEventListener('yt-navigate-finish',navigationFinished);document.addEventListener('DOMContentLoaded',mount,{once:true});
   function historyChanged(event){
-    if(event.type==='popstate'||location.pathname!=='/feed/subscriptions'||location.hash&&location.hash!==initialHash)initialHash=location.pathname==='/feed/subscriptions'&&/^#ledger-group(?:=|s(?:$|&))/.test(location.hash)?location.hash:'';
+    if(event.type==='popstate'||location.pathname!=='/feed/subscriptions'||location.hash&&location.hash!==initialHash)initialHash=location.pathname==='/feed/subscriptions'&&/^#ledger-(?:group=|groups(?:$|&)|new(?:$|&))/.test(location.hash)?location.hash:'';
     pendingGroup='';nativeNavigation=false;
     // Back/Forward between Ledger groups also stays inside the existing page.
     if(lastPath==='/feed/subscriptions'&&location.pathname===lastPath&&(active||route()))event.stopImmediatePropagation();

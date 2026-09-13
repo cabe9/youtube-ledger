@@ -50,6 +50,18 @@ globalThis.GroupFeeds = (() => {
     }else for(const field of ['failures','retryAfter','retryAt'])delete cache.channels[channelId][field];
     if(!error){
       const combined=new Map((old.entries||[]).map(v=>[v.videoId,v])),history=new Map((old.uploadHistory||[]).map(v=>[v.videoId,v]));
+      const previousUploadAt=latestUploadAt(old);
+      // Only announce a return after Ledger successfully observed the channel
+      // during its quiet period. An initial import or a long gap between our
+      // checks is not evidence that the creator stopped posting.
+      let returning=old.fetchedAt&&previousUploadAt>0&&old.fetchedAt-previousUploadAt>=inactiveAfter
+        ?entries.filter(e=>!combined.has(e.videoId)&&!history.has(e.videoId)&&e.publishedAt>old.fetchedAt&&e.publishedAt<=at&&e.publishedAt>at-7*day).sort((a,b)=>a.publishedAt-b.publishedAt||a.videoId.localeCompare(b.videoId))[0]:null;
+      const knownDates=[...(old.entries||[]),...(old.uploadHistory||[]),...entries];
+      const predecessor=(entry,fallback)=>Math.max(fallback,...knownDates.filter(e=>e.videoId!==entry.videoId&&e.publishedAt<entry.publishedAt).map(e=>e.publishedAt));
+      const returnAfter=returning?predecessor(returning,previousUploadAt):previousUploadAt;
+      // A fallback may recover an intervening upload that the old cache lacked.
+      // Use that evidence instead of announcing an artificially long absence.
+      if(returning&&old.fetchedAt-returnAfter<inactiveAfter)returning=null;
       for(const entry of entries){
         const previous=combined.get(entry.videoId)||history.get(entry.videoId);
         const classificationUpgrade=typeof entry.details?.shorts==='boolean'&&previous?.details?.shorts==='unknown';
@@ -60,6 +72,10 @@ globalThis.GroupFeeds = (() => {
         // Never replace exact RSS dates with rounded ages, or let repeated
         // "3 days ago" labels move an already discovered upload forward in time.
         if(entry.publishedAtEstimated&&previous){next.publishedAt=previous.publishedAtEstimated?Math.min(previous.publishedAt,entry.publishedAt):previous.publishedAt;next.publishedAtEstimated=previous.publishedAtEstimated===true;}
+        delete next.creatorReturn;
+        const comeback=previous?.creatorReturn||(entry===returning?{previousUploadAt:returnAfter,detectedAt:at,estimated:entry.publishedAtEstimated===true}:null);
+        const prior=comeback?predecessor(next,comeback.previousUploadAt):null;
+        if(comeback&&next.publishedAt<=at&&next.publishedAt-prior>=inactiveAfter)next.creatorReturn={...comeback,previousUploadAt:prior,detectedAt:Math.max(comeback.detectedAt,next.publishedAt),estimated:comeback.estimated||next.publishedAtEstimated===true||knownDates.some(e=>e.publishedAt===prior&&e.publishedAtEstimated===true)};
         combined.set(entry.videoId,next);
       }
       cache.channels[channelId].entries=[...combined.values()].sort((a,b)=>b.publishedAt-a.publishedAt||a.videoId.localeCompare(b.videoId)).slice(0,250);
@@ -451,6 +467,12 @@ globalThis.GroupFeeds = (() => {
       })();try{return await checkingAll;}finally{checkingAll=null;}
     }
     const data=await browser.storage.local.get([ChannelGroups.key,key]), groups=data[ChannelGroups.key]||{groups:[],channels:{}};
+    if(message.type==='groupFeed:new'){
+      await leaveGroup(sender.tab.id);
+      const library=(await browser.storage.local.get(FeedLibrary.key))[FeedLibrary.key],entries=FeedLibrary.newEntries(groups,data[key],library),ids=[...new Set(groups.groups.flatMap(g=>g.channelIds))];
+      const group={id:FeedLibrary.newViewId,name:'New videos',channelIds:ids};
+      return {group,channels:ids.map(id=>({...groups.channels[id],id})),entries,progress:{...await WatchStatus.read(),evidence:globalThis.WatchEvidence?(await browser.storage.local.get(WatchEvidence.key))[WatchEvidence.key]?.videos||{}:{}},launchToken:entries.length?await launchContext(group,entries):null};
+    }
     const group=groups.groups.find(g=>g.id===message.groupId);
     if(!group)throw new Error('This group no longer exists.');
     const ids=group.channelIds.filter(id=>channelPattern.test(id));

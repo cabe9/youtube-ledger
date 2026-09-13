@@ -1,6 +1,30 @@
 /* Browsing preferences never modify playback history or watch status. */
 globalThis.FeedLibrary=(()=>{
   const key='groupBrowsing:v1';
+  const newViewId='@new-videos',week=7*86400000;
+  // This view reads the shared cache only. A video hidden in every group that
+  // contains its channel stays hidden here too; memberships never duplicate it.
+  function newEntries(groups,cache,library={},now=Date.now()){
+    const memberships=new Map();
+    for(const group of groups?.groups||[])for(const id of group.channelIds){
+      if(library.groups?.[group.id]?.hiddenChannels?.includes(id))continue;
+      if(!memberships.has(id))memberships.set(id,[]);memberships.get(id).push(group);
+    }
+    const entries=new Map();
+    for(const [id,members] of memberships)for(const entry of cache?.channels?.[id]?.entries||[]){
+      if(entry.channelId!==id||entry.publishedAt<=now-week||entry.publishedAt>now)continue;
+      const visibleGroups=members.filter(g=>!library.groups?.[g.id]?.hidden?.includes(entry.videoId)).map(g=>({id:g.id,name:g.name}));
+      if(visibleGroups.length)entries.set(entry.videoId,{...entry,groups:visibleGroups});
+    }
+    return [...entries.values()].sort((a,b)=>b.publishedAt-a.publishedAt||a.videoId.localeCompare(b.videoId));
+  }
+  const isArrival=(entry,library)=>!!entry&&!Object.hasOwn(library?.newVideos?.reviewed||{},entry.videoId);
+  function returnLabel(entry){
+    const info=entry?.creatorReturn,gap=entry?.publishedAt-info?.previousUploadAt;
+    if(!info||!Number.isFinite(gap)||gap<90*86400000)return '';
+    const months=Math.round(gap/(30.4375*86400000));
+    return 'Back after '+(info.estimated?'~':'')+(months>=24?Math.floor(months/12)+' years':months+' months');
+  }
   const uploadedFilters=['all','visit','day','week','month'],lengthFilters=['all','short','medium','long'];
   function metric(entry,progress,kind){
     if(kind==='date')return entry.publishedAt;
@@ -50,7 +74,23 @@ globalThis.FeedLibrary=(()=>{
   async function handle(message,sender){
     if(!sender.tab||sender.tab.incognito||!/^https:\/\/(www|m)\.youtube\.com\//.test(sender.url||''))throw new Error('Open a group on YouTube.');
     return LedgerStorage.write(async()=>{
-      const data=await browser.storage.local.get([key,ChannelGroups.key,GroupFeeds.key]),group=data[ChannelGroups.key]?.groups.find(g=>g.id===message.groupId);
+      const data=await browser.storage.local.get([key,ChannelGroups.key,GroupFeeds.key]);
+      if(message.type==='feedLibrary:arrivalFilters'){
+        if(typeof message.hideShorts!=='boolean')throw new Error('Choose whether to hide Shorts.');
+        const state=data[key]||{version:1,groups:{}},prefs=state.newVideos||={reviewed:{}};prefs.hideShorts=message.hideShorts;
+        await browser.storage.local.set({[key]:state});return {ok:true};
+      }
+      if(message.type==='feedLibrary:caughtUp'){
+        if(!Array.isArray(message.videoIds)||message.videoIds.length>5000||message.videoIds.some(id=>typeof id!=='string'||!/^[-\w]{11}$/.test(id)))throw new Error('Choose valid new arrivals.');
+        const state=data[key]||{version:1,groups:{}},now=Date.now(),available=new Map(newEntries(data[ChannelGroups.key],data[GroupFeeds.key],state,now).map(e=>[e.videoId,e]));
+        const prefs=state.newVideos||={},reviewed=Object.fromEntries(Object.entries(prefs.reviewed||{}).filter(([,at])=>at>now-30*86400000));
+        // A snapshot of IDs prevents a concurrent background discovery from
+        // being dismissed by a click on the previously rendered feed.
+        for(const id of new Set(message.videoIds))if(available.has(id))reviewed[id]=now;
+        prefs.reviewed=Object.fromEntries(Object.entries(reviewed).sort((a,b)=>b[1]-a[1]).slice(0,5000));
+        await browser.storage.local.set({[key]:state});return {ok:true};
+      }
+      const group=data[ChannelGroups.key]?.groups.find(g=>g.id===message.groupId);
       if(!group)throw new Error('This group no longer exists.');
       const state=data[key]||{version:1,groups:{}},prefs=state.groups[group.id]||={hidden:[]};
       if(message.type==='feedLibrary:visit'){
@@ -87,5 +127,5 @@ globalThis.FeedLibrary=(()=>{
       const undoToken=await LedgerUndo.record([{key,path:['groups',group.id,'hidden'],before,after:prefs.hidden}]);await browser.storage.local.set({[key]:state});return {ok:true,undoToken};
     });
   }
-  return {key,metric,visible,newCount,shuffle,handle};
+  return {key,newViewId,newEntries,isArrival,returnLabel,metric,visible,newCount,shuffle,handle};
 })();
