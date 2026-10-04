@@ -12,8 +12,8 @@ globalThis.RecordingHealthUI=(()=>{
   function render(paused=isPaused){
     isPaused=paused;banner.hidden=!health;document.documentElement.dataset.recordingWarning=String(!!health);
     if(health)message.textContent=health.message+(health.lostSeconds>0?' Some activity exceeded the retry buffer and was not saved.':'');
-    document.getElementById('tracking-indicator').textContent=health?'Recording warning':paused?'Tracking paused':'Tracking active';
-    document.getElementById('status').textContent=health?'Recording needs attention':paused?'Tracking paused':'Stored only in this browser profile';
+    globalThis.LedgerYouTubeAccessUI?.updateIndicator();
+    document.getElementById('status').textContent=health?'Recording needs attention':paused?'Tracking paused':'Saved in this browser';
   }
   async function read(){const current=++revision;const [local,session]=await Promise.all([browser.storage.local.get([key,'paused']),browser.storage.session.get(key)]);if(current!==revision)return;health=[local[key],session[key]].filter(Boolean).sort((a,b)=>b.at-a.at)[0]||null;render(!!local.paused);}
   browser.storage.onChanged.addListener((changes,area)=>{if(['local','session'].includes(area)&&(changes[key]||changes.paused))read().catch(console.error);});

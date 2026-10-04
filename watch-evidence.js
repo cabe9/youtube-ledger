@@ -43,9 +43,11 @@ globalThis.WatchEvidence=(()=>{
     return {records:[...found.values()].sort((a,b)=>b.seenAt-a.seenAt).slice(0,limit),omitted:Math.max(0,found.size-limit)};
   }
   function parseHTML(text){
-    const template=document.createElement('template');template.innerHTML=text;
+    // Parse only the two tags and attributes needed from Takeout. Never attach
+    // imported nodes to the page; scripts, resource loads and handlers are removed.
+    const fragment=DOMPurify.sanitize(text,{RETURN_DOM_FRAGMENT:true,ALLOWED_TAGS:['div','a'],ALLOWED_ATTR:['class','href'],ALLOW_DATA_ATTR:false,ALLOW_ARIA_ATTR:false});
     const found=new Set();
-    for(const card of template.content.querySelectorAll('.outer-cell'))for(const link of card.querySelectorAll('.content-cell a[href]')){
+    for(const card of fragment.querySelectorAll('.outer-cell'))for(const link of card.querySelectorAll('.content-cell a[href]')){
       const id=videoId(link.getAttribute('href'));if(id)found.add(id);
     }
     if(!found.size)throw Error('No YouTube entries were found in this history HTML export. Choose your watch-history file.');
@@ -64,6 +66,7 @@ globalThis.WatchEvidence=(()=>{
     const input=records(message.records,importing?'history-file':message.source);
     return LedgerStorage.write(async()=>{
       const local=await browser.storage.local.get([key,'settings','paused']);
+      if(passive&&globalThis.LedgerData&&!await LedgerData.configured())return {ok:true,changed:0};
       const explicit=youtube&&new URL(sender.url).pathname==='/feed/history'&&new URL(sender.url).hash==='#ledger-watch-check';
       if(passive&&!explicit&&(local.paused||!Ledger.settings(local.settings).learnYouTubeProgress))return {ok:true,changed:0};
       const result=merge(local[key],input,importing?'history-file':message.source);

@@ -128,6 +128,7 @@ globalThis.GroupFeeds = (() => {
     while(detailActive<4&&detailQueue.length){detailQueue.sort((a,b)=>Number(b.shortsFirst)-Number(a.shortsFirst));const job=detailQueue.shift();detailActive++;job.run().then(job.resolve,job.reject).finally(()=>{detailActive--;pumpDetails();});}
   }
   function getVideoDetails(videoId,channelId,checkViews=false,shortsFirst=false,foreground=true){
+    if(globalThis.LedgerBuild?.rssOnly)return Promise.resolve();
     const version=epoch,identity=version+'|'+videoId;
     if(detailJobs.has(identity)){const job=detailJobs.get(identity);job.shortsFirst||=shortsFirst;if(foreground){job.options.priority=2;globalThis.YouTubeRequests?.wake();}return job.promise;}
     // Multiple tabs share this bounded queue, in addition to their visible-card limit.
@@ -294,6 +295,8 @@ globalThis.GroupFeeds = (() => {
     return needsViewUpgrade(stored)||now>=(stored.attemptedAt||0)+(stored.feedSource!=='uploads-page'?ttl:backgroundTTL);
   }
   async function backgroundAllowed(channelId){
+    if(globalThis.LedgerConnections && !await LedgerConnections.allowed())return false;
+    if(globalThis.LedgerData&&!await LedgerData.configured())return false;
     const local=await browser.storage.local.get(['settings',...(channelId?[ChannelGroups.key]:[])]);
     if(local.settings?.backgroundGroupChecks===false)return false;
     if(channelId&&!local[ChannelGroups.key]?.groups?.some(group=>group.channelIds.includes(channelId)))return false;
@@ -328,9 +331,14 @@ globalThis.GroupFeeds = (() => {
       // Keep two background slots for the longest-waiting channels, including
       // quiet creators and channels whose publishing pattern is still unknown.
       const fair=kind==='background'?[...ranked].sort((a,b)=>a.due-b.due||a.id.localeCompare(b.id)).slice(0,Math.min(2,available)):[];
-      const priority=ranked.filter(item=>!fair.some(old=>old.id===item.id)).slice(0,available-fair.length);
+      // A visit can use its shared allowance before the user opens another
+      // group. Give that visible group the next background priority slots,
+      // while retaining the oldest-waiting slots for the rest of the library.
+      const visibleGroups=new Set(activeGroups.values()),visibleChannels=new Set(groups.filter(group=>visibleGroups.has(group.id)).flatMap(group=>group.channelIds));
+      const preferred=kind==='background'?[...ranked.filter(item=>visibleChannels.has(item.id)),...ranked.filter(item=>!visibleChannels.has(item.id))]:ranked;
+      const priority=preferred.filter(item=>!fair.some(old=>old.id===item.id)).slice(0,available-fair.length);
       const chosen=new Set([...priority,...fair].map(item=>item.id));
-      const selected=ranked.filter(item=>chosen.has(item.id)).map(item=>item.id);
+      const selected=preferred.filter(item=>chosen.has(item.id)).map(item=>item.id);
       if(!selected.length||version!==epoch)return [];
       await browser.storage.local.set({[automaticKey]:{version:1,checks:[...recent,...selected.map(id=>({id,kind,at:now}))]}});
       return version===epoch?selected:[];
@@ -356,7 +364,8 @@ globalThis.GroupFeeds = (() => {
       if(!background){job.options.priority=2;globalThis.YouTubeRequests?.wake();}
       return job.promise;
     }
-    const version=epoch,options={priority:background?0:2,kind:'feed',reason:background?'background-refresh':force?'manual-refresh':'group-refresh',id:channelId,minSpacing:retryCooldown?10000:0,timeoutMs:15000,deferFeedFailure:!!globalThis.UploadsPage,cancelled:async()=>version!==epoch||options.priority<2&&!await backgroundAllowed(channelId)};
+    const allowFallback=!globalThis.LedgerBuild?.rssOnly&&!!globalThis.UploadsPage;
+    const version=epoch,options={priority:background?0:2,kind:'feed',reason:background?'background-refresh':force?'manual-refresh':'group-refresh',id:channelId,minSpacing:retryCooldown?10000:0,timeoutMs:15000,deferFeedFailure:allowFallback,cancelled:async()=>version!==epoch||options.priority<2&&!await backgroundAllowed(channelId)};
     const task=(async()=>{
       const stored=(await browser.storage.local.get(key))[key]?.channels[channelId];
       if(version!==epoch)return;
@@ -377,7 +386,7 @@ globalThis.GroupFeeds = (() => {
         },options);
       };
       try{
-        if(globalThis.UploadsPage&&stored?.feedSource==='uploads-page'&&stored.rssRetryAt>now)entries=await page();
+        if(allowFallback&&stored?.feedSource==='uploads-page'&&stored.rssRetryAt>now)entries=await page();
         else try{entries=await network(async(fetchRequest)=>{
           const response=await fetchRequest('https://www.youtube.com/feeds/videos.xml?channel_id='+channelId,{credentials:'omit',cache:'no-store'});
           try{globalThis.YouTubeRequests?.checkResponse(response);}catch(e){
@@ -388,10 +397,11 @@ globalThis.GroupFeeds = (() => {
           if(new URL(response.url).origin!=='https://www.youtube.com')throw new Error('YouTube redirected this upload feed.');
           return parse(await response.text(),channelId);
         },options);}
-        catch(failure){if(!globalThis.UploadsPage?.eligible(failure)||version!==epoch)throw failure;entries=await page();}
+        catch(failure){if(!allowFallback||!globalThis.UploadsPage?.eligible(failure)||version!==epoch)throw failure;entries=await page();}
       }catch(e){
         // A queued channel was not contacted. Do not mark it as a failed channel.
         if(e.name==='YouTubeCooldownError')return {outcome:'cooldown'};
+        if(e.name==='LedgerConsentError')return {outcome:'consent-required'};
         retryAfter=e.retryAfter||0;
         const source=feedSource==='uploads-page'?'uploads page':'upload feed';
         error=e.name==='TimeoutError'||e.name==='AbortError'?'YouTube’s '+source+' did not finish loading within '+options.timeoutMs/1000+' seconds. Cached videos are kept.':e.name==='TypeError'?'Could not connect to YouTube’s '+source+'.':String(e.message||'Could not refresh this channel.');
@@ -403,6 +413,12 @@ globalThis.GroupFeeds = (() => {
         if(!error){channel.feedSource=feedSource;if(feedSource==='uploads-page')channel.rssRetryAt=stored?.rssRetryAt>now?stored.rssRetryAt:Date.now()+86400000;else delete channel.rssRetryAt;}
         return next;
       });
+      if(globalThis.LedgerBuild?.rssOnly&&!error&&entries?.[0]?.channel){
+        // Replace an ID placeholder using the successful RSS feed, without
+        // overwriting imported/user-visible names or restoring deleted groups.
+        const rename=async()=>{const data=await browser.storage.local.get(ChannelGroups.key),groups=data[ChannelGroups.key],channel=groups?.channels?.[channelId];if(version===epoch&&channel?.name===channelId){channel.name=entries[0].channel;await browser.storage.local.set({[ChannelGroups.key]:groups});}};
+        if(globalThis.LedgerStorage)await LedgerStorage.write(rename);else await rename();
+      }
       return {outcome:error?'failed':'refreshed'};
     })();
     inFlight.set(channelId,{promise:task,options});try{return await task;}finally{if(inFlight.get(channelId)?.promise===task)inFlight.delete(channelId);}
@@ -471,7 +487,7 @@ globalThis.GroupFeeds = (() => {
       await leaveGroup(sender.tab.id);
       const library=(await browser.storage.local.get(FeedLibrary.key))[FeedLibrary.key],entries=FeedLibrary.newEntries(groups,data[key],library),ids=[...new Set(groups.groups.flatMap(g=>g.channelIds))];
       const group={id:FeedLibrary.newViewId,name:'New videos',channelIds:ids};
-      return {group,channels:ids.map(id=>({...groups.channels[id],id})),entries,progress:{...await WatchStatus.read(),evidence:globalThis.WatchEvidence?(await browser.storage.local.get(WatchEvidence.key))[WatchEvidence.key]?.videos||{}:{}},launchToken:entries.length?await launchContext(group,entries):null};
+      return {connectionsEnabled:globalThis.LedgerConnections?await LedgerConnections.allowed():true,group,channels:ids.map(id=>({...groups.channels[id],id,fetchedAt:data[key]?.channels?.[id]?.fetchedAt||null,error:data[key]?.channels?.[id]?.error||''})),entries,progress:{...await WatchStatus.read(),evidence:globalThis.WatchEvidence?(await browser.storage.local.get(WatchEvidence.key))[WatchEvidence.key]?.videos||{}:{}},launchToken:entries.length?await launchContext(group,entries):null};
     }
     const group=groups.groups.find(g=>g.id===message.groupId);
     if(!group)throw new Error('This group no longer exists.');
@@ -497,6 +513,7 @@ globalThis.GroupFeeds = (() => {
       return {details:Object.fromEntries(values.map(([id,e])=>[id,e?.details]).filter(([,value])=>Ledger.validVideoDetails(value))),views:Object.fromEntries(values.map(([id,e])=>[id,e?.views]).filter(([,value])=>Ledger.validVideoViews(value)))};
     }
     if(message.type==='groupFeed:refresh'){
+      if(globalThis.LedgerConnections&&!await LedgerConnections.allowed()){if(message.automatic===true)return {ok:true};await LedgerConnections.assert();}
       const targets=message.failedOnly===true?ids.filter(id=>data[key]?.channels?.[id]?.error):ids;
       const automatic=message.automatic===true;
       // Warm visits do not create a progress run or per-channel cache attempts.
@@ -511,7 +528,7 @@ globalThis.GroupFeeds = (() => {
     }
     if(message.type!=='groupFeed:get')throw new Error('Unknown feed request.');
     const cache=data[key]?.channels||{}, entries=[...new Map(ids.flatMap(id=>cache[id]?.entries||[]).map(v=>[v.videoId,v])).values()].sort((a,b)=>b.publishedAt-a.publishedAt||a.videoId.localeCompare(b.videoId));
-    return {...(await globalThis.YouTubeRequests?.status()),refresh:refreshRuns.get(group.id)?{...refreshRuns.get(group.id).progress}:null,progress:globalThis.WatchStatus?{...await WatchStatus.read(),evidence:globalThis.WatchEvidence?(await browser.storage.local.get(WatchEvidence.key))[WatchEvidence.key]?.videos||{}:{}}:{version:1,videos:{}},group,channels:ids.map(id=>({...groups.channels[id],id,fetchedAt:cache[id]?.fetchedAt||null,error:cache[id]?.error||'',retryAt:cache[id]?.retryAt||0,feedSource:cache[id]?.feedSource||'rss',dailyChecks:automaticInterval(cache[id])===inactiveTTL,checkSchedule:automaticSchedule(cache[id])})),entries,launchToken:entries.length?await launchContext(group,entries):null};
+    return {connectionsEnabled:globalThis.LedgerConnections?await LedgerConnections.allowed():true,...(await globalThis.YouTubeRequests?.status()),refresh:refreshRuns.get(group.id)?{...refreshRuns.get(group.id).progress}:null,progress:globalThis.WatchStatus?{...await WatchStatus.read(),evidence:globalThis.WatchEvidence?(await browser.storage.local.get(WatchEvidence.key))[WatchEvidence.key]?.videos||{}:{}}:{version:1,videos:{}},group,channels:ids.map(id=>({...groups.channels[id],id,fetchedAt:cache[id]?.fetchedAt||null,error:cache[id]?.error||'',retryAt:cache[id]?.retryAt||0,feedSource:cache[id]?.feedSource||'rss',dailyChecks:automaticInterval(cache[id])===inactiveTTL,checkSchedule:automaticSchedule(cache[id])})),entries,launchToken:entries.length?await launchContext(group,entries):null};
   }
   return {invalidate(){epoch++;inFlight.clear();refreshRuns.clear();void publishProgress();},key,parse,parseVideoDetails,readPlayer,merge,automaticInterval,automaticSchedule,getChannelUploads,handle,prune};
 })();

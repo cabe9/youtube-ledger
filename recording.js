@@ -16,12 +16,16 @@ globalThis.LedgerRecording=(()=>{
   }
   async function events(message,sender){
     if(!youtube(sender))return {ok:false};
-    if((await browser.storage.local.get('paused')).paused)return {ok:true,discarded:true};
+    if(globalThis.LedgerData && !await LedgerData.configured())return {ok:true,discarded:true};
+    const control=await browser.storage.local.get(['paused','recordingEpoch','dataPolicy:v1']);
+    if(control.paused || control.recordingEpoch!==message.epoch)return {ok:true,discarded:true};
+    if(globalThis.LedgerData)await LedgerData.prune();
     const tracked=message.recorderId!==undefined;
     if(tracked&&(!/^[-\w]{36}$/.test(message.recorderId)||!Number.isSafeInteger(message.sequence)||message.sequence<1))throw Error('Invalid recording batch.');
     const grouped={},originals=[];
     for(const event of (Array.isArray(message.events)?message.events:[]).slice(0,100)){
       if(!Ledger.states.includes(event.state)||typeof event.id!=='string'||!event.id||event.id.length>200||!Number.isFinite(event.start)||!Number.isFinite(event.end)||event.end-event.start>5000||event.end<=event.start)continue;
+      if(globalThis.LedgerData && !LedgerData.accepts(event.start,control['dataPolicy:v1']))continue;
       originals.push(event);
       for(const piece of Ledger.pieces(event))(grouped['day:'+piece.day]||=[]).push(piece);
     }

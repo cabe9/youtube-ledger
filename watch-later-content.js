@@ -3,11 +3,11 @@
   if(location.hostname!=='www.youtube.com')return;
   const disposeEvent='ledger-watch-later-dispose';document.dispatchEvent(new Event(disposeEvent));
   document.querySelectorAll('#ledger-watch-later-tools,#ledger-watch-later-style,.ledger-watch-later-choice').forEach(node=>node.remove());
-  let disposed=false,host,styleNode,controls,selecting=false,anchor=null,job=null,timer,layoutFrame,progress={videos:{}},progressReady=false,loadingProgress=false,message='';
+  let disposed=false,cleanupEnabled=false,host,styleNode,controls,selecting=false,anchor=null,job=null,timer,layoutFrame,progress={videos:{}},progressReady=false,loadingProgress=false,message='';
   const selected=new Set(),choices=new Map(),page=()=>location.pathname==='/playlist'&&new URL(location.href).searchParams.get('list')==='WL';
   const visible=node=>!!node?.isConnected&&node.getClientRects().length>0&&getComputedStyle(node).visibility!=='hidden';
   const lists=()=>[...document.querySelectorAll('ytd-playlist-video-list-renderer')].filter(visible);
-  const list=()=>page()?lists()[0]:null;
+  const list=()=>page()&&cleanupEnabled?lists()[0]:null;
   function identity(row){
     const link=row.querySelector('a#video-title[href],a[href*="/watch?"]');
     try{const url=new URL(link.href);return url.origin===location.origin&&url.pathname==='/watch'&&/^[-\w]{11}$/.test(url.searchParams.get('v')||'')?url.searchParams.get('v'):null;}catch{return null;}
@@ -99,7 +99,7 @@
     updateTools();resizeObserver.disconnect();resizeObserver.observe(container);if(container.parentElement)resizeObserver.observe(container.parentElement);if(current[0])resizeObserver.observe(current[0]);if(thumbnail(current[0]))resizeObserver.observe(thumbnail(current[0]));scheduleAlign();
   }
   function cancel(leaveMenu=false){if(job){job.cancelled=true;if(leaveMenu)job.menu=null;}}
-  function guard(current){if(disposed||job!==current||current.cancelled||!page()||document.visibilityState!=='visible')throw new Error('Stopped.');}
+  function guard(current){if(disposed||!cleanupEnabled||job!==current||current.cancelled||!page()||document.visibilityState!=='visible')throw new Error('Stopped.');}
   const menus=()=>[...document.querySelectorAll('ytd-menu-popup-renderer,yt-list-view-model[role="menu"],[role="menu"]')].filter(visible);
   const normalize=text=>(text||'').replace(/[\u200e\u200f]/g,'').replace(/\s+/g,' ').trim().toLowerCase();
   async function until(current,read,ms=6000){
@@ -108,6 +108,7 @@
     throw new Error('YouTube did not confirm the change. Check the list before trying again.');
   }
   async function removeOne(current,id){
+    await LedgerConnections.assert('account');
     guard(current);const row=rows().find(row=>identity(row)===id);if(!row)throw new Error('The list changed. Review the remaining selection before trying again.');
     if(menus().length)throw new Error('Close YouTube’s open menu, then try again.');
     const opener=row.querySelector('ytd-menu-renderer button, ytd-menu-renderer [role="button"]');
@@ -116,6 +117,7 @@
     const menu=await until(current,()=>menus()[0]);current.menu=menu;
     const action=await until(current,()=>[...menu.querySelectorAll('ytd-menu-service-item-renderer,yt-list-item-view-model,[role="menuitem"]')].find(node=>visible(node)&&normalize(node.textContent)==='remove from watch later'),2000).catch(error=>{guard(current);throw new Error('Could not identify “Remove from Watch later.” The current YouTube layout or language is not supported.');});
     guard(current);if(!row.isConnected||identity(row)!==id||!visible(menu))throw new Error('The list changed. Nothing else was removed.');
+    await LedgerConnections.assert('account');guard(current);
     current.sent=id;action.click();await until(current,()=>!rows().some(row=>identity(row)===id));
     // YouTube owns the actual deletion and UI. Never hide a row to simulate success.
     await new Promise(resolve=>setTimeout(resolve,350));guard(current);
@@ -124,6 +126,7 @@
   }
   async function removeSelected(){
     if(job||!page()||!selected.size)return;
+    if(!window.confirm('Remove '+selected.size+' selected '+(selected.size===1?'video':'videos')+' from your signed-in YouTube Watch Later playlist? This changes your YouTube account.'))return;
     const current={cancelled:false,ids:[...selected],removed:0};job=current;const top=window.scrollY;
     try{
       for(const id of current.ids){message='Removing '+(current.removed+1)+' of '+current.ids.length+'…';mount();await removeOne(current,id);current.removed++;selected.delete(id);}
@@ -153,10 +156,24 @@
   function visibility(){if(document.visibilityState!=='visible')cancel(true);}
   document.addEventListener('visibilitychange',visibility);
   window.addEventListener('resize',scheduleAlign);
-  function changed(changes,area){if(area==='local'&&(changes[WatchStatus.key]||changes[WatchEvidence.key])){progress={...(changes[WatchStatus.key]?changes[WatchStatus.key].newValue:progress),evidence:changes[WatchEvidence.key]?changes[WatchEvidence.key].newValue?.videos||{}:progress.evidence};progressReady=true;schedule();}}
+  let permissionRevision=0;
+  async function updatePermission(){
+    const revision=++permissionRevision;
+    // Stop the running batch immediately; a later grant never resumes it.
+    cleanupEnabled=false;cancel(true);
+    try{
+      const [data,allowed]=await Promise.all([browser.storage.local.get('settings'),LedgerConnections.allowed('account')]);
+      if(disposed||revision!==permissionRevision)return;
+      cleanupEnabled=allowed&&Ledger.settings(data.settings).watchLaterCleanup;
+    }catch{}
+    schedule();
+  }
+  const stopPermissionListener=LedgerConnections.onChange(updatePermission);
+  function changed(changes,area){if(area==='local'&&changes.settings)void updatePermission();if(area==='local'&&(changes[WatchStatus.key]||changes[WatchEvidence.key])){progress={...(changes[WatchStatus.key]?changes[WatchStatus.key].newValue:progress),evidence:changes[WatchEvidence.key]?changes[WatchEvidence.key].newValue?.videos||{}:progress.evidence};progressReady=true;schedule();}}
+  void updatePermission();
   browser.storage.onChanged.addListener(changed);schedule();
   document.addEventListener(disposeEvent,()=>{
-    disposed=true;cancel(true);clearTimeout(timer);cancelAnimationFrame(layoutFrame);observer.disconnect();resizeObserver.disconnect();host?.remove();styleNode?.remove();for(const item of choices.values())item.host.remove();choices.clear();
+    disposed=true;stopPermissionListener();cancel(true);clearTimeout(timer);cancelAnimationFrame(layoutFrame);observer.disconnect();resizeObserver.disconnect();host?.remove();styleNode?.remove();for(const item of choices.values())item.host.remove();choices.clear();
     for(const type of ['pointerdown','keydown','wheel'])window.removeEventListener(type,userInput,true);
     for(const type of ['keydown','keypress','keyup'])window.removeEventListener(type,protectKeys,true);
     document.removeEventListener('visibilitychange',visibility);

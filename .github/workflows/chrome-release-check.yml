@@ -1,0 +1,33 @@
+name: Chrome release on Windows
+on:
+  push:
+    branches: [codex/chrome-release-check]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned test dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund --no-package-lock
+      - name: Install test Chromium
+        run: npx --no-install playwright install chromium
+      - name: Build and test with synthetic data
+        run: python chrome-vault/validate-release.py
+      # Only a validation report is retained. No profiles, backups, keys or captures.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chrome-windows-validation
+          path: dist/chrome-release-candidate/0.18.0/VALIDATION-windows.json
+          retention-days: 7
+          if-no-files-found: ignore

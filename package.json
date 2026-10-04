@@ -1,9 +1,9 @@
 {
   "name": "youtube-ledger",
-  "version": "0.16.34",
+  "version": "0.17.5",
   "private": true,
   "scripts": {
-    "test": "node --test tests.test.cjs channel-groups.test.cjs group-feeds.test.cjs upload-schedule.test.cjs uploads-page.test.cjs features.test.cjs discovery.test.cjs recording.test.cjs media.test.cjs video-length.test.cjs shorts.test.cjs group-sharing.test.cjs youtube-requests.test.cjs request-log.test.cjs watch-evidence.test.cjs new-videos.test.cjs",
+    "test": "node --test youtube-access.test.cjs tests.test.cjs channel-groups.test.cjs group-feeds.test.cjs upload-schedule.test.cjs uploads-page.test.cjs features.test.cjs discovery.test.cjs recording.test.cjs media.test.cjs video-length.test.cjs shorts.test.cjs group-sharing.test.cjs youtube-requests.test.cjs request-log.test.cjs watch-evidence.test.cjs new-videos.test.cjs data-controls.test.cjs rss-preview.test.cjs experimental/encrypted-inbox/vault.test.cjs connections.test.cjs sync-model.test.cjs local-sync.test.cjs",
     "test:feeds": "node feeds-check.cjs",
     "test:group-images": "node group-images-check.cjs",
     "test:group-images:firefox": "node group-images-firefox-check.cjs",
@@ -18,7 +18,7 @@
     "test:account-history": "node --test experimental/account-history/account-history.test.cjs && node experimental/account-history/account-history-check.cjs",
     "build": "python3 build.py",
     "build:experimental": "python3 build.py --channel experimental",
-    "test:packages": "python3 package-check.py",
+    "test:packages": "python3 package-check.py --store-only",
     "test:features": "node features-check.cjs",
     "test:discovery": "node discovery-check.cjs",
     "test:channel-overview": "node channel-overview-check.cjs",
@@ -43,6 +43,7 @@
     "test:shorts:priority": "node shorts-priority-check.cjs",
     "test:recent-filter": "node recent-filter-check.cjs",
     "test:refresh": "node refresh-check.cjs",
+    "test:refresh:resume": "node refresh-resume-check.cjs",
     "test:refresh:firefox": "node refresh-firefox-check.cjs",
     "test:uploads-fallback": "node uploads-page-check.cjs",
     "test:uploads-fallback:firefox": "node refresh-firefox-check.cjs --uploads-fallback",
@@ -53,10 +54,37 @@
     "test:watch-evidence": "node --test watch-evidence.test.cjs && node watch-evidence-check.cjs",
     "test:watch-evidence:firefox": "node watch-evidence-firefox-check.cjs",
     "test:new-videos": "node new-videos-check.cjs",
-    "test:new-videos:firefox": "node new-videos-firefox-check.cjs"
+    "test:new-videos:firefox": "node new-videos-firefox-check.cjs",
+    "test:release": "node release-readiness-check.cjs",
+    "build:rss-preview": "python3 build.py --channel rss-preview",
+    "build:encrypted-inbox": "python3 experimental/encrypted-inbox/build.py",
+    "test:rss-preview": "node rss-preview-check.cjs",
+    "test:encrypted-inbox": "node --test experimental/encrypted-inbox/vault.test.cjs && node experimental/encrypted-inbox/browser-check.cjs",
+    "test:packages:all": "python3 package-check.py",
+    "test:youtube-access": "node --test youtube-access.test.cjs && node youtube-access-check.cjs",
+    "test:connections:firefox": "node connections-firefox-check.cjs",
+    "test:local-sync": "node --test sync-model.test.cjs local-sync.test.cjs && python3 local-sync/test_host.py",
+    "test:local-sync:browsers": "node local-sync-browser-check.cjs",
+    "test:settings-layout": "node settings-layout-check.cjs",
+    "build:chrome-preview": "python3 chrome-vault/build.py",
+    "test:chrome-vault": "node --test chrome-vault/store.test.cjs && node chrome-vault/browser-check.cjs",
+    "test:chrome-vault:sync": "node local-sync-browser-check.cjs --chrome-vault",
+    "test:chrome-vault:large": "node chrome-vault/large-profile-check.cjs",
+    "test:chrome-vault:remember": "python3 local-sync/test_keychain.py && python3 local-sync/test_host.py && node chrome-vault/remember-check.cjs",
+    "test:chrome-vault:package": "python3 chrome-vault/package-check.py",
+    "build:chrome-store-assets": "node scripts/chrome-store-assets.cjs",
+    "test:companion:windows": "python3 local-sync/test_windows.py",
+    "build:windows-preview": "python3 scripts/build-windows-preview.py",
+    "test:chrome-vault:automatic": "node chrome-vault/automatic-check.cjs",
+    "test:companion:desktop": "python3 local-sync/test_desktop.py",
+    "build:chrome-store": "python3 chrome-vault/build.py --channel store",
+    "test:chrome-store:package": "python3 scripts/check-chrome-release.py --with-assets",
+    "test:chrome-store:lifecycle": "node chrome-vault/release-check.cjs",
+    "test:chrome-store": "python3 chrome-vault/validate-release.py"
   },
   "devDependencies": {
-    "playwright": "1.62.1"
+    "playwright": "1.62.1",
+    "acorn": "8.18.0"
   },
   "license": "MIT"
 }

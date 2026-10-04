@@ -171,3 +171,8 @@
   :root[data-theme="frutiger-aero"] .aero-foliage-left{left:-16px;width:min(48vw,260px)}
   :root[data-theme="frutiger-aero"] .aero-foliage-right{right:-16px;width:min(42vw,230px)}
 }
+
+/* Category navigation remains quiet beside the glass-themed settings. */
+:root[data-theme="frutiger-aero"] #settings-categories button{background:transparent;border-color:transparent;box-shadow:none;text-shadow:none;color:var(--ink)}
+:root[data-theme="frutiger-aero"] #settings-categories button:hover{background:var(--row-hover)}
+:root[data-theme="frutiger-aero"] #settings-categories button[aria-selected="true"]{background:var(--panel);border-color:var(--line);color:var(--accent)}

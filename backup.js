@@ -2,7 +2,7 @@
 globalThis.LedgerBackup=(()=>{
   const format='youtube-ledger-backup', maxBytes=100*1024*1024;
   const dateKey=/^(day|recommendations|purposes|goals):\d{4}-\d{2}-\d{2}$/;
-  const fixed=['settings','paused','channelGroups:v1','channelUploads:v1','videoProgress:v1','watchEvidence:v1','groupBrowsing:v1'];
+  const fixed=['settings','paused','channelGroups:v1','channelUploads:v1','videoProgress:v1','watchEvidence:v1','groupBrowsing:v1','dataPolicy:v1'];
   const known=k=>fixed.includes(k)||dateKey.test(k);
   const fail=()=>{throw new Error('This backup contains invalid or unsupported Ledger data.');};
   const object=v=>v&&typeof v==='object'&&!Array.isArray(v);
@@ -39,6 +39,7 @@ globalThis.LedgerBackup=(()=>{
       else if(key.startsWith('recommendations:')){
         if(!Array.isArray(value)||value.some(e=>!object(e)||!text(e.id,200)||!['reveal','visible','hide'].includes(e.kind)||!number(e.at)||!text(e.page,2000)))fail();
       }else if(key==='paused'){if(typeof value!=='boolean')fail();}
+      else if(key==='dataPolicy:v1'){if(value?.version!==1||![0,30,90,365].includes(value.retentionDays))fail();data[key]={version:1,retentionDays:value.retentionDays};}
       else if(key==='settings'){if(!object(value))fail();data[key]=Ledger.settings(value);}
       else if(key==='channelGroups:v1'){
         if(value?.collapsed!==undefined&&typeof value.collapsed!=='boolean')fail();
@@ -98,14 +99,17 @@ globalThis.LedgerBackup=(()=>{
     if((sender.url||'').split(/[?#]/)[0]!==browser.runtime.getURL('dashboard.html'))throw new Error('Open Ledger Settings to manage backups.');
     if(message.type==='backup:preview'){const data=validate(message.backup);return summary(data);}
     return LedgerStorage.write(async()=>{
-      const previous=Object.fromEntries(Object.entries(await browser.storage.local.get(null)).filter(([k])=>known(k)));
+      const current=await browser.storage.local.get(null),previous=Object.fromEntries(Object.entries(current).filter(([k])=>known(k)));
       if(message.type==='backup:export')return wrap(previous);
       if(message.type!=='backup:restore')throw new Error('Unknown backup request.');
-      const restored=validate(message.backup),obsolete=Object.keys(previous).filter(k=>!Object.hasOwn(restored,k));
-      try{await browser.storage.local.remove(obsolete);await browser.storage.local.set(restored);}
+      const restored=validate(message.backup);
+      if(globalThis.LedgerData)for(const key of LedgerData.expiredKeys(restored,restored['dataPolicy:v1']?.retentionDays||0))delete restored[key];
+      const values={...restored,...(globalThis.LedgerData?{recordingEpoch:crypto.randomUUID()}:{})};
+      const obsolete=Object.keys(previous).filter(k=>!Object.hasOwn(restored,k));
+      try{await browser.storage.local.remove(obsolete);await browser.storage.local.set(values);}
       catch(error){
-        await browser.storage.local.remove(Object.keys(restored).filter(k=>!Object.hasOwn(previous,k)));
-        await browser.storage.local.set(previous);
+        await browser.storage.local.remove(Object.keys(values).filter(k=>!Object.hasOwn(current,k)));
+        await browser.storage.local.set({...previous,...(Object.hasOwn(current,'recordingEpoch')?{recordingEpoch:current.recordingEpoch}:{})});
         throw new Error('The backup could not be saved, possibly because browser storage is full. Your previous Ledger data was restored.');
       }
       // A feed refresh already in flight must not write old account-independent metadata into the restored cache.

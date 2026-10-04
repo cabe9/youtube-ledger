@@ -1,7 +1,7 @@
 (() => {
   document.dispatchEvent(new Event('ledger-recorder-dispose'));
   document.getElementById('ledger-recording-warning')?.remove();
-  let prior, session, identity, enabled = true, disposed = false, lastProblem = -Infinity;
+  let prior, session, identity, recordingEpoch, enabled = false, disposed = false, lastProblem = -Infinity;
   const listeners=[];
   function listen(target,name,fn,capture=false){target.addEventListener(name,fn,capture);listeners.push(()=>target.removeEventListener(name,fn,capture));}
   function warning(message){
@@ -22,7 +22,7 @@
     if(Date.now()-lastProblem<30000)return;lastProblem=Date.now();
     try{browser.runtime.sendMessage({type:'recording:problem',lostSeconds}).catch(()=>{});}catch{}
   }
-  const buffer=RecordingBuffer({send:message=>browser.runtime.sendMessage(message),onError:error=>{
+  const buffer=RecordingBuffer({send:message=>browser.runtime.sendMessage(message),epoch:()=>recordingEpoch,onError:error=>{
     if(disposed)return;
     if(/extension context invalidated/i.test(error.message)){warning('Ledger was reloaded. Refresh this YouTube tab to resume recording.');dispose();return;}
     warning('Ledger could not save recent activity. Keep this tab open while it retries.');
@@ -30,9 +30,10 @@
   },onRecovery:()=>{if(!disposed)document.getElementById('ledger-recording-warning')?.remove();},onLoss:seconds=>{
     warning('Ledger’s recording buffer is full. Some activity could not be saved. Keep this tab open and check storage in Ledger.');report(seconds);
   }});
-  browser.storage.local.get('paused').then(x => { if(!disposed)enabled = !x.paused; }).catch(()=>{});
+  browser.storage.local.get(['paused','recordingEpoch']).then(x => { if(!disposed){enabled = !x.paused;recordingEpoch=x.recordingEpoch;} }).catch(()=>{});
   const storageChanged=changes=>{
     if(changes.paused){enabled=!changes.paused.newValue;prior=undefined;if(!enabled)buffer.clear();}
+    if(changes.recordingEpoch){recordingEpoch=changes.recordingEpoch.newValue;prior=undefined;buffer.clear();}
   };
   browser.storage.onChanged.addListener(storageChanged);
   function dispose(){disposed=true;clearInterval(timer);buffer.stop();for(const remove of listeners)remove();try{browser.storage.onChanged.removeListener(storageChanged);}catch{}}
@@ -100,4 +101,9 @@
   listen(document,'yt-navigate-finish',()=>{tick();flush();});
   listen(document,'ledger-recorder-dispose',dispose);
   tick();
+  // A reply verifies that this tab's recorder initialized, not just that the
+  // dashboard's stored pause flag is off. Disposed extension instances stay silent.
+  browser.runtime.onMessage.addListener(message=>{
+    if(message?.type==='ledger:page-status' && !disposed)return Promise.resolve({connected:true});
+  });
 })();

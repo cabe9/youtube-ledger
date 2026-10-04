@@ -10,7 +10,7 @@ globalThis.LedgerMedia = (() => {
     const img=document.createElement('img');img.alt='';img.loading='lazy';img.decoding='async';img.referrerPolicy='no-referrer';
     img.addEventListener('load',()=>{img.loading='eager';});
     img.addEventListener('error',()=>{img.hidden=true;});
-    img.src=src;return img;
+    LedgerConnections.image(img,src);return img;
   }
   function avatar(channel) {
     const node=document.createElement('span');node.className='ledger-avatar';node.setAttribute('aria-hidden','true');

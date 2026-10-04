@@ -85,6 +85,15 @@ globalThis.ChannelGroups = (() => {
   }
   async function resolve(input,background=false) {
     const request = target(input);
+    if(globalThis.LedgerBuild?.rssOnly){
+      const id=/\/channel\/(UC[A-Za-z0-9_-]{22})$/.exec(request.url)?.[1];
+      if(!id)throw new Error('This RSS preview needs a channel ID or a youtube.com/channel/UC… address. Open the channel and try Add to groups if its ID is available on the page. Handles and video links need a page lookup, which is disabled.');
+      const saved=(await browser.storage.local.get(key))[key]?.channels?.[id];
+      if(saved)return channel(saved);
+      // A known ID can still be added during a feed outage. Its name will update
+      // after a successful feed refresh; no HTML lookup is needed to validate it.
+      return channel({id,name:id});
+    }
     const cached = resolutions.get(request.url);
     if (cached && Date.now()-cached.at < 5*60*1000){globalThis.YouTubeRequestLog?.skip({kind:'channel'},'cache');return cached.value;}
     const operation=async(fetchRequest=fetch)=>{
@@ -109,6 +118,7 @@ globalThis.ChannelGroups = (() => {
     }
   }
   function portrait(id){
+    if(globalThis.LedgerBuild?.rssOnly)return Promise.resolve();
     if(portraitJobs.has(id))return portraitJobs.get(id);
     const task=new Promise(done=>{portraitQueue.push({done,run:async()=>{
       const before=(await browser.storage.local.get(key))[key]?.channels?.[id];

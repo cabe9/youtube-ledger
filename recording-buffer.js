@@ -1,5 +1,5 @@
 /* One acknowledged batch at a time; retries carry the same persistent receipt. */
-globalThis.RecordingBuffer=({send,onError=()=>{},onRecovery=()=>{},onLoss=()=>{},now=Date.now,id=crypto.randomUUID()})=>{
+globalThis.RecordingBuffer=({send,onError=()=>{},onRecovery=()=>{},onLoss=()=>{},now=Date.now,id=crypto.randomUUID(),epoch=()=>undefined})=>{
   let queue=[],pending=null,sending=false,sequence=0,retryAt=0,lostSeconds=0,stopped=false,drain=false;
   function add(event){
     if(stopped)return;
@@ -9,7 +9,7 @@ globalThis.RecordingBuffer=({send,onError=()=>{},onRecovery=()=>{},onLoss=()=>{}
   async function flush(force=false){
     if(force)drain=true;
     if(stopped||sending||now()<retryAt||(!pending&&queue.length<(drain?1:5)))return;
-    pending||={type:'events',recorderId:id,sequence:++sequence,events:queue.splice(0,100)};
+    pending||={type:'events',recorderId:id,sequence:++sequence,epoch:epoch(),events:queue.splice(0,100)};
     const batch=pending;sending=true;
     try{
       const reply=await send(batch);

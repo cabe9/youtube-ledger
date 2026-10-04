@@ -1,0 +1,30 @@
+html.vault-locked body > :not(#vault-entry) {display:none!important}
+#vault-entry {max-width:560px;margin:8vh auto;padding:32px;color:#e6f4ed;background:#162c23;border:1px solid #3f6654;border-radius:18px;font:16px/1.5 system-ui}
+#vault-entry * {box-sizing:border-box}
+#vault-entry h1 {font-size:30px;line-height:1.2;letter-spacing:-.02em;margin:24px 0 16px}
+#vault-entry .vault-brand {display:flex;align-items:center;gap:12px;font-weight:700}
+#vault-entry .vault-brand img {width:40px;height:40px}
+#vault-entry p {color:#c0d5c9;margin:14px 0}
+#vault-entry label {display:block;margin:16px 0 6px}
+#vault-entry input:not([type=checkbox]),#vault-entry textarea {display:block;width:100%;font:inherit;padding:12px;color:#edfff5;background:#102018;border:1px solid #749d86;border-radius:8px}
+#vault-entry button {font:600 16px system-ui;border:1px solid #70b38f;border-radius:8px;padding:12px 18px;background:#b7ebc9;color:#14281e;cursor:pointer;margin-top:18px}
+#vault-entry button:disabled {opacity:.6;cursor:wait}
+#vault-entry :focus-visible {outline:3px solid #b7ebc9;outline-offset:3px}
+#vault-entry [hidden] {display:none!important}
+#vault-entry .vault-error {color:#ffbcbc;white-space:pre-wrap}
+#vault-entry small {display:block;color:#a9c6b5;margin-top:20px}
+.vault-tools {display:flex;gap:12px;align-items:center;margin:0 0 24px;flex-wrap:wrap;padding-bottom:24px;border-bottom:1px solid var(--line,#749d86)}
+.vault-tools > h3,.vault-tools > p,.vault-browser-tools {flex-basis:100%;margin:0}
+.vault-browser-tools p {max-width:65ch;color:var(--muted);font-size:.9em}
+.vault-remember-tools {flex-basis:100%;border-top:1px solid var(--line,#749d86);padding-top:14px}
+.vault-remember-tools a {display:inline-block;margin:12px}
+#vault-entry summary {cursor:pointer;margin:14px 0;font-size:14px}
+#vault-entry .vault-access-choice {padding:0 16px 4px;margin:20px 0;background:#102018;border:1px solid #52745f;border-radius:10px}
+#vault-entry .vault-access-choice p {font-size:13px;line-height:1.5;margin:6px 0 14px}
+.vault-remember-tools p {font-size:.9em;color:var(--muted);max-width:65ch;margin:8px 0}
+#vault-remember-row small {margin-top:6px;font-size:13px}
+.vault-dialog {max-width:min(520px,90vw);padding:24px;color:var(--ink,#173627);background:var(--paper,#f7fcf8);border:1px solid var(--line,#abc);border-radius:12px}
+.vault-dialog label {display:block;margin:16px 0}
+.vault-dialog input:not([type=checkbox]) {display:block;max-width:100%;width:360px;margin-top:8px}
+.vault-dialog::backdrop {background:#0009}
+@media(max-width:620px){#vault-entry{margin:20px 12px;padding:24px}}

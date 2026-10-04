@@ -83,8 +83,19 @@
   }
   function openPicker(){
     if(disposed)return;close();const current=identity();if(!current)return;
+    let input=current;
+    if(globalThis.LedgerBuild?.rssOnly){
+      // Read only the current page's owner/header, never recommendation cards.
+      const watch=document.querySelector('ytd-watch-flexy'),videoId=new URL(current).searchParams.get('v');
+      const owner=videoId&&watch?.getAttribute('video-id')===videoId?watch.querySelector('#owner'):null;
+      const channelPage=!videoId?document.querySelector('ytd-browse[page-subtype="channels"]'):null;
+      const header=channelPage?.querySelector('yt-page-header-renderer, ytd-c4-tabbed-header-renderer');
+      const id=channelPage?.getAttribute('browse-id');
+      if(/^UC[A-Za-z0-9_-]{22}$/.test(id||''))input='https://www.youtube.com/channel/'+id;
+      else{const link=(owner||header)?.querySelector('a[href^="/channel/UC"], a[href^="https://www.youtube.com/channel/UC"]');if(link)input=link.href;}
+    }
     modal=document.createElement('div');modal.id='ledger-channel-groups-dialog';modal.dataset.ledgerTheme=theme;document.body.append(modal);
-    ChannelGroupsUI.picker(modal,current,()=>!disposed&&button.isConnected&&button.focus());
+    ChannelGroupsUI.picker(modal,input,()=>!disposed&&button.isConnected&&button.focus());
   }
   function navigationStart(){navigating=true;close();control?.remove();}
   function navigationFinish(){navigating=false;mount();}

@@ -5,7 +5,7 @@
   document.dispatchEvent(new Event(disposeEvent));
   document.querySelectorAll('#youtube-ledger-control').forEach(node=>node.remove());
   let disposed=false;
-  let shown = false, revealId = null, observed = false, enabled = false, host, button, note;
+  let shown = true, configured = false, settingsReady = false, recordingEpoch, revealId = null, observed = false, enabled = false, host, button, note;
   let preferences = Ledger.settings();
   let route = location.pathname + location.search;
   let destinationHome = null;
@@ -13,30 +13,32 @@
   const layoutResize=new ResizeObserver(alignWithSearch);
   const searchChanges=new MutationObserver(scheduleAlignment);
   const surfaces = 'ytd-browse[page-subtype="home"] ytd-rich-item-renderer, ytd-watch-flexy #related ytd-compact-video-renderer, ytd-watch-flexy #related yt-lockup-view-model, ytd-watch-next-secondary-results-renderer ytd-compact-video-renderer, .ytp-endscreen-content a, .ytp-ce-element, ytm-browse[tab-identifier="FEwhat_to_watch"] ytm-video-with-context-renderer, ytm-item-section-renderer[section-identifier="related-items"] ytm-video-with-context-renderer';
-  browser.storage.local.get(['paused','settings']).then(x => {if(disposed)return;enabled = !x.paused; applySettings(x.settings, true);});
+  browser.storage.local.get(['paused','settings','setup:v1','recordingEpoch']).then(x => {if(disposed)return;recordingEpoch=x.recordingEpoch;configured=x['setup:v1']?.complete===true;enabled = !x.paused;settingsReady=true;applySettings(x.settings, true);});
   function settingsChanged(changes) {
     if(disposed)return;
     if (changes.paused) enabled = !changes.paused.newValue;
+    if (changes.recordingEpoch) recordingEpoch=changes.recordingEpoch.newValue;
+    if (changes['setup:v1']) {configured=changes['setup:v1'].newValue?.complete===true;applySettings(preferences,true);}
     if (changes.settings) applySettings(changes.settings.newValue);
   }
   browser.storage.onChanged.addListener(settingsChanged);
   function applySettings(value, initial=false) {
     const next=Ledger.settings(value);
     if (initial || next.hideRecommendations !== preferences.hideRecommendations) {
-      shown=!next.hideRecommendations;revealId=null;observed=false;
+      shown=configured ? !next.hideRecommendations : true;revealId=null;observed=false;
     }
     preferences=next;
     mount();sync();
   }
   function resetVisibility() {
     if (!preferences.resetOnNavigate) return;
-    shown=!preferences.hideRecommendations;revealId=null;observed=false;sync();
+    shown=configured ? !preferences.hideRecommendations : true;revealId=null;observed=false;sync();
   }
   function emit(kind) {
-    if (!enabled) return;
+    if (!configured || !enabled) return;
     const u = new URL(location.href);
     const video = u.searchParams.get('v');
-    browser.runtime.sendMessage({type:'recommendation',event:{id:crypto.randomUUID(),revealId,kind,at:Date.now(),page:video ? '/watch?v='+encodeURIComponent(video) : u.pathname}}).catch(console.error);
+    browser.runtime.sendMessage({type:'recommendation',epoch:recordingEpoch,event:{id:crypto.randomUUID(),revealId,kind,at:Date.now(),page:video ? '/watch?v='+encodeURIComponent(video) : u.pathname}}).catch(console.error);
   }
   function visibleRecommendations() {
     return [...document.querySelectorAll(surfaces)].some(el => {
@@ -50,13 +52,15 @@
     });
   }
   function sync() {
+    // Manual visibility is a local page action, independent of recording consent.
+    // Automatic defaults and event collection still wait for completed setup.
     document.documentElement?.setAttribute('data-ledger-recommendations',shown ? 'shown' : 'hidden');
     guardHome();
     if (button) {
       const action=shown ? 'Hide recommendations' : 'Show recommendations';
-      button.setAttribute('aria-label',action);button.title=action;
+      button.setAttribute('aria-label',action);button.title=configured ? action : action+' · Tracking is paused until Ledger setup is complete.';
       button.setAttribute('aria-pressed',String(shown));
-      setNote(shown ? (preferences.resetOnNavigate ? 'Recommendations shown. Your default is restored on navigation.' : 'Recommendations shown. This choice stays for this tab until reload.') : 'Recommendations hidden');
+      setNote(!configured ? (shown ? 'Recommendations shown.' : 'Recommendations hidden.')+' Tracking is paused until you save your setup choices in Ledger.' : shown ? (preferences.resetOnNavigate ? 'Recommendations shown. Your default is restored on navigation.' : 'Recommendations shown. This choice stays for this tab until reload.') : 'Recommendations hidden');
     }
   }
   function setNote(text) {
@@ -64,7 +68,7 @@
   }
   function toggle() {
     shown = !shown;
-    if (shown) {revealId = crypto.randomUUID(); observed = false; emit('reveal');}
+    if (shown) {revealId = configured ? crypto.randomUUID() : null; observed = false; emit('reveal');}
     else {emit('hide');}
     sync();
   }
@@ -103,7 +107,7 @@
   }
   function mount() {
     if(disposed)return;
-    if (!preferences.showHeaderButton) {host?.remove();watchSearchLayout(null,null);return;}
+    if (!settingsReady || !preferences.showHeaderButton) {host?.remove();watchSearchLayout(null,null);return;}
     const center = document.querySelector('ytd-masthead #center');
     const search = center?.querySelector('yt-searchbox, ytd-searchbox, #search-form');
     const target = center || document.querySelector('ytd-masthead #start');
@@ -172,7 +176,7 @@
   function check() {
     if(disposed)return;
     navigation(); mount();
-    if (shown && revealId && !observed && enabled && document.hasFocus() && document.visibilityState==='visible' && visibleRecommendations()) {
+    if (configured && shown && revealId && !observed && enabled && document.hasFocus() && document.visibilityState==='visible' && visibleRecommendations()) {
       observed=true;emit('visible');
       setNote('Recommendations detected on screen.');
     } else if (shown && revealId && !observed) {

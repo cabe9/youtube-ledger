@@ -5,17 +5,17 @@ globalThis.UploadsPage=(()=>{
   const url=id=>'https://www.youtube.com/playlist?list='+playlistId(id)+'&hl=en';
   const text=value=>typeof value?.content==='string'?value.content:typeof value?.simpleText==='string'?value.simpleText:Array.isArray(value?.runs)?value.runs.map(r=>r.text||'').join(''):'';
   function publication(label,at){
-    const match=/^(?:(?:Streamed|Premiered)\s+)?(\d+)\s+(second|minute|hour|day|week|month|year)s? ago$/i.exec(label);
+    const match=/^(?:(?:Streamed|Premiered)\s+)?(\d+)\s*(second|minute|hour|day|week|month|year|sec|min|hr|mo|s|h|d|w|y)s?\s+ago$/i.exec(label.trim());
     if(!match)return;
-    const units={second:1000,minute:60000,hour:3600000,day:86400000,week:604800000,month:2629800000,year:31557600000};
+    const units={second:1000,sec:1000,s:1000,minute:60000,min:60000,hour:3600000,hr:3600000,h:3600000,day:86400000,d:86400000,week:604800000,w:604800000,month:2629800000,mo:2629800000,year:31557600000,y:31557600000};
     const value=at-Number(match[1])*units[match[2].toLowerCase()];
     return Number.isFinite(value)&&value>=0?value:undefined;
   }
   function views(label,checkedAt){
     if(/^No views$/i.test(label))return {count:0,checkedAt};
-    const match=/^([\d,]+(?:\.\d+)?)([KMB])? views?$/i.exec(label);
+    const match=/^([\d,]+(?:\.\d+)?)\s*(K|M|B|thousand|million|billion)?\s+views?$/i.exec(label.trim());
     if(!match)return;
-    const count=Math.round(Number(match[1].replaceAll(',',''))*({K:1e3,M:1e6,B:1e9}[match[2]?.toUpperCase()]||1));
+    const count=Math.round(Number(match[1].replaceAll(',',''))*({K:1e3,M:1e6,B:1e9,THOUSAND:1e3,MILLION:1e6,BILLION:1e9}[match[2]?.toUpperCase()]||1));
     return Number.isSafeInteger(count)&&count>=0?{count,checkedAt,...(match[2]?{approximate:true}:{})}:undefined;
   }
   function duration(label){
@@ -23,7 +23,7 @@ globalThis.UploadsPage=(()=>{
     const parts=label.split(':').map(Number);if(parts.slice(1).some(v=>v>=60))return;
     const value=parts.reduce((n,v)=>n*60+v,0);return value>0&&value<=604800?value:undefined;
   }
-  function parse(data,id,checkedAt=Date.now()){
+  function parseData(data,id,checkedAt=Date.now()){
     const expected=playlistId(id),header=data?.header?.playlistHeaderRenderer;
     const owner=data?.sidebar?.playlistSidebarRenderer?.items?.find(v=>v.playlistSidebarSecondaryInfoRenderer)?.playlistSidebarSecondaryInfoRenderer?.videoOwner?.videoOwnerRenderer;
     if(!channelPattern.test(id)||header?.playlistId!==expected||owner?.navigationEndpoint?.browseEndpoint?.browseId!==id)throw Error('Could not verify this channel’s uploads page.');
@@ -44,14 +44,24 @@ globalThis.UploadsPage=(()=>{
     const entries=[];
     for(const block of blocks.slice(0,100)){
       const item=block.lockupViewModel,legacy=block.playlistVideoRenderer;
-      let videoId,title,labels,badges,command,owners;
+      let videoId,title,labels,badges,command,owners,collaborators=[];
       if(item){
         if(item.contentType!=='LOCKUP_CONTENT_TYPE_VIDEO')continue;
         videoId=item.contentId;const metadata=item.metadata?.lockupMetadataViewModel;
         title=text(metadata?.title);
         const parts=metadata?.metadata?.contentMetadataViewModel?.metadataRows?.flatMap(r=>r.metadataParts||[])||[];
-        labels=parts.map(p=>text(p.text));
+        // Compact cards can show "2w ago" / "3.5K" while their accessibility
+        // labels retain "2 weeks ago" / "3.5 thousand views".
+        labels=parts.flatMap(p=>[typeof p.accessibilityLabel==='string'?p.accessibilityLabel:'',text(p.text)]);
         owners=parts.flatMap(p=>p.text?.commandRuns||[]).map(r=>r.onTap?.innertubeCommand?.browseEndpoint?.browseId).filter(Boolean);
+        // Some cards omit the text byline but keep a verified channel endpoint
+        // on their own avatar. Never infer ownership from a name or other cards.
+        const avatarOwner=metadata?.image?.decoratedAvatarViewModel?.rendererContext?.commandContext?.onTap?.innertubeCommand?.browseEndpoint?.browseId;
+        if(avatarOwner)owners.push(avatarOwner);
+        // Collaboration cards use an inline participant dialog instead of a byline.
+        // Only this card's explicit channel endpoints count; never search arbitrary page data.
+        const list=metadata?.image?.avatarStackViewModel?.rendererContext?.commandContext?.onTap?.innertubeCommand?.showDialogCommand?.panelLoadingStrategy?.inlineContent?.dialogViewModel?.customContent?.listViewModel?.listItems;
+        collaborators=(Array.isArray(list)?list:[]).map(v=>v.listItemViewModel?.rendererContext?.commandContext?.onTap?.innertubeCommand?.browseEndpoint?.browseId).filter(v=>channelPattern.test(v||''));
         command=item.rendererContext?.commandContext?.onTap?.innertubeCommand?.watchEndpoint;
         badges=(item.contentImage?.thumbnailViewModel?.overlays||[]).flatMap(v=>v.thumbnailBottomOverlayViewModel?.badges||[]).map(v=>v.thumbnailBadgeViewModel?.text||'');
       }else{
@@ -61,7 +71,8 @@ globalThis.UploadsPage=(()=>{
         owners=(legacy.shortBylineText?.runs||[]).map(r=>r.navigationEndpoint?.browseEndpoint?.browseId).filter(Boolean);
         command=legacy.navigationEndpoint?.watchEndpoint;badges=[text(legacy.lengthText)];
       }
-      if(!videoPattern.test(videoId)||command?.videoId!==videoId||command.playlistId!==expected||!owners.length||owners.some(v=>v!==id))throw Error('An upload did not match the requested channel.');
+      if(!videoPattern.test(videoId)||command?.videoId!==videoId||command.playlistId!==expected||owners.some(v=>v!==id))throw Error('An upload did not match the requested channel.');
+      if(!owners.length&&!collaborators.includes(id))throw Error('Could not verify an upload’s channel from YouTube’s page data.');
       if(!title.trim())continue;
       const age=labels.find(label=>publication(label,checkedAt)!==undefined),publishedAt=publication(age||'',checkedAt);
       // Missing dates are not zero or today's date. Cached copies are retained by the caller.
@@ -71,13 +82,25 @@ globalThis.UploadsPage=(()=>{
       entries.push({videoId,channelId:id,channel,title:title.trim().slice(0,500),publishedAt,publishedAtEstimated:true,...(count?{views:count}:{}),...(details?{details}:{})});
       if(entries.length===30)break;
     }
-    if(!entries.length)throw Error('YouTube did not provide dated uploads on this page.');
+    if(!entries.length)throw Error('Ledger could not read upload dates from this YouTube page. Cached videos are kept.');
     return [...new Map(entries.map(v=>[v.videoId,v])).values()];
   }
+  function parse(data,id,checkedAt=Date.now()){
+    try{return parseData(data,id,checkedAt);}
+    catch(error){error.youtubeFailure='unreadable-page';throw error;}
+  }
+  function pageData(html){
+    const data=ChannelGroups.assignedJSON(html,'ytInitialData');
+    if(data)return data;
+    // Positive challenge evidence, not words found in titles or descriptions.
+    if(/<form[^>]+action=["'][^"']*(?:google\.com\/sorry|\/sorry\/)/i.test(html)||(/<title>[^<]*(?:Sorry|unusual traffic)/i.test(html)&&/g-recaptcha|recaptcha\/api/i.test(html)))
+      throw Object.assign(Error('YouTube returned an automated-traffic challenge. Checks are paused; open YouTube normally to review it.'),{youtubeFailure:'challenge'});
+    return null;
+  }
   async function read(response){
-    if(!response.body?.getReader){const html=await response.text();if(html.length>8000000)throw Error('The uploads page was too large.');return ChannelGroups.assignedJSON(html,'ytInitialData');}
+    if(!response.body?.getReader){const html=await response.text();if(html.length>8000000)throw Error('The uploads page was too large.');return pageData(html);}
     const reader=response.body.getReader(),decoder=new TextDecoder();let html='',bytes=0;
-    try{while(true){const {value,done}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>8000000)throw Error('The uploads page was too large.');html+=decoder.decode(value,{stream:true});const data=ChannelGroups.assignedJSON(html,'ytInitialData');if(data)return data;}}
+    try{while(true){const {value,done}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>8000000)throw Error('The uploads page was too large.');html+=decoder.decode(value,{stream:true});const data=pageData(html);if(data)return data;}}
     finally{await reader.cancel().catch(()=>{});}
     return null;
   }

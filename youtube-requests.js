@@ -6,7 +6,7 @@ globalThis.YouTubeRequests = (() => {
     const pausedUntil=state.pausedUntil>Date.now()?state.pausedUntil:0;
     if(!pausedUntil)return {pausedUntil:0,pauseScope:'all',pauseReason:'unknown',pauseMessage:''};
     const time=new Date(pausedUntil).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
-    const reason={'feed-failures':'Several channel upload feeds failed.','feed-not-found':'Three channel upload checks returned HTTP 404 without a successful upload check.','http-403':'YouTube returned HTTP 403.','http-429':'YouTube returned HTTP 429.','retry-after':'YouTube asked Ledger to wait before retrying.'}[state.pauseReason]||'A previous cooldown is still active.';
+    const reason={'feed-failures':'Several channel upload feeds failed.','feed-not-found':'Three channel upload checks returned HTTP 404 without a successful upload check.','http-403':'YouTube returned HTTP 403.','http-429':'YouTube returned HTTP 429.','retry-after':'YouTube asked Ledger to wait before retrying.','challenge':'YouTube returned an automated-traffic challenge.'}[state.pauseReason]||'A previous cooldown is still active.';
     const pauseMessage=(state.pauseScope==='automatic'?'Automatic ':'')+'YouTube checks are paused until '+time+'. '+reason+(state.pauseScope==='automatic'?' You can still add channels manually.':'');
     return {pausedUntil,pauseScope:state.pauseScope,pauseReason:state.pauseReason,pauseMessage};
   }
@@ -19,7 +19,7 @@ globalThis.YouTubeRequests = (() => {
       // the new thresholds. An already active cooldown still keeps its scope.
       const failures=Array.isArray(saved.failures)?saved.failures.filter(v=>v&&typeof v.id==='string'&&Number.isFinite(v.at)&&v.at<=now&&now-v.at<300000&&Number.isInteger(v.status)&&v.status>=0&&v.status<600):[];
       state={lastFeedSuccessAt:Math.min(time(saved.lastFeedSuccessAt),now),lastStartedAt:Math.min(time(saved.lastStartedAt),now),pausedUntil:time(saved.pausedUntil),level:Math.min(4,Math.max(0,Number(saved.level)||0)),failures:[...new Map(failures.map(v=>[v.id,v])).values()].slice(-6),successes:0};
-      state.pauseReason=['feed-failures','feed-not-found','http-403','http-429','retry-after'].includes(saved.pauseReason)?saved.pauseReason:'unknown';
+      state.pauseReason=['feed-failures','feed-not-found','http-403','http-429','retry-after','challenge'].includes(saved.pauseReason)?saved.pauseReason:'unknown';
       // Older cooldowns have no recorded cause, so keep their original scope.
       state.pauseScope=saved.pauseScope==='automatic'&&['feed-failures','feed-not-found'].includes(state.pauseReason)?'automatic':'all';
     })();
@@ -45,20 +45,23 @@ globalThis.YouTubeRequests = (() => {
       }
       return;
     }
+    if(error.name==='LedgerConsentError'||error.name==='AbortError')return;
     // An eligible RSS failure has one paced uploads-page fallback. Count the
     // completed channel check toward the failure guard; explicit refusals still stop immediately.
     if(options.deferFeedFailure&&globalThis.UploadsPage?.eligible(error))return;
+    // A parser limitation is local to one channel, not evidence of server overload.
+    if(error.youtubeFailure==='unreadable-page')return;
     state.successes=0;
     if(options.kind==='feed'&&typeof options.id==='string')state.failures.push({id:options.id,at:now,status:error.youtubeStatus||0});
     const missingFeeds=state.failures.filter(v=>v.status===404).length;
     const failedRun=state.failures.filter(v=>v.at>state.lastFeedSuccessAt);
-    const serverPause=error.youtubeStatus===403||error.youtubeStatus===429||error.retryAfter>now;
+    const serverPause=error.youtubeFailure==='challenge'||error.youtubeStatus===403||error.youtubeStatus===429||error.retryAfter>now;
     if(serverPause||state.failures.length-missingFeeds>=3||failedRun.length>=3){
       const delay=Math.min(2*3600000,15*60000*2**state.level);
       state.level=Math.min(4,state.level+1);
       state.pausedUntil=Math.max(now+delay,error.retryAfter||0);
       state.pauseScope=serverPause?'all':'automatic';
-      state.pauseReason=error.youtubeStatus===403?'http-403':error.youtubeStatus===429?'http-429':serverPause?'retry-after':failedRun.length>=3&&failedRun.every(v=>v.status===404)?'feed-not-found':'feed-failures';
+      state.pauseReason=error.youtubeFailure==='challenge'?'challenge':error.youtubeStatus===403?'http-403':error.youtubeStatus===429?'http-429':serverPause?'retry-after':failedRun.length>=3&&failedRun.every(v=>v.status===404)?'feed-not-found':'feed-failures';
       state.failures=[];error.retryAfter=state.pausedUntil;
     }
   }
@@ -100,13 +103,23 @@ globalThis.YouTubeRequests = (() => {
         await save();
         // Storage/logging can delay dispatch. Start the next spacing interval
         // from the actual fetch, not from the earlier bookkeeping.
-        const fetchRequest=(url,init)=>{
+        const operation=async consentSignal=>{
+        const fetchRequest=async(url,init)=>{
+          if(globalThis.LedgerConnections)await LedgerConnections.assert();
+          if(globalThis.LedgerBuild?.rssOnly){
+            const target=new URL(url);
+            if(target.origin!=='https://www.youtube.com'||target.username||target.password||target.pathname!=='/feeds/videos.xml'||target.hash||[...target.searchParams.keys()].join(',')!=='channel_id'||!/^UC[A-Za-z0-9_-]{22}$/.test(target.searchParams.get('channel_id')||''))throw new Error('This preview only makes RSS upload requests.');
+            // Do not follow a feed redirect to an HTML page, even on YouTube.
+            init={...init,credentials:'omit',redirect:'error'};
+          }
           // Start upload deadlines at dispatch, after diagnostic/storage writes.
           // The signal also covers reading the response body.
           const signal=job.options.timeoutMs?AbortSignal.timeout(job.options.timeoutMs):init?.signal;
-          state.lastStartedAt=Date.now();return globalThis.fetch(url,signal?{...init,signal}:init);
+          state.lastStartedAt=Date.now();return globalThis.fetch(url,{...init,credentials:'omit',redirect:'error',signal:globalThis.LedgerConnections?LedgerConnections.combineSignals(signal,consentSignal):signal});
         };
-        const value=await (globalThis.YouTubeRequestLog?YouTubeRequestLog.run(job.operation,job.options,fetchRequest):job.operation(fetchRequest));record(null,job.options);await save();job.resolve(value);
+        return await (globalThis.YouTubeRequestLog?YouTubeRequestLog.run(job.operation,job.options,fetchRequest):job.operation(fetchRequest));
+        };
+        const value=await (globalThis.LedgerConnections?LedgerConnections.run(operation):operation());record(null,job.options);await save();job.resolve(value);
       }catch(error){record(error,job.options);await save().catch(()=>{});job.reject(error);}
     }catch(error){for(const job of queue.splice(0))job.reject(error);}
     finally{busy=false;if(queue.length&&!timer)wake();}

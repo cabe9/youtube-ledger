@@ -56,6 +56,9 @@ h1{margin:0}h2{margin:0 0 8px}
 .note{margin:18px 0 30px;max-width:1000px;color:var(--muted);font-size:13px}
 .review{border:1px solid}.review p{color:var(--muted)}
 .actions{display:flex;gap:10px;grid-column:1/-1}
+.watch-status-actions{align-items:center;flex-wrap:wrap;margin-top:16px}
+.watch-status-actions .note{margin:0;flex:1 1 260px}
+.watch-status-actions button{flex-shrink:0}
 .table-wrap{overflow-x:auto;border:1px solid}
 table{border-collapse:collapse;width:100%;text-align:left}
 th{font-weight:500;white-space:nowrap}
@@ -455,3 +458,103 @@ a.ledger-channel:hover span:last-child{text-decoration:underline}
   :root .source-options{font-size:10px;padding-bottom:20px}
   :root .source-options label{font-size:10px}
 }
+
+/* Local setup and data controls share the current theme. */
+.setup-panel{margin:24px 0;border:2px solid var(--accent);scroll-margin-top:20px}
+.setup-panel:focus{outline:3px solid var(--accent);outline-offset:4px}
+.setup-panel p{max-width:78ch}
+#storage-meter{display:block;width:min(100%,560px);height:18px;margin:12px 0}
+.data-control-row{display:flex;flex-wrap:wrap;gap:14px;align-items:end;margin:18px 0}
+.data-control-row label{display:grid;gap:6px}
+.data-actions{flex-wrap:wrap;gap:10px}
+.data-warning{padding:12px;border:1px solid currentColor;border-radius:8px}
+#notes-status{display:block;white-space:normal}
+@media(max-width:520px){.data-control-row>*{width:100%}.data-actions button{width:100%}}
+/* Pairing codes need a full-width field on narrow Settings pages. */
+#local-sync-code{display:block;width:100%;max-width:36rem;box-sizing:border-box;margin:8px 0 16px;font:inherit}
+
+/* Settings use readable text, consistent spacing, and optional diagnostics. */
+:root [data-view="settings"]{max-width:1080px;margin-inline:auto}
+:root [data-view="settings"] .settings-panel{margin-top:16px}
+:root [data-view="settings"] .settings-block{padding:24px;margin-top:24px;font-size:14px}
+:root [data-view="settings"] .settings-block h3{font-size:17px}
+:root [data-view="settings"] .settings-block p{line-height:1.6;max-width:78ch}
+:root [data-view="settings"] .note,:root [data-view="settings"] .setting small{font-size:13px;line-height:1.6}
+:root [data-view="settings"] .settings-panel form{max-width:none;font-size:14px}
+:root [data-view="settings"] .actions{flex-wrap:wrap;align-items:center;gap:10px}
+:root [data-view="settings"] h3{margin-top:0}
+:root [data-view="settings"] details>summary{cursor:pointer;font-weight:600;padding:12px 0}
+.settings-diagnostics{margin-top:24px;border:1px solid var(--line);border-radius:14px;padding:8px 24px;background:var(--panel)}
+:root .settings-diagnostics #request-log{margin:0;padding:16px 0;border:0}
+.sync-choices{display:flex;flex-wrap:wrap;gap:12px}
+:root .sync-choices button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+#local-sync input{display:block;width:100%;max-width:36rem;margin:8px 0 16px;font:inherit}
+.sync-command{display:block;overflow-wrap:anywhere;padding:12px;border:1px solid var(--line);border-radius:6px}
+.sync-details{margin-top:18px}
+#local-sync-message:empty{display:none}
+@media(max-width:520px){:root [data-view="settings"] .settings-block{padding:18px}.sync-choices>*{flex:1 1 180px}:root #local-sync .actions button{width:100%}}
+
+/* Connection health is a compact utility row above the active view. */
+:root .youtube-connection{display:flex;align-items:center;flex-wrap:wrap;gap:12px 24px;padding:16px 20px;margin:24px 0 32px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+:root .youtube-connection-copy{flex:1 1 320px;min-width:0}
+:root #youtube-access-heading{display:flex;align-items:center;gap:8px;margin:0 0 5px;font-size:13px;font-weight:600;letter-spacing:0;line-height:1.4}
+:root #youtube-access-status{margin:0;color:var(--muted);font-size:13px;line-height:1.55;max-width:85ch}
+:root .connection-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0}
+:root .youtube-connection[data-state="connected"] .connection-dot{background:var(--audio)}
+:root .youtube-connection[data-state="attention"] .connection-dot{background:var(--reveals)}
+:root .youtube-connection-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+:root .youtube-connection-actions button{padding:9px 13px;font-size:12px;line-height:1.4;white-space:normal}
+:root #youtube-access-result{flex-basis:100%;font-size:13px;line-height:1.55;margin:0;padding-top:12px;border-top:1px solid var(--line)}
+:root #youtube-access-result:empty{display:none}
+@media(max-width:520px){:root .youtube-connection{padding:14px 16px;gap:12px;margin:18px 0 24px}:root .youtube-connection-copy{flex-basis:100%}}
+
+/* Routine connection controls live in Settings; other views show only issues. */
+:root:has([data-view="settings"]:not([hidden])) #youtube-connection-notice{display:none}
+:root #youtube-connection-notice{border-color:var(--control-border)}
+:root #youtube-connection-notice-text{flex:1 1 320px;margin:0;font-size:13px;line-height:1.55;color:var(--muted)}
+:root #youtube-connection-notice a{font-size:13px;font-weight:600;color:var(--accent);white-space:nowrap}
+/* Settings categories share one content area, with quiet section dividers. */
+:root [data-view="settings"]{max-width:1120px}
+:root .settings-intro{max-width:78ch;margin:8px 0 28px;font-size:13px;line-height:1.6;color:var(--muted)}
+:root .settings-workspace{display:grid;grid-template-columns:210px minmax(0,1fr);gap:42px;align-items:start;border-top:1px solid var(--line);padding-top:24px}
+:root .settings-sidebar{position:sticky;top:20px;min-width:0}
+:root .settings-tabs{display:flex;flex-direction:column;gap:4px}
+:root .settings-tabs button{display:block;text-align:left;background:transparent;color:var(--ink);border:1px solid transparent;border-radius:8px;padding:13px 14px;line-height:1.4;font-size:14px;position:relative}
+:root .settings-tabs button small{display:block;color:var(--muted);font-size:11px;font-weight:400;margin-top:4px}
+:root .settings-tabs button:hover{background:var(--row-hover)}
+:root .settings-tabs button[aria-selected="true"]{background:var(--panel);border-color:var(--line);color:var(--accent)}
+:root .settings-tabs button[aria-selected="true"]::before{content:"";position:absolute;left:-1px;top:14px;bottom:14px;width:3px;background:var(--accent);border-radius:2px}
+:root .settings-tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+:root .settings-help{display:flex;flex-direction:column;gap:10px;margin:28px 14px;font-size:11px;color:var(--muted)}
+:root .settings-content{min-width:0}
+:root .settings-page{outline:none;min-width:0}
+:root .settings-page:focus-visible{outline:2px solid var(--accent);outline-offset:6px}
+:root [data-view="settings"] .settings-page>.settings-section,:root [data-view="settings"] .settings-page>.settings-block{margin:0;padding:0 0 28px;border:0;border-radius:0;background:transparent;font-size:14px}
+:root [data-view="settings"] .settings-page>.settings-section+*,:root [data-view="settings"] .settings-page>.settings-block+*{border-top:1px solid var(--line);padding-top:26px}
+:root [data-view="settings"] .settings-page h3{font-size:18px;font-weight:600;margin:0 0 6px}
+:root .settings-description{font-size:13px;color:var(--muted);line-height:1.6;margin:0 0 8px}
+:root .settings-page .setting{margin:0;padding:18px 0;border-bottom:1px solid var(--line);align-items:flex-start;font-size:14px;line-height:1.5}
+:root .settings-page .setting:last-child{border-bottom:0;padding-bottom:0}
+:root .settings-page .setting input[type="checkbox"]{margin-top:3px}
+:root .settings-page .setting:has(select){align-items:center;justify-content:space-between}
+:root .settings-page .setting small{font-size:12px;line-height:1.6;max-width:72ch}
+:root .settings-page textarea{margin:12px 0;min-height:104px;font-size:13px;line-height:1.6}
+:root .settings-page .review-preference-label{font-size:0}
+:root .settings-page .note{font-size:12px;margin:12px 0;line-height:1.6}
+:root .settings-page .actions{margin-top:14px}
+:root .settings-feedback{font-size:12px;color:var(--muted);min-height:20px;margin-top:8px}
+:root .settings-page .settings-diagnostics{margin:0 0 26px;border:0;border-radius:0;padding:0;background:transparent}
+:root .settings-page .settings-diagnostics>summary{font-size:14px}
+@media(max-width:760px){
+ :root .settings-workspace{grid-template-columns:minmax(0,1fr);gap:24px;padding-top:16px}
+ :root .settings-sidebar{position:static}
+ :root .settings-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+ :root .settings-tabs button{padding:11px 6px;text-align:center;font-size:12px}
+ :root .settings-tabs button small{display:none}
+ :root .settings-tabs button[aria-selected="true"]::before{left:12px;right:12px;top:auto;bottom:0;height:2px;width:auto}
+ :root .settings-help{flex-direction:row;margin:16px 0 0;gap:18px}
+ :root .settings-intro{margin-bottom:16px}
+}
+.setup-connection {margin-top:24px;padding-top:20px;border-top:1px solid var(--line)}
+.setup-connection h3 {margin:0 0 8px}
+.setup-connection p {color:var(--muted)}

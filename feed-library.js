@@ -66,9 +66,12 @@ globalThis.FeedLibrary=(()=>{
     });
     function matches(e){return !query||(e.title+' '+e.channel).toLocaleLowerCase().includes(query);}
   }
-  function newCount(entries,preferences,now=Date.now()){
+  function isNewSinceVisit(entry,since,progress,now=Date.now()){
+    return !!since&&entry?.publishedAt>since&&entry.publishedAt<=now&&WatchStatus.state(WatchStatus.entry(progress,entry.videoId))==='unwatched';
+  }
+  function newCount(entries,preferences,now=Date.now(),progress){
     const since=preferences?.lastVisitedAt;if(!since)return 0;const hidden=new Set(preferences.hidden||[]),channels=new Set(preferences.hiddenChannels||[]);
-    return entries.filter(e=>e.publishedAt>since&&e.publishedAt<=now&&!hidden.has(e.videoId)&&!channels.has(e.channelId)).length;
+    return entries.filter(e=>isNewSinceVisit(e,since,progress,now)&&!hidden.has(e.videoId)&&!channels.has(e.channelId)).length;
   }
   function shuffle(entries,random=Math.random){const result=[...entries];for(let i=result.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[result[i],result[j]]=[result[j],result[i]];}return result;}
   async function handle(message,sender){
@@ -127,5 +130,10 @@ globalThis.FeedLibrary=(()=>{
       const undoToken=await LedgerUndo.record([{key,path:['groups',group.id,'hidden'],before,after:prefs.hidden}]);await browser.storage.local.set({[key]:state});return {ok:true,undoToken};
     });
   }
-  return {key,newViewId,newEntries,isArrival,returnLabel,metric,visible,newCount,shuffle,handle};
+  function freshness(channels,now=Date.now()){
+    const checked=channels.filter(c=>Number.isFinite(c.fetchedAt)&&c.fetchedAt>0),failed=channels.filter(c=>c.error).length;
+    const recent=checked.filter(c=>now-c.fetchedAt<86400000).length;
+    return {total:channels.length,checked:checked.length,recent,earlier:checked.length-recent,missing:channels.length-checked.length,failed,oldest:checked.length?Math.min(...checked.map(c=>c.fetchedAt)):null,latest:checked.length?Math.max(...checked.map(c=>c.fetchedAt)):null};
+  }
+  return {key,newViewId,newEntries,isArrival,isNewSinceVisit,returnLabel,metric,visible,newCount,shuffle,handle,freshness};
 })();

@@ -7,20 +7,20 @@ import shutil
 from zipfile import ZipFile, ZIP_DEFLATED
 
 ROOT = Path(__file__).resolve().parent
-FILES = ['LICENSE', 'compat.js', 'core.js', 'background.js', 'content.js',
+FILES = ['docs/privacy.html', 'vendor/purify.js', 'vendor/DOMPurify-LICENSE', 'vendor/README.md', 'sync-model.js', 'local-sync.js', 'local-sync-ui.js', 'youtube-access.js', 'youtube-access-ui.js', 'LICENSE', 'connections.js', 'connections-ui.js', 'compat.js', 'core.js', 'background.js', 'content.js',
          'request-log.js', 'request-log-ui.js', 'youtube-requests.js', 'media-ui.js', 'group-icons.js', 'channel-groups.js', 'group-sharing.js', 'groups-ui.js', 'groups-content.js', 'groups-dashboard.js',
          'uploads-page.js', 'group-feeds.js', 'groups-feed.js', 'watch-source.js', 'watch-later-content.js',
          'recommendations.js', 'recommendations.css', 'dashboard.html',
          'dashboard.css', 'frutiger-aero.css', 'settings.js', 'trends.js', 'dashboard.js',
          'retrowave.svg', 'retrowave-animated.svg']
-FILES += ['watch-evidence.js', 'watch-evidence-content.js', 'watch-evidence-ui.js', 'recording.js', 'recording-buffer.js', 'recording-ui.js', 'ledger-undo.js', 'undo-ui.js', 'feed-library.js', 'group-queue.js', 'queue-content.js', 'review-period.js', 'ledger-storage.js', 'watch-status.js', 'source-contexts.js', 'backup.js', 'backup-ui.js', 'gif-codec.js', 'gif-resize.js', 'THIRD-PARTY-LICENSES.txt']
+FILES += ['watch-evidence.js', 'watch-evidence-content.js', 'watch-evidence-ui.js', 'recording.js', 'recording-buffer.js', 'recording-ui.js', 'ledger-undo.js', 'undo-ui.js', 'feed-library.js', 'group-queue.js', 'queue-content.js', 'review-period.js', 'ledger-storage.js', 'data-controls.js', 'data-controls-ui.js', 'note-saver.js', 'notes-ui.js', 'watch-status.js', 'source-contexts.js', 'backup.js', 'backup-ui.js', 'gif-codec.js', 'gif-resize.js', 'THIRD-PARTY-LICENSES.txt']
 FILES += ['icons/logo.svg'] + [f'icons/icon-{n}.png' for n in [16,32,48,64,128,256]]
 FILES += ['assets/frutiger-aero/water-desktop.png', 'assets/frutiger-aero/skyline-desktop.png', 'assets/frutiger-aero/landscape-mobile.png',
           'assets/frutiger-aero/foliage-left.png', 'assets/frutiger-aero/foliage-right.png']
 
 
 def build(channel='store'):
-    if channel not in {'store', 'experimental'}:
+    if channel not in {'store', 'experimental', 'rss-preview'}:
         raise ValueError('Unknown build channel')
     source = json.loads((ROOT / 'manifest.json').read_text())
     for browser in ['chrome', 'firefox']:
@@ -36,23 +36,42 @@ def build(channel='store'):
             extension = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(extension)
             files, manifest = extension.extend(files, manifest, browser)
+        if channel == 'rss-preview':
+            manifest['name'] = 'YouTube Ledger RSS Preview'
+            manifest['description'] = 'Local preview: RSS upload feeds with no background YouTube HTML lookups.'
+            if browser == 'firefox':
+                manifest['browser_specific_settings']['gecko']['id'] = 'youtube-ledger-rss-preview@local.example'
+            # Bundled, immutable policy in every context, never a storage preference.
+            files['compat.js'] = b"Object.defineProperty(globalThis,'LedgerBuild',{value:Object.freeze({rssOnly:true})});\n" + files['compat.js']
+            files.pop('uploads-page.js')
+            if browser == 'chrome':
+                files['service-worker.js'] = files['service-worker.js'].replace(b"'uploads-page.js',", b'')
+            else:
+                manifest['background']['scripts'].remove('uploads-page.js')
+            files['dashboard.html'] = files['dashboard.html'].replace(b'<main>', b'<main><aside role="note"><strong>RSS preview</strong><p>Upload checks use RSS. Failed checks keep cached videos. Background page lookups are disabled; some channel names, portraits, durations and Shorts classifications may be unavailable. History in this preview is not encrypted.</p></aside>', 1)
         if browser == 'firefox': files.pop('service-worker.js')
         install = ('Chrome: unzip this archive into a permanent folder. Open chrome://extensions, '
                    'enable Developer mode, click Load unpacked, and select this folder. '
                    'Pin YouTube Ledger from the extensions menu, then refresh YouTube. '
                    'For updates, replace files in the SAME folder and click Reload.\n'
                    if browser == 'chrome' else
-                   'Firefox: open about:debugging#/runtime/this-firefox, click Load Temporary '
+                   'Firefox development ZIP (not a signed installer): open about:debugging#/runtime/this-firefox, click Load Temporary '
                    'Add-on, and select manifest.json. Refresh YouTube. This temporary install '
                    'ends at browser restart; a durable install needs Mozilla signing.\n')
-        install += ('\nNo viewing history is included. Data stays in this browser profile; '
-                    'Chrome and Firefox keep separate Ledger databases. Export data before '
+        install += ('\nAllow Ledger to always run on YouTube in your browser extension permissions. '
+                    'Refresh already-open YouTube tabs after granting access. Open the Ledger dashboard '
+                    'and look for Tracking N tabs in the header. Connection help appears in Settings when access needs attention.\n')
+        install += ('\nNo viewing history is included. History and notes are stored in this browser profile. '
+                    'Optional YouTube connections transmit video/channel identifiers and image requests after permission in Settings. '
+                    'Chrome and Firefox keep separate local databases; optional Mac companion sync can exchange selected records after a separate opt-in. Export data before '
                     'uninstalling. This package has not been published to a store.\n')
         if channel == 'experimental':
             install = 'EXPERIMENTAL — GitHub distribution only. Do not submit to a browser store.\nSee EXPERIMENTAL.md.\n\n' + install
+        if channel == 'rss-preview':
+            install = 'RSS PREVIEW — local evaluation only. Not ready for Store submission.\nInstall from this separate folder to keep your main Ledger data separate.\nHistory is NOT encrypted. API keys and background HTML lookups are disabled.\n\n' + install
         files['INSTALL.txt'] = install.encode()
         files['manifest.json'] = (json.dumps(manifest, indent=2) + '\n').encode()
-        folder = ROOT / 'dist' / browser if channel == 'store' else ROOT / 'dist' / 'experimental' / browser
+        folder = ROOT / 'dist' / browser if channel == 'store' else ROOT / 'dist' / channel / browser
         # Remove stale files from previous releases/channels before writing anything.
         if folder.exists(): shutil.rmtree(folder)
         folder.mkdir(parents=True)
@@ -67,5 +86,5 @@ def build(channel='store'):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--channel', choices=['store', 'experimental'], default='store')
+    parser.add_argument('--channel', choices=['store', 'experimental', 'rss-preview'], default='store')
     build(parser.parse_args().channel)

@@ -11,13 +11,14 @@
   }
   function lockControls(){
     busy=true;++selectionRevision;
-    const controls=[...document.querySelectorAll('#settings-form input,#settings-form select,#settings-form textarea,#settings-form button'),...section.querySelectorAll('button,input')].map(input=>[input,input.disabled]);
+    const controls=[...document.getElementById('settings-form').elements,...section.querySelectorAll('button,input')].map(input=>[input,input.disabled]);
     for(const [input] of controls)input.disabled=true;
     return ()=>{for(const [input,disabled] of controls)input.disabled=disabled;busy=false;};
   }
   async function exportFull(prefix='youtube-ledger-backup'){
     // Include settings changes already submitted before the transfer started.
     await settingsSaveQueue;
+    await globalThis.LedgerNotesUI?.flush();
     const backup=await request({type:'backup:export'});
     download(prefix+'-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json',JSON.stringify(backup),'application/json');
   }
@@ -59,6 +60,7 @@
     try{
       await exportFull('youtube-ledger-before-restore');
       await request({type:'backup:restore',backup});
+      await globalThis.LedgerNotesUI?.reset();
       chosen=null;preview.hidden=true;note.textContent='Profile imported. Refresh open YouTube and Ledger tabs to use it.';
       const data=await browser.storage.local.get('settings');fillSettings(data.settings);await render();
     }catch(e){note.textContent=e.message;}

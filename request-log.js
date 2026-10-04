@@ -106,7 +106,7 @@ globalThis.YouTubeRequestLog=(()=>{
         await change(()=>{
           // Clearing the log during an active request must not restore it.
           if(state!==logState)return;
-          Object.assign(entry,{result,status:entry.status,ms:Math.max(0,finishedAt-(entry.sentAt??entry.at))});remember(entry);
+          Object.assign(entry,{...(failed&&['unreadable-page','challenge'].includes(failure.youtubeFailure)?{diagnostic:failure.youtubeFailure,detail:String(failure.message).slice(0,300)}:{}),result,status:entry.status,ms:Math.max(0,finishedAt-(entry.sentAt??entry.at))});remember(entry);
           // Aggregate results survive the recent-row limit, but do not recreate
           // an expired day if a request was interrupted for longer than a week.
           if(!state.sources.days[day(entry.at)])return;

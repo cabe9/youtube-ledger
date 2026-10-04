@@ -97,7 +97,7 @@
     .compact{padding:16px 3px;display:grid;justify-items:center;gap:9px;border-radius:10px;font-size:10px;background:transparent}
     .compact:hover{background:#8882}.new-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:0 0 6px}
   `;
-  const feedCss=`:host{display:block!important;box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:none!important;align-self:stretch!important;color:var(--ink)!important;background:var(--page-bg)!important;font:14px/1.45 Roboto,Arial,sans-serif!important;padding:28px 32px!important;min-height:calc(100vh - 64px)!important}*{box-sizing:border-box}a{color:inherit;text-decoration:none}a:hover{text-decoration:underline}button,select{font:inherit;color:inherit}button,select{background:var(--group-control-bg);border:1px solid var(--control-border);padding:9px 13px;border-radius:9px}button{cursor:pointer}button:hover{background:var(--control-hover)}button:disabled{opacity:.6;cursor:wait}button:focus-visible,a:focus-visible,summary:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:3px}h1{font-size:28px;line-height:1.2;overflow-wrap:anywhere;margin:0 0 8px}header{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap;margin-bottom:18px}.heading{min-width:0;flex:1}.group-title{display:flex;align-items:center;gap:12px}.group-title>span:last-child{min-width:0}.directory-label{display:flex;align-items:center;gap:14px;min-width:0}.directory-label>span:last-child{min-width:0}.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.sort{color:var(--quiet);white-space:nowrap;font-size:13px;margin-right:8px}.status{color:var(--quiet);margin:0 0 20px;font-size:13px}.fallback-note{color:var(--quiet);font-size:12px;margin:0 0 16px}.error{color:var(--danger-ink)}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:28px 18px}article{min-width:0}.thumbnail{position:relative;display:block;aspect-ratio:16/9;background:var(--panel);border-radius:12px;overflow:hidden}.thumbnail img{display:block;width:100%;height:100%;object-fit:cover}.video-duration{position:absolute;right:8px;bottom:8px;z-index:1;padding:2px 5px;border-radius:4px;background:#000d;color:#fff;font:600 12px/1.3 Roboto,Arial,sans-serif;font-variant-numeric:tabular-nums;pointer-events:none}.video-duration.is-live{background:#b90000}.video-title{display:block;margin:10px 0 6px;font-size:16px;font-weight:600;line-height:1.35;overflow-wrap:anywhere}.channel{display:flex;gap:7px;align-items:center;color:var(--quiet);width:fit-content;max-width:100%;overflow-wrap:anywhere}.avatar{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--panel);border:1px solid var(--line);font-size:11px;flex-shrink:0;color:var(--ink)}time{display:block;color:var(--quiet);font-size:12px;margin:4px 0 0 31px}details{margin-bottom:22px}summary{width:fit-content;cursor:pointer;color:var(--quiet)}.group-members summary{min-height:32px;padding:4px 0;color:var(--ink);font-weight:500}.member-count{margin-left:8px;color:var(--quiet);font-weight:400}.members{list-style:none;margin:12px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(210px,100%),1fr));gap:2px 16px;background:transparent}.members li{display:grid;align-content:start;gap:4px;min-width:0}.members .channel{width:100%;min-height:44px;padding:2px 8px;gap:10px;border-radius:7px;color:var(--ink);line-height:20px;overflow-wrap:normal}.members .channel:hover{background:var(--control-hover)}.members .ledger-avatar{width:28px;height:28px;flex-basis:28px}.members .channel>span:last-child{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;min-width:0;overflow:hidden}.members .channel-cadence{font-size:12px;color:var(--quiet);margin:0 8px 4px 46px}.members small{color:var(--danger-ink);margin:0 8px 4px 46px;overflow-wrap:anywhere}.empty{padding:32px 0;color:var(--quiet)}.empty p{max-width:560px}.empty a{color:var(--accent);text-decoration:underline}.more{display:block;margin:28px auto 0}.coverage{margin:30px 0 0;padding-top:15px;border-top:1px solid var(--line);font-size:12px;color:var(--quiet)}.group-directory{display:grid;gap:8px;max-width:480px}.group-directory a{display:flex;justify-content:space-between;gap:15px;background:var(--panel);border:1px solid var(--line);padding:15px;border-radius:10px;overflow-wrap:anywhere}.group-directory small{white-space:nowrap;color:var(--quiet)}.group-switch{display:none;width:min(100%,400px);margin-bottom:8px}:host([data-compact]) .group-switch{display:block}:host([data-compact]) h1{display:none}@media(max-width:700px){:host{padding:20px 16px!important}.grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}.actions{width:100%}.sort{margin-right:auto}.video-title{font-size:15px}.group-switch{display:block}.group-title{display:none}}@media(max-width:380px){.grid{grid-template-columns:minmax(0,1fr)}button{padding:8px 10px}}`;
+  const feedCss=`:host{display:block!important;box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:none!important;align-self:stretch!important;color:var(--ink)!important;background:var(--page-bg)!important;font:14px/1.45 Roboto,Arial,sans-serif!important;padding:28px 32px!important;min-height:calc(100vh - 64px)!important}*{box-sizing:border-box}a{color:inherit;text-decoration:none}a:hover{text-decoration:underline}button,select{font:inherit;color:inherit}button,select{background:var(--group-control-bg);border:1px solid var(--control-border);padding:9px 13px;border-radius:9px}select{appearance:none;padding-right:38px;background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:right 18px center,right 13px center;background-size:5px 5px;background-repeat:no-repeat}select:dir(rtl){padding-right:13px;padding-left:38px;background-position:left 13px center,left 18px center}@media(forced-colors:active){select{appearance:auto;background-image:none;padding-inline:13px}}button{cursor:pointer}button:hover{background:var(--control-hover)}button:disabled{opacity:.6;cursor:wait}button:focus-visible,a:focus-visible,summary:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:3px}h1{font-size:28px;line-height:1.2;overflow-wrap:anywhere;margin:0 0 8px}header{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap;margin-bottom:18px}.heading{min-width:0;flex:1}.group-title{display:flex;align-items:center;gap:12px}.group-title>span:last-child{min-width:0}.directory-label{display:flex;align-items:center;gap:14px;min-width:0}.directory-label>span:last-child{min-width:0}.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.sort{color:var(--quiet);white-space:nowrap;font-size:13px;margin-right:8px}.status{color:var(--quiet);margin:0 0 20px;font-size:13px}.fallback-note{color:var(--quiet);font-size:12px;margin:0 0 16px}.error{color:var(--danger-ink)}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:28px 18px}article{min-width:0}.thumbnail{position:relative;display:block;aspect-ratio:16/9;background:var(--panel);border-radius:12px;overflow:hidden}.thumbnail img{display:block;width:100%;height:100%;object-fit:cover}.video-duration{position:absolute;right:8px;bottom:8px;z-index:1;padding:2px 5px;border-radius:4px;background:#000d;color:#fff;font:600 12px/1.3 Roboto,Arial,sans-serif;font-variant-numeric:tabular-nums;pointer-events:none}.video-duration.is-live{background:#b90000}.video-title{display:block;margin:10px 0 6px;font-size:16px;font-weight:600;line-height:1.35;overflow-wrap:anywhere}.channel{display:flex;gap:7px;align-items:center;color:var(--quiet);width:fit-content;max-width:100%;overflow-wrap:anywhere}.avatar{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--panel);border:1px solid var(--line);font-size:11px;flex-shrink:0;color:var(--ink)}time{display:block;color:var(--quiet);font-size:12px;margin:4px 0 0 31px}details{margin-bottom:22px}summary{width:fit-content;cursor:pointer;color:var(--quiet)}.group-members summary{min-height:32px;padding:4px 0;color:var(--ink);font-weight:500}.member-count{margin-left:8px;color:var(--quiet);font-weight:400}.members{list-style:none;margin:12px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(210px,100%),1fr));gap:2px 16px;background:transparent}.members li{display:grid;align-content:start;gap:4px;min-width:0}.members .channel{width:100%;min-height:44px;padding:2px 8px;gap:10px;border-radius:7px;color:var(--ink);line-height:20px;overflow-wrap:normal}.members .channel:hover{background:var(--control-hover)}.members .ledger-avatar{width:28px;height:28px;flex-basis:28px}.members .channel>span:last-child{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;min-width:0;overflow:hidden}.members .channel-last-check,.members .channel-cadence{font-size:12px;color:var(--quiet);margin:0 8px 4px 46px}.members small{color:var(--danger-ink);margin:0 8px 4px 46px;overflow-wrap:anywhere}.empty{padding:32px 0;color:var(--quiet)}.empty p{max-width:560px}.empty a{color:var(--accent);text-decoration:underline}.more{display:block;margin:28px auto 0}.coverage{margin:30px 0 0;padding-top:15px;border-top:1px solid var(--line);font-size:12px;color:var(--quiet)}.group-directory{display:grid;gap:8px;max-width:480px}.group-directory a{display:flex;justify-content:space-between;gap:15px;background:var(--panel);border:1px solid var(--line);padding:15px;border-radius:10px;overflow-wrap:anywhere}.group-directory small{white-space:nowrap;color:var(--quiet)}.group-switch{display:none;width:min(100%,400px);margin-bottom:8px}:host([data-compact]) .group-switch{display:block}:host([data-compact]) h1{display:none}@media(max-width:700px){:host{padding:20px 16px!important}.grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}.actions{width:100%}.sort{margin-right:auto}.video-title{font-size:15px}.group-switch{display:block}.group-title{display:none}}@media(max-width:380px){.grid{grid-template-columns:minmax(0,1fr)}button{padding:8px 10px}}`;
   const videoMenuCss=`
     .arrival-memberships{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0 0 31px}.arrival-memberships a{font-size:11px;color:var(--quiet);padding:3px 7px;border:1px solid var(--line);border-radius:5px;max-width:100%;overflow-wrap:anywhere}.arrival-memberships a:hover{background:var(--control-hover)}
     .creator-return{display:block;width:fit-content;margin:8px 0 0 31px;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:500;background:var(--control-hover);color:var(--accent)}
@@ -105,7 +105,7 @@
     .actions [data-focus=refresh]{min-width:calc(12ch + 28px)}
     .shorts-filter{display:flex;align-items:center;gap:7px;white-space:nowrap;cursor:pointer;padding:9px 5px}.shorts-filter input{margin:0;width:16px;height:16px;accent-color:var(--accent);cursor:pointer}.shorts-filter input:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
     .search-group{min-width:120px;width:200px;max-width:100%;font:inherit;color:var(--ink);background:var(--field-bg);border:1px solid var(--control-border);border-radius:9px;padding:9px 12px}.search-group:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.search-group::placeholder{color:var(--quiet)}
-    .thumbnail{position:relative}.playback-progress{position:absolute;bottom:0;left:0;right:0;height:3px;background:#0006;pointer-events:none}.playback-progress i{display:block;height:100%;background:var(--accent)}.new-divider{grid-column:1/-1;display:flex;align-items:center;gap:12px;color:var(--quiet);font-size:12px}.new-divider::after{content:'';height:1px;background:var(--line);flex:1}.new-upload{font-size:11px;color:var(--accent);font-weight:600}.play-group{white-space:nowrap}.freshness{font-size:12px;color:var(--quiet);margin:-12px 0 16px}
+    .thumbnail{position:relative}.playback-progress{position:absolute;bottom:0;left:0;right:0;height:3px;background:#0006;pointer-events:none}.playback-progress i{display:block;height:100%;background:var(--accent)}.new-upload{font-size:11px;color:var(--accent);font-weight:600}.play-group{white-space:nowrap}.freshness{font-size:12px;color:var(--quiet);margin:-12px 0 16px}
     .video-heading{display:flex;align-items:flex-start;gap:6px;margin:10px 0 6px}
     .video-heading .video-title{flex:1;min-width:0;margin:0}
     .video-options{display:grid;place-items:center;flex:0 0 28px;width:28px;height:32px;padding:4px;border:0;border-radius:50%;background:transparent;color:var(--quiet)}
@@ -127,6 +127,7 @@
     .play-controls{display:flex}.play-controls button{background:var(--group-primary-bg);color:var(--button-ink);border-color:var(--accent);font-weight:600}.play-controls button:hover{background:var(--accent-hover)}
     .play-controls .play-group{border-radius:8px 0 0 8px}.play-controls .play-options{border-radius:0 8px 8px 0;border-left-color:currentColor;width:34px;padding:8px}
     .header-actions .group-options{width:40px;padding:8px}.header-actions button:disabled{cursor:default}
+    .check-explanation{display:block;margin-top:4px;color:var(--quiet);font-size:12px}
     .refresh-line{display:flex;align-items:center;gap:5px;margin-top:10px;min-height:28px;color:var(--quiet)}.refresh-line .freshness{font-size:12px;margin:0}
     .refresh-line button{display:grid;place-items:center;width:30px;height:30px;padding:6px;background:transparent;border:0;color:var(--quiet)}.refresh-line button:hover{background:var(--control-hover)}
     .upload-progress{width:min(420px,100%);margin-top:8px;font-size:12px;color:var(--quiet)}.upload-progress[hidden]{display:none}.upload-progress-label{color:var(--ink);margin:0 0 5px}.upload-progress-note{margin:5px 0 0}.upload-progress progress{display:block;width:100%;height:5px;appearance:none;border:0;border-radius:5px;overflow:hidden;background:var(--line);color:var(--accent)}.upload-progress progress::-webkit-progress-bar{background:var(--line)}.upload-progress progress::-webkit-progress-value{background:var(--accent);border-radius:5px}.upload-progress progress::-moz-progress-bar{background:var(--accent);border-radius:5px}
@@ -158,7 +159,7 @@
       nav=el('div',undefined,{id:'ledger-groups-sidebar'});styleRoot(nav,navCss);
       mini=el('div',undefined,{id:'ledger-groups-mini'});const root=styleRoot(mini,navCss),link=el('a',undefined,{class:'compact',href:'/feed/subscriptions#ledger-groups'});link.append(GroupIcons.create(),el('span','Groups'));root.append(link);
     }
-    const counts=Object.fromEntries(saved.groups.map(g=>[g.id,g.id===active?0:FeedLibrary.newCount(g.channelIds.flatMap(id=>uploads.channels?.[id]?.entries||[]),library.groups[g.id])]));
+    const counts=Object.fromEntries(saved.groups.map(g=>[g.id,g.id===active?0:FeedLibrary.newCount(g.channelIds.flatMap(id=>uploads.channels?.[id]?.entries||[]),library.groups[g.id],Date.now(),data?.progress)]));
     counts[newViewId]=FeedLibrary.newEntries(saved,uploads,library).filter(e=>FeedLibrary.isArrival(e,library)).length;
     const newSignature=JSON.stringify(counts);
     if(navigationGroups!==saved.groups||navigationActive!==active||navigationCollapsed!==saved.collapsed||navigationNew!==newSignature){
@@ -271,12 +272,12 @@
     let text=length,title=length?'Video length: '+length:'';
     if(details?.status==='live'){text='Live';title='Live now';}
     else if(details?.status==='upcoming'){text='Upcoming';title='Scheduled video';}
-    else if(!length){const unavailable=active===newViewId||details?.status==='unavailable'||durationFailures.has(id);text=unavailable?'—':'…';title=unavailable?'Video length unavailable':'Loading video length';}
+    else if(!length){const unavailable=globalThis.LedgerBuild?.rssOnly||active===newViewId||details?.status==='unavailable'||durationFailures.has(id);text=unavailable?'—':'…';title=unavailable?'Video length unavailable':'Loading video length';}
     let badge=card.querySelector('.video-duration');
     if(!badge){badge=el('span',undefined,{class:'video-duration',id:'ledger-duration-'+id});const thumbnail=card.querySelector('.thumbnail');thumbnail.append(badge);thumbnail.setAttribute('aria-describedby',badge.id);}
     badge.textContent=text;badge.title=title;badge.classList.toggle('is-live',details?.status==='live');
   }
-  function scheduleDurations(){clearTimeout(durationTimer);if(!disposed)durationTimer=setTimeout(loadDurations,100);}
+  function scheduleDurations(){clearTimeout(durationTimer);if(!disposed&&!globalThis.LedgerBuild?.rssOnly)durationTimer=setTimeout(loadDurations,100);}
   function shortsCandidates(group,byId,now){
     if(!group?.hideShorts)return [];
     // Read current positions rather than the observer's insertion order. The first
@@ -355,7 +356,7 @@
     let progress=card.querySelector('.playback-progress');const fraction=WatchStatus.fraction(value);
     if(fraction>0){if(!progress){progress=el('span',undefined,{class:'playback-progress'});progress.append(el('i'));card.querySelector('.thumbnail').append(progress);}progress.firstChild.style.width=(fraction*100)+'%';progress.setAttribute('aria-label',Math.round(fraction*100)+'% recorded playback');}else progress?.remove();
     const entry=data?.entries.find(e=>e.videoId===card.dataset.videoId);
-    const fresh=card.querySelector('.new-upload');if(fresh)fresh.hidden=active===newViewId?!FeedLibrary.isArrival(entry,library):!(visitBoundary&&Number(card.dataset.publishedAt)>visitBoundary&&Number(card.dataset.publishedAt)<=Date.now());
+    const fresh=card.querySelector('.new-upload');if(fresh)fresh.hidden=active===newViewId?!FeedLibrary.isArrival(entry,library):!FeedLibrary.isNewSinceVisit(entry,visitBoundary,data?.progress);
     let comeback=card.querySelector('.creator-return');const returnText=FeedLibrary.returnLabel(entry);
     if(returnText){if(!comeback){comeback=el('span',undefined,{class:'creator-return'});card.append(comeback);}comeback.textContent=returnText;comeback.title='First new upload Ledger found after a quiet period. Previous known upload: '+new Date(entry.creatorReturn.previousUploadAt).toLocaleDateString()+'. Based on locally observed uploads.';}else comeback?.remove();
     if(active===newViewId){
@@ -480,7 +481,29 @@
   }
   for(const type of ['click','auxclick','contextmenu'])window.addEventListener(type,queueVideoClick,true);
   function updateTimes(){for(const card of host?.shadowRoot.querySelectorAll('article')||[])updateCard(card);updateFreshness();updateNavigation();if(data?.pausedUntil&&data.pausedUntil<=Date.now()&&!refreshing)load();}
-  function updateFreshness(){const node=host?.shadowRoot.querySelector('.freshness');if(!node)return;const checked=(data?.channels||[]).filter(c=>c.fetchedAt).map(c=>c.fetchedAt);node.textContent=refreshing||data?.refresh?.running?'Checking uploads…':checked.length?'Uploads checked '+Ledger.relativeTime(Math.min(...checked)).toLocaleLowerCase():'Uploads not checked yet';node.title=checked.length?'Oldest successful channel refresh: '+new Date(Math.min(...checked)).toLocaleString():'';updateRefreshProgress();}
+  function updateFreshness(){
+    const root=host?.shadowRoot;if(!root)return;
+    const freshness=FeedLibrary.freshness(data?.channels||[]),node=root.querySelector('.freshness');
+    if(node){
+      node.textContent=data?.connectionsEnabled===false?'Upload checks off · enable YouTube connections in Settings':refreshing||data?.refresh?.running?'Checking uploads…':freshness.latest?'Most recent channel check: '+Ledger.relativeTime(freshness.latest).toLocaleLowerCase():'No channels checked yet';
+      node.title=freshness.latest?'Most recent successful upload check: '+new Date(freshness.latest).toLocaleString()+'. Each channel is checked separately.':'';
+    }
+    const summary=root.querySelector('.feed-freshness');
+    if(summary){
+      const parts=[freshness.recent+' of '+freshness.total+' channels checked in the last 24 hours'];
+      if(freshness.earlier)parts.push(freshness.earlier+' checked earlier');
+      if(freshness.missing)parts.push(freshness.missing+' not checked yet');
+      summary.querySelector('.check-coverage').textContent=parts.join(' · ');
+      summary.querySelector('.check-explanation').textContent='Channels are checked separately.'+(freshness.earlier?' Oldest channel check: '+Ledger.relativeTime(freshness.oldest).toLocaleLowerCase()+'.':'')+(freshness.missing?' First checks run in small batches.':'');
+      summary.title='Counts refer to successful upload checks across all channels, regardless of video filters.';
+    }
+    for(const label of root.querySelectorAll('.channel-last-check')){
+      const at=Number(label.dataset.checkedAt);
+      label.textContent=at?'Checked '+Ledger.relativeTime(at).toLocaleLowerCase():'Not checked yet';
+      label.title=at?'Last successful upload check: '+new Date(at).toLocaleString():'';
+    }
+    updateRefreshProgress();
+  }
   function updateRefreshProgress(){
     const node=host?.shadowRoot.querySelector('.upload-progress');if(!node)return;
     const state=data?.refresh;node.hidden=!debugMode||!state?.total;if(node.hidden)return;
@@ -538,8 +561,11 @@
       if(!row){row=el('li',undefined,{'data-channel-id':channel.id});row.append(channelLink(channel));}
       else LedgerMedia.updateChannels(row,{[channel.id]:channel});
       row.querySelector('.ledger-channel').title=channel.name||'YouTube channel';
+      let lastCheck=row.querySelector('.channel-last-check');
+      if(!lastCheck){lastCheck=el('span','',{class:'channel-last-check'});row.append(lastCheck);}
+      lastCheck.dataset.checkedAt=String(Number.isFinite(channel.fetchedAt)&&channel.fetchedAt>0?channel.fetchedAt:0);
       let error=row.querySelector('small');
-      if(debugMode&&channel.error){if(!error){error=el('small');row.append(error);}error.textContent=channel.error;error.title=channel.retryAt?'Retry available after '+new Date(channel.retryAt).toLocaleTimeString():'';}else error?.remove();
+      if(channel.error){if(!error){error=el('small');row.append(error);}error.textContent=channel.error;error.title=channel.retryAt?'Retry available after '+new Date(channel.retryAt).toLocaleTimeString():'';}else error?.remove();
       let cadence=row.querySelector('.channel-cadence');
       const schedule=channel.checkSchedule,label=schedule?.label||(channel.dailyChecks?'Checked daily':'');
       if(debugMode&&label){
@@ -674,6 +700,7 @@
     else if(group)renderFeedHeader(header,heading,group);
     else {const actions=el('div',undefined,{class:'actions'});actions.append(button('Manage groups',manage,{'data-focus':'manage'}));header.append(actions);}
     content.append(header);
+    if(globalThis.LedgerBuild?.rssOnly)content.append(el('p','RSS preview · Background page lookups are off. Unknown lengths stay blank; Hide Shorts only hides videos already identified as Shorts.',{class:'group-meta'}));
     const status=el('p','',{class:'status',role:'status'});content.append(status);
     if(active==='overview'){
       const directory=el('nav',undefined,{class:'group-directory','aria-label':'Choose a group'});directory.append(el('a','New videos',{href:groupURL(newViewId)}));for(const g of saved.groups){const link=el('a',undefined,{href:groupURL(g.id)});const label=el('span',undefined,{class:'directory-label'});label.append(GroupIcons.create(g.icon),el('span',g.name));link.append(label,el('small',g.channelIds.length+' channels'));directory.append(link);}content.append(directory);
@@ -685,25 +712,29 @@
       const members=renderMembers(root,group,sameView);
       if(members.isConnected){retainedMembers=members;membersSlot=el('div');content.append(membersSlot);}else content.append(members);
       const failed=data.channels.filter(c=>c.error).length,missing=data.channels.filter(c=>!c.fetchedAt).length,paused=data.pausedUntil>Date.now();
-      status.textContent=paused?(debugMode?(data.pauseMessage||'YouTube checks are paused.'):'Upload checks are paused until '+new Date(data.pausedUntil).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'.')+' Cached videos are still available.':refreshing?'Checking uploads in the background…':debugMode&&failed?failed+' '+(failed===1?'channel could':'channels could')+' not refresh. Available cached videos are shown. Ledger will retry automatically.':missing?'Some channels have not loaded yet.':'';
-      if(debugMode&&failed)status.classList.add('error');
+      status.textContent=data.connectionsEnabled===false?'YouTube connections are off. Enable them in Ledger Settings to refresh uploads and load images. Cached videos remain available.':paused?(data.pauseMessage||'Upload checks are paused until '+new Date(data.pausedUntil).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'.')+' Cached videos are still available.':refreshing?'Checking uploads in the background…':failed?failed+' '+(failed===1?'channel could':'channels could')+' not refresh. Available cached videos are shown. Retry here or enable automatic checks in Settings.':missing?'Some channels have not loaded yet.':'';
+      if(failed)status.classList.add('error');
       if(debugMode&&paused&&data.pauseScope==='automatic'&&!refreshing)status.append(
         button('Retry now',()=>load(true,true,false,data.pausedUntil),{'data-focus':'retry-cooldown',title:'End Ledger’s cooldown and retry this group at a slower pace. If checks keep failing, Ledger will pause again.'})
       );
-      if(debugMode&&failed&&!refreshing&&!paused){
+      if(failed&&!refreshing&&!paused){
         status.append(button('Retry failed channels',()=>load(true,true,true),{'data-focus':'retry-failed',title:'Retry affected channels. Recent attempts and YouTube’s retry limits are respected.'}));
-        status.append(button('Show details',()=>{saveMembersExpanded(group.id,true);members.open=true;members.querySelector('summary').focus({preventScroll:true});},{'data-focus':'refresh-details'}));
+        if(debugMode)status.append(button('Show details',()=>{saveMembersExpanded(group.id,true);members.open=true;members.querySelector('summary').focus({preventScroll:true});},{'data-focus':'refresh-details'}));
       }
       if(debugMode&&data.channels.some(c=>c.feedSource==='uploads-page'))content.append(el('p','Some uploads were recovered from YouTube’s public uploads pages. Only the first page is checked; ~ marks approximate dates or view counts.',{class:'note fallback-note'}));
       if(!data.entries.length){const empty=el('div',undefined,{class:'empty'});empty.append(el('p',!data.channels.length?'This group has no channels yet. Use “Add to group” on a channel or video page, or add a channel in Manage groups.':refreshing?'Fetching recent uploads from these channels.':'No uploads are available yet. Try Refresh to check these channels again.'));content.append(empty);}
       }
+      const freshness=FeedLibrary.freshness(data.channels||[]);
+      if(freshness.total){
+        const summary=el('p','',{class:'feed-freshness note',role:'status'});
+        summary.append(el('span','',{class:'check-coverage'}),el('span','',{class:'check-explanation'}));content.append(summary);
+        if(active===newViewId&&freshness.failed)status.textContent=freshness.failed+' '+(freshness.failed===1?'channel could':'channels could')+' not refresh. Saved uploads may be out of date. Open a group to retry.';
+      }
       const grid=(sameView&&root.querySelector('.grid'))||el('div',undefined,{class:'grid'}),gridChildren=[],existing=new Map([...grid.querySelectorAll('article')].map(card=>[card.dataset.videoId,card]));
-      const visible=displayEntries(group);let previousNew;
-      const isNew=entry=>!!visitBoundary&&entry.publishedAt>visitBoundary&&entry.publishedAt<=Date.now();
+      const visible=displayEntries(group);
       if(active===newViewId&&!visible.length)content.append(el('p',query?'No recent uploads match your search.':arrivalsMode==='returning'?'No returning creators in the last 7 days. Ledger highlights a new upload after it has observed at least 90 days of inactivity.':arrivalsMode==='new'&&data.entries.length?'You’re caught up. All recent keeps these videos available.':'No recent uploads saved yet. Your groups will fill this view as their uploads are checked.',{class:'empty'}));
       else if(data.entries.length&&!visible.length)content.append(el('p',query?'No available uploads match your search.':group.watchFilter==='hidden'?'No hidden videos match these filters.':'No videos match these filters. Clear filters or restore a hidden channel to see more.',{class:'empty'}));
       for(const entry of visible.slice(0,limit)){
-        const fresh=isNew(entry);if(Ledger.groupSort(group.sort).metric==='date'&&fresh!==previousNew&&(fresh||previousNew===true))gridChildren.push(el('div',fresh?'New since your last visit':'Previously available',{class:'new-divider'}));previousNew=fresh;
         const url='https://www.youtube.com/watch?v='+entry.videoId+'#ledger-launch='+encodeURIComponent(data.launchToken),channel=saved.channels[entry.channelId]||{id:entry.channelId,name:entry.channel};
         const signature=JSON.stringify([entry.title,entry.publishedAt,channel.id,channel.name,channel.avatarUrl]),previous=existing.get(entry.videoId);
         // Metadata and launch links can change without replacing the thumbnail.
@@ -721,7 +752,7 @@
           updateCard(previous);gridChildren.push(previous);continue;
         }
         const card=el('article',undefined,{'data-video-id':entry.videoId,'data-published-at':String(entry.publishedAt),'data-content':signature});
-        const thumb=el('a',undefined,{href:url,class:'thumbnail','aria-label':'Watch '+entry.title});const image=el('img',undefined,{src:'https://i.ytimg.com/vi/'+entry.videoId+'/hqdefault.jpg',alt:'',loading:'lazy',decoding:'sync',referrerpolicy:'no-referrer'});
+        const thumb=el('a',undefined,{href:url,class:'thumbnail','aria-label':'Watch '+entry.title});const image=el('img',undefined,{alt:'',loading:'lazy',decoding:'sync',referrerpolicy:'no-referrer'});LedgerConnections.image(image,'https://i.ytimg.com/vi/'+entry.videoId+'/hqdefault.jpg');
         // Once decoded, keep the thumbnail out of Firefox's lazy-load cycle
         // if YouTube detaches and reattaches our host during native navigation.
         image.addEventListener('load',()=>{image.loading='eager';},{once:true});thumb.append(image);
@@ -776,6 +807,7 @@
   function storageChanged(changes,area){
     if(disposed||area!=='local')return;
     if(changes['groupRefreshProgress:v1']&&data){data.refresh=changes['groupRefreshProgress:v1'].newValue?.[active]||null;updateFreshness();}
+    if((changes['connections:v1']||changes['connectionsChanged:v1'])&&active)void load(false);
     if(changes['youtubeRequests:v1']&&data){const next=changes['youtubeRequests:v1'].newValue||{},until=next.pausedUntil||0,message=next.pauseMessage||'',scope=next.pauseScope||'all';if(until!==(data.pausedUntil||0)||message!==(data.pauseMessage||'')||scope!==data.pauseScope){Object.assign(data,{pausedUntil:until,pauseMessage:message,pauseScope:scope,pauseReason:next.pauseReason||'unknown'});render();}}
     if(data&&(changes['videoProgress:v1']||changes[WatchEvidence.key])){data.progress={...(changes['videoProgress:v1']?changes['videoProgress:v1'].newValue:data.progress),evidence:changes[WatchEvidence.key]?changes[WatchEvidence.key].newValue?.videos||{}:data.progress?.evidence};render();}
     if(changes[FeedLibrary.key]){library=changes[FeedLibrary.key].newValue||{version:1,groups:{}};arrivalsHideShorts=library.newVideos?.hideShorts===true;updateNavigation();if(active===newViewId)load();else render();}
@@ -847,12 +879,19 @@
   });
   pageChanges.observe(document,{childList:true,subtree:true});
   const checkAll=()=>{if(!disposed&&saved.groups.length)request({type:'groupFeed:checkAll'}).catch(()=>{});};
-  const checkTimer=setInterval(checkAll,30*60*1000),initialCheck=setTimeout(checkAll,30000+Math.random()*30000);
+  // Poll eligibility more often than the shared 30-minute allowance. A timer
+  // firing just before a reservation expires must not lose an entire batch.
+  // The background still enforces due times, opt-out, pacing and both limits.
+  const checkTimer=setInterval(checkAll,60000),initialCheck=setTimeout(checkAll,30000+Math.random()*30000);
   const timeTimer=setInterval(updateTimes,60000);
   const durationRefresh=setInterval(scheduleDurations,60000);
-  const visibilityChanged=()=>{scheduleDurations();if(document.visibilityState!=='visible')request({type:'groupFeed:leave'}).catch(()=>{});else if(active&&active!=='overview'&&!refreshing)load();};
+  const visibilityChanged=()=>{scheduleDurations();if(document.visibilityState!=='visible')request({type:'groupFeed:leave'}).catch(()=>{});else{if(active&&active!=='overview'&&!refreshing)load(true);checkAll();}};
   document.addEventListener('visibilitychange',visibilityChanged);
-  const mountTimer=setInterval(mount,1000),refreshTimer=setInterval(()=>{if(active&&active!=='overview'&&document.visibilityState==='visible')load(true);},30*60*1000);
+  const mountTimer=setInterval(mount,1000),refreshTimer=setInterval(()=>{
+    if(disposed||!active||active==='overview'||active===newViewId||refreshing||document.visibilityState!=='visible')return;
+    const id=active;
+    request({type:'groupFeed:refresh',groupId:id,automatic:true}).catch(error=>{if(!disposed&&active===id)showError(error.message);});
+  },60000);
   function dispose(){
     if(disposed)return;closeGroupMenu(false);closeVideoMenu(false,false);remember();disposed=true;generation++;
     clearInterval(checkTimer);clearTimeout(initialCheck);clearInterval(timeTimer);clearInterval(mountTimer);clearInterval(refreshTimer);clearTimeout(cacheTimer);pageChanges.disconnect();
