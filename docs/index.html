@@ -3,8 +3,31 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="refresh" content="0; url=privacy.html">
-  <title>YouTube Ledger · Privacy</title>
+  <meta name="referrer" content="no-referrer">
+  <meta name="description" content="YouTube Ledger keeps a local viewing record, channel groups and notes. Read the privacy policy for your browser.">
+  <title>YouTube Ledger</title>
+  <style>
+    :root{font:17px/1.65 system-ui,sans-serif;color:#203b2b;background:#f5f8f2;color-scheme:light}
+    *{box-sizing:border-box}body{margin:0}main{max-width:760px;margin:64px auto;padding:0 24px}
+    h1{font:normal 42px/1.2 Georgia,serif;margin:0 0 20px}h2{font-size:21px;margin-top:36px}
+    a{color:#235c3c;text-underline-offset:4px}a:focus-visible{outline:3px solid #235c3c;outline-offset:5px}
+    .policies{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:20px 0}
+    .policy{border:1px solid #b9cbb7;border-radius:12px;padding:20px;background:#fff}
+    .policy p{font-size:15px;margin-bottom:0;color:#50614d}footer{font-size:14px;border-top:1px solid #b9cbb7;margin-top:40px;padding-top:20px}
+  </style>
 </head>
-<body><p><a href="privacy.html">Read the YouTube Ledger privacy policy.</a></p></body>
+<body>
+<main>
+  <h1>YouTube Ledger</h1>
+  <p>Keep a local record of your YouTube viewing, organize channels into groups and add notes about what you watch.</p>
+  <p><a href="https://github.com/cabe9/youtube-ledger">Project and installation information</a> · <a href="https://github.com/cabe9/youtube-ledger/issues">Help and feedback</a></p>
+  <h2>Privacy for your browser</h2>
+  <p>The Chrome and Firefox editions use different storage designs. Choose the policy that matches your installation.</p>
+  <div class="policies">
+    <section class="policy"><a href="privacy-chrome.html">Chrome privacy policy</a><p>Encrypted local records, optional automatic access and backups. The Chrome public release is in preparation.</p></section>
+    <section class="policy"><a href="privacy.html">Firefox privacy policy</a><p>Local records, optional YouTube connections and local browser sync.</p></section>
+  </div>
+  <footer>Independent software; not affiliated with or endorsed by YouTube or Google. This page contains no analytics or trackers.</footer>
+</main>
+</body>
 </html>

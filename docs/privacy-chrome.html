@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Privacy policy for YouTube Ledger, a local YouTube activity tracker for Chrome.">
+  <meta name="referrer" content="no-referrer">
+  <title>Chrome Privacy Policy · YouTube Ledger</title>
+  <link rel="canonical" href="https://cabe9.github.io/youtube-ledger/privacy-chrome.html">
+  <style>
+    :root{color-scheme:light;font:16px/1.75 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#263a2d;background:#f7f8f3}
+    *{box-sizing:border-box}body{margin:0}main{max-width:800px;margin:auto;padding:52px 28px 72px}
+    header{padding-bottom:28px;border-bottom:1px solid #d5dfcf;margin-bottom:30px}.brand{font-size:13px;letter-spacing:.04em;font-weight:650}
+    h1{font:normal 44px/1.15 Georgia,serif;letter-spacing:-1px;margin:24px 0 12px}h2{font-size:20px;line-height:1.4;margin:32px 0 12px}
+    p{margin:12px 0}li{margin:8px 0}ul{padding-left:24px}a{color:#285e40;text-underline-offset:3px}a:focus-visible{outline:2px solid #285e40;outline-offset:4px}
+    .date,footer{font-size:13px;color:#536652}.summary{background:#eaf0e2;border-left:3px solid #628653;padding:16px 20px;margin:28px 0}.summary p{margin:0}
+    code{font-size:.9em;overflow-wrap:anywhere}footer{border-top:1px solid #d5dfcf;margin-top:36px;padding-top:20px}
+    @media(max-width:480px){main{padding:32px 20px 48px}h1{font-size:36px}}
+    @media print{:root{background:white;color:black}main{max-width:none;padding:0}a{color:inherit}.summary{background:none}}
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <a class="brand" href="https://github.com/cabe9/youtube-ledger">YouTube Ledger</a>
+    <h1>Privacy policy for Chrome</h1>
+    <p class="date">Version 0.18.0 · Last updated October 3, 2026</p>
+    <p>This policy covers the Chrome edition of YouTube Ledger maintained by <a href="https://github.com/cabe9">cabe9</a>. The <a href="privacy.html">Firefox policy</a> describes that edition separately.</p>
+  </header>
+  <div class="summary"><p><strong>Your Ledger stays in this browser profile.</strong> There is no Ledger account, developer server, advertising or analytics service. Records and full profile backups are encrypted. Optional YouTube lookups send requests directly to YouTube and Google. Automatic access is optional and saves an unlocking key in the browser profile.</p></div>
+
+  <h2>Your setup choices</h2>
+  <p>Before recording begins, Ledger asks you to choose a passphrase, save a recovery key and choose what to track. Recording, automatic recommendation hiding, learning watch status from YouTube and background upload checks start unchecked. YouTube lookups and images, and Watch Later account actions, have separate opt-ins. You can change these choices in Settings. Explicit notes, groups, local imports and exports remain available while tracking is paused.</p>
+  <p>YouTube Ledger's use of information received from Chrome APIs adheres to the <a href="https://developer.chrome.com/docs/webstore/program-policies/user-data">Chrome Web Store User Data Policy</a>, including the Limited Use requirements. Information is used only for the user-facing features described here. The developer does not sell it, use it for advertising or credit decisions, or transfer it to data brokers.</p>
+
+  <h2>Information Ledger handles</h2>
+  <ul>
+    <li><strong>YouTube activity:</strong> video and channel titles, IDs and addresses, available portrait addresses, timestamps, locally generated session IDs, and time spent in foreground playback, background audio, silent background playback, pauses or buffering, browsing and detected ads. Ledger reads playback position, speed, audio status and page focus to calculate these records.</li>
+    <li><strong>Watch status and entry points:</strong> played-position ranges, video duration, last position, observed finishes, manual watched/unwatched choices, and evidence from YouTube progress bars or history. Supported links and navigation can identify a video as opened from search, recommendations, subscriptions, Watch Later, a channel or a Ledger group. Group names and queue transitions can be part of this local context. Unobserved sources are marked unknown.</li>
+    <li><strong>Recommendation activity:</strong> show/hide actions, observations of recommendations visible while YouTube has focus, timestamps and relevant YouTube page paths or video IDs.</li>
+    <li><strong>Your entries:</strong> daily notes, purpose labels, instructions for exported reviews, group names, channel memberships, chosen icons, local images and GIFs. Image processing occurs locally.</li>
+    <li><strong>Preferences and caches:</strong> themes, tracking choices, group ordering and filters, hidden-video and caught-up choices, last visits, cached public upload metadata, approximate upload dates where necessary, channel portraits and lookup times.</li>
+    <li><strong>Access credentials:</strong> your passphrase and recovery key are processed locally to protect or unlock the profile. Ledger stores protected key material, not the passphrase or recovery key. Optional automatic access saves a browser key as explained below.</li>
+    <li><strong>Request diagnostics:</strong> local counts and recent records of Ledger's public YouTube lookups, including timestamp, purpose, public video/channel address, HTTP result and elapsed time. Logs omit cookies, response bodies, playback traffic, images, other extensions and YouTube's own requests.</li>
+  </ul>
+  <p>Ledger does not capture video, audio, screenshots, YouTube account passwords or account cookies. It does not monitor unrelated websites, and incognito use is disabled. It does not connect to an AI service or submit your viewing to a model.</p>
+
+  <h2>Optional YouTube connections</h2>
+  <p>When you enable YouTube lookups and images, Ledger requests individual public channel, upload-list and video pages or feeds to resolve channels and refresh cached uploads. It reads metadata from the responses, not executable code. Requests go directly to YouTube over HTTPS and omit account cookies. Thumbnail and portrait requests go to YouTube's Google-operated image hosts with no page referrer. These services receive the requested address and normal network information, such as your IP address. Ledger does not upload your notes, group names, watch-time totals or complete history database.</p>
+  <p>Automatic upload checks also require their own setting. They run in paced batches while a YouTube tab is open, reuse caches and respect cooldowns. Browser suspension, server responses and YouTube layout changes can delay checks or leave cached uploads incomplete. Disabling connections cancels Ledger lookups and removes remote-image sources; it does not undo requests already received by a service or stop YouTube's own page and playback traffic. Opening a link navigates to the linked website normally.</p>
+  <p>Watch Later cleanup requires separate account-action consent and its own setting. On the supported English desktop Watch Later page, Ledger reads loaded rows and progress bars. You choose videos and confirm the removal count before Ledger operates YouTube's native removal controls in your signed-in account. It does not remove videos automatically after playback, read account cookies or call a private account API. This changes your YouTube Watch Later list, not your Ledger history.</p>
+  <p>“Update watch status” can open your signed-in YouTube history page for a check you request. You can also preview a Google Takeout YouTube history file locally and choose to import seen videos. The file is not uploaded. Ledger retains video IDs and available viewing dates, not other fields from that history file. Files over 50 MB are rejected and retained evidence is limited to 20,000 videos. This evidence does not invent playback duration or resume positions. Explicit imports and checks remain available while tracking is paused.</p>
+
+  <h2>Encryption and automatic access</h2>
+  <p>Ledger stores records and preferences in an encrypted IndexedDB database belonging to the extension. AES-256-GCM encrypts each record, and RSA-OAEP protects each record's random key. Separate passphrase and recovery-key protection lets either credential unlock the saved profile. New opted-in viewing can be encrypted with the public key while locked. Saved groups, prior watch status and metadata checks resume after unlocking.</p>
+  <p>With passphrase-only access, the unlocked key stays in extension memory and trusted, memory-only Chrome session storage. Restarting Chrome or reloading the extension requires unlocking again. A service-worker restart during the same browser session does not normally require it.</p>
+  <p><strong>Open automatically in this browser</strong> is unchecked by default. Enabling it saves a non-extractable Web Crypto private key in the extension's IndexedDB beside the encrypted records. Non-extractable restricts the Web Crypto export API; it does not guarantee encryption of that key on disk. Anyone who can use or copy this browser profile may be able to open Ledger. This option does not provide the same protection as passphrase-only access or a key stored outside the browser profile. Turning it off requires a working passphrase or recovery key and logically removes the saved browser key. The key and automatic-access choice are excluded from exports. Full profile backups still need their original passphrase or recovery key.</p>
+  <p>The first encrypted setup verifies encrypted copies before removing older readable Ledger records from extension storage. This is logical deletion, not secure erasure of browser files, disk remnants or device backups. Encryption cannot protect an unlocked browser against someone using it, compromised extension code, malware or operating-system memory capture. There is no developer password-reset service.</p>
+  <p>While locked, the encrypted recording inbox is capped at 64 MB. If it fills, Ledger warns you and retries while the YouTube tab stays open. Unlock to organize the recordings and make room. Pause/setup state, vault identity, public-key configuration, random recording generation, record counts and sizes remain visible without unlocking; viewing details remain encrypted.</p>
+
+  <h2>Retention and deletion</h2>
+  <p>History and notes have no automatic expiry by default. Settings can retain the latest 30, 90 or 365 calendar days, including today. Applying retention deletes older history, notes, purpose labels and recommendation events immediately; pruning also runs during extension use. Groups, preferences and watch status have separate controls. Reversing a retention choice does not recover deleted records.</p>
+  <p>Upload caches keep at most 250 videos per channel and 5,000 overall, favoring newer releases. Removing a channel from every group removes its cache. Request diagnostics retain seven days of counts and up to 1,000 recent requests; the last recorded attempt and success per request type remain until cleared. Diagnostics are excluded from full profile backups.</p>
+  <p>Temporary link contexts last up to two hours. Queues keep up to 500 videos each, with at most eight queues, for up to 24 hours. Undo keeps up to 20 recent changes for five minutes, subject to size limits. These temporary records use memory-only extension session storage and are cleared when that session ends. Feed navigation hints stay in content-script memory and can be lost on reload. Link tokens in URL fragments are not sent in HTTP requests, but a page script can read its own URL.</p>
+  <p>Recording uses retry receipts to avoid duplicate seconds. At most 300 unsaved samples remain in a YouTube tab's memory for retry. Save failures show a warning and toolbar badge. Upload caches can be evicted to make space; this does not delete history or notes beyond your separately chosen retention policy.</p>
+  <ul>
+    <li><strong>Pause tracking</strong> stops new activity, recommendation events and passive watch evidence. It preserves saved data.</li>
+    <li><strong>Delete this day, Delete date range, or Delete all history and notes</strong> removes the chosen activity, notes, labels and recommendation events. Separate watch-status records remain.</li>
+    <li><strong>Reset watch status</strong> clears resume positions, played-position coverage, manual overrides and YouTube/imported evidence, and turns passive learning off. History remains.</li>
+    <li><strong>Delete all Ledger data</strong> clears local history, notes, groups, icons, preferences, caches, watch status and temporary session records, removes automatic browser access and reloads with tracking off. The empty vault retains its access credentials. These actions do not erase YouTube account data or downloaded files.</li>
+  </ul>
+  <p>You can edit notes and groups or remove Ledger through Chrome. Exported files and separate device backups remain until you delete them. The developer cannot access or delete records held only on your device.</p>
+
+  <h2>Backups and files you share</h2>
+  <p>Full profile backups, including the recovery copy created before a restore, are encrypted. They include history, notes, labels, groups and icons, preferences, retention choices, upload caches, browsing choices and watch status. They exclude temporary link/queue/undo state, connection consent, diagnostics and the automatic browser key. They require the passphrase or recovery key in effect when exported. Changing your current passphrase does not change old files.</p>
+  <p>Chrome can import supported older readable Ledger backups and encrypt them locally. Existing Firefox releases cannot open encrypted Chrome backups. A restore previews and validates the selected file, downloads a recovery copy, and replaces standard Ledger records only after you confirm. Imported retention choices can delete expired history.</p>
+  <p>Individual day, period, group-sharing, diagnostics and review-prompt exports remain readable files you explicitly create. They can contain viewing details, notes, labels and your browser's time zone. Keep them private unless you intend to share them. Exporting does not send a file to the developer. If you upload or paste one into an AI service or send it to someone, that recipient handles the information under its own policies.</p>
+  <p>This Chrome release does not include automatic cross-browser sync or a native companion. Each browser profile keeps its own data.</p>
+
+  <h2>Permissions and external websites</h2>
+  <p><strong>Storage</strong> supports local migration and trusted session state. <strong>Alarms</strong> schedule opted-in upload checks. Access to <strong>www.youtube.com</strong> and <strong>m.youtube.com</strong> allows supported activity tracking, channel-group controls and recommendation visibility. Ledger does not request the general browser-history API, access to unrelated sites, native messaging, a microphone or a camera. Runtime code is packaged with the extension.</p>
+  <p>The public policy is served by GitHub Pages under <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub's privacy statement</a>. This page has no analytics, remote fonts or trackers. Visiting it does not expose your Ledger history. YouTube, Chrome and websites you open operate separately under their own policies.</p>
+
+  <h2>Changes and contact</h2>
+  <p>Policy changes are recorded in the <a href="https://github.com/cabe9/youtube-ledger/blob/main/docs/privacy-chrome.html">project repository</a>. For questions, use the <a href="https://github.com/cabe9/youtube-ledger/issues">issue tracker</a>. Issues are public; do not post private history, notes, credentials or backups.</p>
+  <footer><a href="https://github.com/cabe9/youtube-ledger">YouTube Ledger project</a></footer>
+</main>
+</body>
+</html>
