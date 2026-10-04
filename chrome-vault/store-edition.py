@@ -77,5 +77,5 @@ def prepare(files):
         "  if(message?.type?.startsWith('localSync:'))return LedgerLocalSync.handle(message,sender).catch(error=>({error:String(error.message||error)}));", '')
     files['background.js'] = background.encode()
     # This is also the exact file intended for the separately hosted Chrome URL.
-    files['docs/privacy.html'] = (ROOT / 'docs/privacy-chrome.html').read_bytes()
+    files['docs/privacy.html'] = (ROOT / 'docs/privacy-chrome.html').read_text(encoding='utf-8').encode('utf-8')
     return files

@@ -11,20 +11,27 @@ from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
 
 ROOT = Path(__file__).resolve().parent.parent
 
+def source_bytes(path):
+    # Git checkouts may use CRLF on Windows. Normalize package text before any
+    # exact transforms, regardless of locale or Git's core.autocrlf setting.
+    if path.suffix == '.png':
+        return path.read_bytes()
+    return path.read_text(encoding='utf-8').encode('utf-8')
+
 def build(channel='preview'):
     if channel not in {'preview', 'store'}:
         raise ValueError('Unknown Chrome channel')
     spec = importlib.util.spec_from_file_location('ledger_build', ROOT / 'build.py')
     source = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(source)
-    files = {name: (ROOT / name).read_bytes() for name in source.FILES}
+    files = {name: source_bytes(ROOT / name) for name in source.FILES}
     files['icons/icon-128.png'] = (ROOT / 'chrome-vault/icon-128.png').read_bytes()
     # Recent Chrome builds expose browser.* too. The vault must own its facade,
     # never overwrite the native runtime event object through that alias.
     files['compat.js'] = files['compat.js'].replace(b"if (typeof globalThis.browser === 'undefined')", b'if (true)')
     for name in ['crypto.js', 'store.js', 'idb.js', 'worker.js', 'client.js', 'gate.js', 'gate.css']:
-        files['chrome-vault/' + name] = (ROOT / 'chrome-vault' / name).read_bytes()
-    manifest = json.loads((ROOT / 'manifest.json').read_text())
+        files['chrome-vault/' + name] = source_bytes(ROOT / 'chrome-vault' / name)
+    manifest = json.loads((ROOT / 'manifest.json').read_text(encoding='utf-8'))
     manifest.pop('browser_specific_settings', None)
     manifest.update(name='YouTube Ledger — Chrome Preview', version='0.18.0', minimum_chrome_version='114')
     # Worker URLs resolve relative to the worker directory, so keep its actual
@@ -94,7 +101,7 @@ def build(channel='preview'):
     scripts = {name:content.decode() for name,content in files.items()
                if name.endswith('.js') and not name.startswith('vendor/') and name != 'gif-codec.js'}
     renamed = subprocess.run([os.environ.get('LEDGER_NODE', 'node'), str(ROOT / 'chrome-vault/rename-api.cjs')],
-                             input=json.dumps(scripts), text=True, check=True, capture_output=True)
+                             input=json.dumps(scripts), encoding='utf-8', check=True, capture_output=True)
     files.update({name:content.encode() for name,content in json.loads(renamed.stdout).items()})
     files['INSTALL.txt'] = 'CHROME PREVIEW 0.18.0 — local testing only, not Store-approved.\nThis same extension folder works on Windows and macOS; no companion is required.\nLoad this separate folder into a disposable Chrome profile. Do not replace your everyday extension yet.\nChoose a passphrase, save its recovery key, then choose what to track and check YouTube access. Refresh existing YouTube tabs if prompted.\nOptional: Open automatically in this browser avoids repeated unlock prompts without installing another app. It keeps a key in this browser profile; anyone who can use or copy that profile may be able to open Ledger. Leave it off for passphrase-only access. Backups still need the passphrase or recovery key.\nCompanion sync and OS-protected remembered access are optional advanced features in Settings. Public companion installers are not yet available.\nExisting protected profiles keep their current access choices. Firefox submission artifacts are unchanged.\n'.encode()
     if channel == 'store':
