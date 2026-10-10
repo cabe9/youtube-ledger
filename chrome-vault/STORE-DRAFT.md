@@ -1,6 +1,6 @@
 # Chrome Web Store submission materials — 0.18.1
 
-Prepared for the browser-only release candidate. Version 0.18.1 is uploaded to the existing Chrome Web Store draft; it has not been submitted for review. Use the package and screenshots from `dist/chrome-release-candidate/0.18.1/`.
+Version 0.18.1 was resubmitted on October 9, 2026 and is pending review, with automatic publication after approval enabled. Use the package and screenshots from `dist/chrome-release-candidate/0.18.1/`.
 
 ## Name
 
@@ -65,7 +65,7 @@ Help people understand and organize their YouTube viewing through a local activi
 
 | Manifest permission | Text for the dashboard |
 | --- | --- |
-| `storage` | Keep trusted, memory-only session state for the encrypted profile, temporary queues and undo; migrate older Ledger records into encrypted IndexedDB. Local settings and history support the extension's viewing record and organization features. |
+| `storage` | Use chrome.storage.session for the unlocked session and trusted temporary state, and chrome.storage.local to migrate older Ledger records into encrypted IndexedDB. The encrypted profile uses IndexedDB; the storage permission is needed for these Chrome storage API calls. |
 | Host access: `https://www.youtube.com/*`, `https://m.youtube.com/*` | Observe supported YouTube playback and page activity after setup consent; provide channel groups, watch status and recommendation controls. Optional public metadata lookups use these same hosts. No unrelated websites or general browser history are accessed. |
 
 The store build has no `nativeMessaging`, `history`, `tabs`, `scripting`, `downloads`, `webRequest` or broad all-site permission. The existing YouTube host permissions allow the specific tab queries it needs.
