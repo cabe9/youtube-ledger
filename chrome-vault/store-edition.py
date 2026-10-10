@@ -17,11 +17,17 @@ def prepare(files):
     manifest = json.loads(files['manifest.json'])
     manifest['name'] = 'YouTube Ledger'
     manifest['description'] = 'Understand your YouTube viewing with local history, channel groups, notes and recommendation controls.'
+    # Alarm-based companion sync is omitted from this edition. Upload checks
+    # use tab activity and do not call the alarms API.
+    manifest['permissions'] = [p for p in manifest['permissions'] if p != 'alarms']
     manifest.pop('optional_permissions', None)
     manifest['content_security_policy'] = {
         'extension_pages': "script-src 'self'; object-src 'none'; base-uri 'none'"
     }
     files['manifest.json'] = (json.dumps(manifest, indent=2) + '\n').encode()
+
+    files['compat.js'] = replace_once(files['compat.js'].decode(),
+        '    alarms: api.alarms,\n', '').encode()
 
     html = files['dashboard.html'].decode()
     html = replace_once(html, ', "local-sync-ui.js"', '')

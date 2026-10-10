@@ -12,7 +12,8 @@ ROOT = Path(__file__).resolve().parent.parent
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--with-assets', action='store_true')
 args = parser.parse_args()
-release = ROOT / 'dist/chrome-release-candidate/0.18.0'
+version = json.loads((ROOT / 'chrome-vault/release.json').read_text(encoding='utf-8'))['storeVersion']
+release = ROOT / 'dist/chrome-release-candidate' / version
 folder = release / 'extension'
 spec = importlib.util.spec_from_file_location('ledger_build', ROOT / 'build.py')
 standard = importlib.util.module_from_spec(spec)
@@ -22,9 +23,10 @@ expected = (set(standard.FILES) - {'local-sync.js', 'local-sync-ui.js', 'sync-mo
 actual = {str(p.relative_to(folder)).replace('\\', '/') for p in folder.rglob('*') if p.is_file()}
 assert actual == expected, (actual - expected, expected - actual)
 manifest = json.loads((folder / 'manifest.json').read_text(encoding='utf-8'))
-assert manifest['manifest_version'] == 3 and manifest['version'] == '0.18.0'
+assert manifest['manifest_version'] == 3 and manifest['version'] == version
 assert manifest['name'] == 'YouTube Ledger' and len(manifest['description']) <= 132
-assert manifest['permissions'] == ['storage', 'alarms']
+assert manifest['permissions'] == ['storage']
+assert 'alarms' not in (folder / 'compat.js').read_text(encoding='utf-8')
 assert 'optional_permissions' not in manifest
 assert 'key' not in manifest and 'update_url' not in manifest and 'externally_connectable' not in manifest
 assert manifest['incognito'] == 'not_allowed'
@@ -50,7 +52,7 @@ html = (folder / 'dashboard.html').read_text(encoding='utf-8')
 loader = re.search(r'<script id="vault-scripts" type="application/json">(.*?)</script>', html).group(1)
 assert all(script in expected for script in json.loads(loader))
 assert not re.search(r'<script[^>]+src=["\'](?:https?:)?//', html)
-archive_path = release / 'youtube-ledger-chrome-0.18.0.zip'
+archive_path = release / f'youtube-ledger-chrome-{version}.zip'
 with ZipFile(archive_path) as archive:
     assert len(archive.namelist()) == len(expected) and set(archive.namelist()) == expected
     assert archive.testzip() is None

@@ -9,7 +9,8 @@ import sys
 from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parent.parent
-release = ROOT / 'dist/chrome-release-candidate/0.18.0'
+version = json.loads((ROOT / 'chrome-vault/release.json').read_text(encoding='utf-8'))['storeVersion']
+release = ROOT / 'dist/chrome-release-candidate' / version
 node = os.environ.get('LEDGER_NODE', 'node')
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
@@ -35,7 +36,7 @@ for name, command in checks:
         print(output, flush=True)
     except subprocess.TimeoutExpired:
         results.append({'name': name, 'passed': False, 'error': 'Timed out after 240 seconds'})
-    archive = release / 'youtube-ledger-chrome-0.18.0.zip'
+    archive = release / f'youtube-ledger-chrome-{version}.zip'
     release.mkdir(parents=True, exist_ok=True)
     report.write_text(json.dumps({'at': datetime.now(timezone.utc).isoformat(), 'os': platform.platform(),
         'architecture': platform.machine(), 'packageSha256': hashlib.sha256(archive.read_bytes()).hexdigest() if archive.exists() else None,

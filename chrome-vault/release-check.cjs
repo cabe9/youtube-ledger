@@ -1,6 +1,6 @@
 // First-public-release lifecycle in a disposable profile, with synthetic data.
 const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
-const source=process.env.LEDGER_EXTENSION_DIR ? path.resolve(process.env.LEDGER_EXTENSION_DIR) : path.resolve(__dirname,'../dist/chrome-release-candidate/0.18.0/extension');
+const source=process.env.LEDGER_EXTENSION_DIR ? path.resolve(process.env.LEDGER_EXTENSION_DIR) : path.resolve(__dirname,'../dist/chrome-release-candidate',require('./release.json').storeVersion,'extension');
 (async()=>{
  const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'ledger-store-release-')),profile=path.join(temporary,'profile'),extension=path.join(temporary,'extension');
  fs.cpSync(source,extension,{recursive:true});
@@ -21,6 +21,9 @@ const source=process.env.LEDGER_EXTENSION_DIR ? path.resolve(process.env.LEDGER_
  const settings=async()=>{await page.getByRole('link',{name:'Settings',exact:true}).click();await page.locator('#settings-tab-data').click();};
  try{
   await launch();await page.getByRole('heading',{name:'Welcome to Ledger'}).waitFor();
+  const granted=await worker.evaluate(()=>chrome.permissions.getAll());
+  assert.deepEqual(granted.permissions,['storage'],'Public edition requests only its used storage API');
+  assert.deepEqual(granted.origins.sort(),['https://m.youtube.com/*','https://www.youtube.com/*']);
   assert.equal(await page.locator('#vault-remember-row').isVisible(),false,'No public companion setup');
   await page.locator('#vault-secret').fill(password);await page.locator('#vault-confirm').fill(password);await page.locator('#vault-submit').click();
   await page.locator('#vault-key').waitFor();const recovery=await page.locator('#vault-key-value').inputValue();
@@ -35,9 +38,9 @@ const source=process.env.LEDGER_EXTENSION_DIR ? path.resolve(process.env.LEDGER_
   const backup=await request({type:'backup:export'});
   // Browser update/reload rehearsal. The copied candidate increments only its
   // version; this tests preservation, not old-version code compatibility.
-  await context.close();manifest.version='0.18.1';fs.writeFileSync(path.join(extension,'manifest.json'),JSON.stringify(manifest));
+  await context.close();const nextVersion=manifest.version.split('.').map(Number);nextVersion[nextVersion.length-1]++;manifest.version=nextVersion.join('.');fs.writeFileSync(path.join(extension,'manifest.json'),JSON.stringify(manifest));
   await launch();await page.getByRole('heading',{name:'Unlock your Ledger'}).waitFor();
-  assert.equal(await worker.evaluate(()=>chrome.runtime.getManifest().version),'0.18.1');
+  assert.equal(await worker.evaluate(()=>chrome.runtime.getManifest().version),manifest.version);
   assert.deepEqual(await worker.evaluate(()=>LedgerVaultIDB().entries()),before,'Version-only update preserves the encrypted profile');
   await page.locator('#vault-secret').fill(password);await page.locator('#vault-submit').click();await page.locator('#vault-entry').waitFor({state:'detached'});
   assert.equal((await page.evaluate(()=>LedgerBrowser.storage.local.get('goals:2026-10-03')))['goals:2026-10-03'],'RELEASE PRIVATE NOTE');

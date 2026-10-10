@@ -28,6 +28,6 @@ jobs:
         if: always()
         with:
           name: chrome-windows-validation
-          path: dist/chrome-release-candidate/0.18.0/VALIDATION-windows.json
+          path: dist/chrome-release-candidate/*/VALIDATION-windows.json
           retention-days: 7
           if-no-files-found: ignore

@@ -1,6 +1,7 @@
 """Reproduce Windows CRLF checkouts and prove locale-independent packaging."""
 import hashlib
 import importlib.util
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -14,7 +15,7 @@ spec = importlib.util.spec_from_file_location('source_build', ROOT / 'build.py')
 source = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(source)
 FILES = set(source.FILES) | {'build.py', 'manifest.json', 'docs/privacy-chrome.html'} | {
-    'chrome-vault/' + name for name in ['build.py', 'store-edition.py', 'rename-api.cjs', 'icon-128.png',
+    'chrome-vault/' + name for name in ['build.py', 'store-edition.py', 'release.json', 'rename-api.cjs', 'icon-128.png',
         'crypto.js', 'store.js', 'idb.js', 'worker.js', 'client.js', 'gate.js', 'gate.css']}
 
 
@@ -37,7 +38,8 @@ class PortablePackage(unittest.TestCase):
                 result = subprocess.run([sys.executable, str(folder / 'chrome-vault/build.py'), '--channel', 'store'],
                     env=env, cwd=folder, encoding='utf-8', capture_output=True, timeout=120)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-                archive = folder / 'dist/chrome-release-candidate/0.18.0/youtube-ledger-chrome-0.18.0.zip'
+                version = json.loads((folder / 'chrome-vault/release.json').read_text(encoding='utf-8'))['storeVersion']
+                archive = folder / 'dist/chrome-release-candidate' / version / f'youtube-ledger-chrome-{version}.zip'
                 with ZipFile(archive) as package:
                     self.assertIn('Ledger'.encode('utf-8'), package.read('chrome-vault/gate.js'))
                     self.assertNotIn(b'\r\n', package.read('vault-worker.js'))

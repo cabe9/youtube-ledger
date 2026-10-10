@@ -10,6 +10,7 @@ import subprocess
 from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
 
 ROOT = Path(__file__).resolve().parent.parent
+RELEASE = json.loads((ROOT / 'chrome-vault/release.json').read_text(encoding='utf-8'))
 
 def source_bytes(path):
     # Git checkouts may use CRLF on Windows. Normalize package text before any
@@ -21,6 +22,7 @@ def source_bytes(path):
 def build(channel='preview'):
     if channel not in {'preview', 'store'}:
         raise ValueError('Unknown Chrome channel')
+    version = RELEASE['storeVersion' if channel == 'store' else 'previewVersion']
     spec = importlib.util.spec_from_file_location('ledger_build', ROOT / 'build.py')
     source = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(source)
@@ -33,7 +35,7 @@ def build(channel='preview'):
         files['chrome-vault/' + name] = source_bytes(ROOT / 'chrome-vault' / name)
     manifest = json.loads((ROOT / 'manifest.json').read_text(encoding='utf-8'))
     manifest.pop('browser_specific_settings', None)
-    manifest.update(name='YouTube Ledger — Chrome Preview', version='0.18.0', minimum_chrome_version='114')
+    manifest.update(name='YouTube Ledger — Chrome Preview', version=version, minimum_chrome_version='114')
     # Worker URLs resolve relative to the worker directory, so keep its actual
     # entry point at the package root for the original module paths.
     manifest['background'] = {'service_worker': 'vault-worker.js'}
@@ -103,23 +105,23 @@ def build(channel='preview'):
     renamed = subprocess.run([os.environ.get('LEDGER_NODE', 'node'), str(ROOT / 'chrome-vault/rename-api.cjs')],
                              input=json.dumps(scripts), encoding='utf-8', check=True, capture_output=True)
     files.update({name:content.encode() for name,content in json.loads(renamed.stdout).items()})
-    files['INSTALL.txt'] = 'CHROME PREVIEW 0.18.0 — local testing only, not Store-approved.\nThis same extension folder works on Windows and macOS; no companion is required.\nLoad this separate folder into a disposable Chrome profile. Do not replace your everyday extension yet.\nChoose a passphrase, save its recovery key, then choose what to track and check YouTube access. Refresh existing YouTube tabs if prompted.\nOptional: Open automatically in this browser avoids repeated unlock prompts without installing another app. It keeps a key in this browser profile; anyone who can use or copy that profile may be able to open Ledger. Leave it off for passphrase-only access. Backups still need the passphrase or recovery key.\nCompanion sync and OS-protected remembered access are optional advanced features in Settings. Public companion installers are not yet available.\nExisting protected profiles keep their current access choices. Firefox submission artifacts are unchanged.\n'.encode()
+    files['INSTALL.txt'] = f'CHROME PREVIEW {version} — local testing only, not Store-approved.\nThis same extension folder works on Windows and macOS; no companion is required.\nLoad this separate folder into a disposable Chrome profile. Do not replace your everyday extension yet.\nChoose a passphrase, save its recovery key, then choose what to track and check YouTube access. Refresh existing YouTube tabs if prompted.\nOptional: Open automatically in this browser avoids repeated unlock prompts without installing another app. It keeps a key in this browser profile; anyone who can use or copy that profile may be able to open Ledger. Leave it off for passphrase-only access. Backups still need the passphrase or recovery key.\nCompanion sync and OS-protected remembered access are optional advanced features in Settings. Public companion installers are not yet available.\nExisting protected profiles keep their current access choices. Firefox submission artifacts are unchanged.\n'.encode()
     if channel == 'store':
-        files['INSTALL.txt'] = ('YouTube Ledger 0.18.0 — Chrome release candidate, not yet submitted.\n'
+        files['INSTALL.txt'] = (f'YouTube Ledger {version} — Chrome release candidate.\n'
             'This extension works without a Ledger account, subscription or companion app.\n'
             'For local testing, use a disposable Chrome profile and load this folder from chrome://extensions.\n'
             'Choose a passphrase and save the recovery key. Automatic browser access is optional; keep it off for passphrase-only protection.\n'
             'Complete the tracking choices, allow YouTube site access and refresh existing YouTube pages if prompted.\n'
             'Chrome backups are encrypted; existing Firefox releases cannot open them. Cross-browser sync is not included in this release.\n'
             'Release status and store materials are outside the extension ZIP. No personal browser data is packaged.\n').encode()
-    output = ROOT / ('dist/chrome-preview/0.18.0' if channel == 'preview' else 'dist/chrome-release-candidate/0.18.0/extension')
+    output = ROOT / (f'dist/chrome-preview/{version}' if channel == 'preview' else f'dist/chrome-release-candidate/{version}/extension')
     if output.exists(): shutil.rmtree(output)
     output.mkdir(parents=True)
     for name, content in files.items():
         target = output / name
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(content)
-    archive = output.parent / ('youtube-ledger-chrome-preview-0.18.0.zip' if channel == 'preview' else 'youtube-ledger-chrome-0.18.0.zip')
+    archive = output.parent / (f'youtube-ledger-chrome-preview-{version}.zip' if channel == 'preview' else f'youtube-ledger-chrome-{version}.zip')
     with ZipFile(archive, 'w', ZIP_DEFLATED) as zipfile:
         for name in sorted(files):
             entry = ZipInfo(name, (2026, 10, 3, 0, 0, 0))
