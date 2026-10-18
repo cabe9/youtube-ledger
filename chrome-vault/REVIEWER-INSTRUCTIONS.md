@@ -1,41 +1,44 @@
-# YouTube Ledger 0.19.0 — Chrome reviewer instructions
+# YouTube Ledger 0.20.0 — Chrome reviewer instructions
 
 This is a browser-only extension. There is no Ledger account, server login, payment, native companion or cross-browser sync. A normal YouTube video can be used without signing into YouTube. Discover, the subscription filter, Subscribe, channel feedback and the optional Watch Later/history-page features use the reviewer's own YouTube session.
 
-## Update from public 0.18.1
+## Update from public 0.19.0
 
-Version 0.19.0 adds Discover to the encrypted Chrome edition: local channel statistics, subscription filtering, explicitly queued channel feedback and native inline Subscribe. The archive of public 0.18.1 is preserved for upgrade testing.
+Version 0.20.0 simplifies first-run setup. A fresh profile can start without a password, choose a password lock, or explore without recording or connections. Existing 0.19.0 protected profiles retain their credentials, records and manual/automatic access settings. The earlier 0.18.1 and 0.19.0 packages remain archived for upgrade testing.
 
-Permissions remain `storage` plus `https://www.youtube.com/*` and `https://m.youtube.com/*`. No alarms, native messaging or optional permission is added. The bundled Chrome privacy policy is revision 0.19.0; its updated hosted copy has not yet been deployed.
+Permissions remain `storage` plus `https://www.youtube.com/*` and `https://m.youtube.com/*`. No alarms, native messaging or additional host permission is added. The bundled and hosted Chrome privacy policy is revision 0.20.0.
 
 ## First run and permissions
 
-1. Install the submitted update in a disposable Chrome profile and allow its requested access to `www.youtube.com` and `m.youtube.com`. Open YouTube Ledger from Chrome's Extensions menu or its pinned toolbar icon.
-2. Choose a test passphrase of at least 12 characters, confirm it and continue. “Open automatically in this browser” is unchecked; leave it unchecked for the first test. Save the generated recovery key and confirm that you saved it.
-3. The next screen asks what to track. All tracking/behavior choices start unchecked. Enable recording and save your choices. YouTube lookups/images and account actions remain off until separately allowed.
-4. The setup connection check can help diagnose missing site access. If Chrome has withheld YouTube access, allow it for YouTube and refresh existing YouTube tabs. It is a browser permission, separate from the optional lookups setting. A new tab loaded after granting access also works.
+1. Install in a disposable Chrome profile and allow its requested access to `www.youtube.com` and `m.youtube.com`. Open YouTube Ledger from the Extensions menu or its pinned icon. No recording or optional connections start just from viewing setup.
+2. On the welcome screen, Use recommended setup enables recording, YouTube lookups/images, automatic group upload checks and account-action consent. It does not subscribe, send feedback or remove videos. Watch Later cleanup, passive watch learning and recommendation hiding remain off. No password is required; Ledger opens automatically after restart.
+3. In another fresh test profile, Choose settings shows the recommended selections individually. Decline any of them; automatic upload checks require lookups. Back retains custom selections without enabling them. Explore first opens with recording and connections off, even from an unfinished custom password form.
+4. To test a protected profile, choose settings and select the optional password lock. Enter a test password of at least 12 characters and confirm it. Save the recovery key and confirm that you saved it. Recording and connections wait for that final step.
+5. Each connection can also be changed independently in Settings → YouTube. Chrome's site access remains a separate browser permission. If withheld, allow it for YouTube and refresh existing YouTube tabs.
 
 ## Ordinary use
 
 1. Play a public YouTube video for at least 15 seconds. Open Ledger History; playback is sampled about once a second and summaries refresh about every five seconds.
 2. Add a note or a purpose label. In Settings → General, change themes. The four themes are Retrowave, Frutiger Aero, Light green and Dark green.
-3. Create a channel group. Adding/resolving a channel or checking for new uploads requires enabling optional YouTube lookups/images in Settings → YouTube. Cached groups and local data remain available with that connection off. Throttling and incomplete YouTube metadata can delay or limit results; the feed and diagnostics explain recorded failures or cooldowns.
+3. Create a channel group. Adding/resolving a channel or checking for new uploads requires YouTube lookups/images, enabled during setup or in Settings → YouTube. Cached groups and local data remain available with that connection off. Throttling and incomplete YouTube metadata can delay or limit results; detailed refresh diagnostics are available in debug mode.
 4. Pause tracking in the header and verify that new activity stops. Pausing does not delete history or disable explicit group/backup actions.
 
 ## Restart and recovery
 
-1. Quit the whole test browser and reopen the same profile. In passphrase-only mode the saved dashboard is locked. New viewing can still be encrypted and queued if recording was enabled.
-2. Enter a wrong passphrase; it must not unlock. Unlock with the chosen passphrase or select “Use my recovery key.” Queued viewing is organized into History.
-3. Settings → Your data → Access to your Ledger offers automatic access. Enabling it shows a disclosure and confirmation. It saves a non-extractable key in the browser profile, not in an OS key store. No native permission or external app is requested.
-4. Restart the browser with automatic access enabled. Ledger opens without prompting. Turn it off using a verified passphrase/recovery key; the next complete restart requires unlocking again.
-5. Passphrase changes and replacement recovery keys do not change credentials for previously exported backups.
+1. Quit the whole test browser and reopen the same profile. A profile without a password lock opens automatically. This uses unlocking material saved in the browser profile, not an OS key store; a person who can use or copy the profile may be able to open Ledger.
+2. Settings → Your data offers Add a password lock. Add a disposable test password and save its recovery key. Existing records remain readable after the change. After restarting, a wrong password must not unlock; the correct password or recovery key must work.
+3. In passphrase-only mode, opted-in viewing can still be encrypted and queued while locked. Unlock to organize it into History.
+4. A protected profile's Access to your Ledger controls still offer Open automatically in this browser. Enabling it shows a disclosure and confirmation. It saves a non-extractable key in the browser profile; no native permission or app is requested. Disabling it requires a working password/recovery key; the next complete restart requires unlocking.
+5. Upgrade an existing 0.19.0 protected profile. The new welcome flow must not replace its access choices, change its credentials or clear its history. Both manual and automatic access are covered by the release tests.
 
 ## Backups and deletion
 
-1. In Settings → Your data, export a full profile. The JSON envelope is encrypted; it should not contain readable history or notes. Individual day/group/review exports are intentionally readable and are labeled separately.
-2. Select a full backup to import. Ledger asks for that file's passphrase/recovery key if necessary, validates its contents and shows a preview. Nothing is replaced until Restore is selected. A recovery backup is downloaded before replacement.
-3. Supported older readable Ledger backups can be imported and become encrypted locally. Current Firefox releases cannot open these new encrypted Chrome backups.
-4. Date-range deletion and retention remove history/notes, with separate watch-status controls. “Delete all Ledger data” is destructive: it clears the local records, removes automatic browser access and reloads with tracking off. It retains the empty vault's passphrase/recovery credentials. It does not delete exports or YouTube account data.
+1. In Settings → Your data, export a full profile. A profile without a password lock asks for a password for this backup file. Cancel must create no file. A protected profile exports using its existing password/recovery protection.
+2. Select a full backup to import. Enter that file's original password/recovery key when prompted. Ledger validates the file and shows a preview before Restore. A recovery backup is downloaded before replacement; cancelling its password prompt cancels the restore too.
+3. Full backups contain encrypted records, not readable history or notes. Device unlocking keys and automatic-access choices never travel in backups. Independent export passwords do not add a lock to the current profile. Adding/changing a profile password later does not change older backups' credentials.
+4. Individual day/group/review exports are intentionally readable and labelled separately. Older readable Ledger backups can be imported and become encrypted locally. Current Firefox releases cannot open encrypted Chrome backups.
+5. Date-range deletion and retention remove history/notes, with separate watch-status controls. Delete all Ledger data clears local records and reloads with tracking off. A protected profile retains its empty vault's credentials but loses automatic access; a profile without a password remains device-accessible. Exports and YouTube account data are unaffected.
+6. A device-only profile has no recovery credential if its local unlocking key is lost. Keep the original profile and restore a separately exported backup into a fresh profile. Older Chrome releases cannot open a live 0.20.0 device-only profile; use an encrypted backup rather than downgrading it.
 
 ## Discover and optional account actions
 
@@ -55,4 +58,8 @@ The package's `docs/privacy.html` is the same document prepared for the Chrome-s
 
 Automatic access is a convenience option: someone who can use or copy the browser profile may be able to open saved data. Passphrase-only mode keeps the unlocked key out of persistent browser storage. No claim of independent security certification is made.
 
-If both credentials are lost, the developer cannot reset them. If the vault itself is damaged, restore an intact backup into a fresh Ledger installation using the backup's credential. Do not remove an installation containing the only copy of wanted data.
+The developer cannot reset lost profile or backup credentials. If the vault itself is damaged, restore an intact backup into a fresh Ledger installation using the backup's credential. Do not remove an installation containing the only copy of wanted data.
+
+## Release verification
+
+The macOS Chromium release suite passed storage/crypto, fresh setup, real 0.19.0 manual/automatic upgrades, real 0.18.1 upgrade, recording/migration, automatic access, near-quota migration, deletion/restore, Discover and exact-package checks. Windows runtime testing was not performed; LF/CRLF build portability was checked. All automated activity and credentials are synthetic.
