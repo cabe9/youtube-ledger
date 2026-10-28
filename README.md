@@ -4,9 +4,7 @@ A local YouTube usage tracker for **Chrome and Firefox**. Records video titles, 
 
 ## Install
 
-Download the **0.16.34** package for your browser below. These ZIPs are ready
-to install; no build tools are needed. For development, clone the repository
-and follow [Build and test](#build-and-test).
+For Firefox, install the published extension from [Mozilla Add-ons](https://addons.mozilla.org/addon/youtube-ledger/). The Chrome ZIP installation is documented below. No build tools are needed for either option. For development, clone the repository and follow [Build and test](#build-and-test).
 
 ### Chrome
 
@@ -19,12 +17,25 @@ Keep the folder in place. The installation survives browser restarts. To update,
 
 ### Firefox
 
-1. Download and extract [the Firefox ZIP](https://github.com/cabe9/youtube-ledger/releases/download/v0.16.34/youtube-ledger-firefox-store-0.16.34.zip).
+1. Open [YouTube Ledger on Mozilla Add-ons](https://addons.mozilla.org/addon/youtube-ledger/) in desktop Firefox.
+2. Click **Add to Firefox** and confirm the installation.
+3. In Firefox's extensions menu, allow Ledger to **Always run** on YouTube, then refresh any existing YouTube tabs.
+4. Open YouTube Ledger from the extension toolbar and save your setup choices.
+
+The published extension is Mozilla-signed and stays installed across Firefox restarts. Use the Mozilla Add-ons listing for the current Firefox release and version information.
+
+GitHub also hosts an [older signed Firefox 0.17.0 release](https://github.com/cabe9/youtube-ledger/releases/tag/v0.17.0-firefox-signed), originally distributed as an unlisted XPI. Its release notes identify the attached source ZIP as the matching submitted source. The older 0.16.34 Firefox ZIP and builds from this checkout are separate from the current Mozilla Add-ons release; use the store listing for normal installation.
+
+#### Firefox developer testing (temporary)
+
+Use temporary installation only to test an unsigned development build:
+
+1. Clone the repository and run `python3 build.py` as described in [Build and test](#build-and-test).
 2. Open `about:debugging#/runtime/this-firefox`.
-3. Click **Load Temporary Add-on** and select the extracted `manifest.json`.
+3. Click **Load Temporary Add-on** and select `dist/firefox/manifest.json`.
 4. Refresh YouTube tabs and open YouTube Ledger from the extension toolbar.
 
-Temporary installations stop at browser restart. A durable Firefox installation requires Mozilla signing, which has not been performed. Export history before removing a temporary installation; do not rely on it surviving removal.
+Temporary installations stop at browser restart; this limitation does not apply to the signed Mozilla Add-ons installation. Export any history you want to keep before removing a temporary installation or switching installations; do not assume its data will transfer automatically.
 
 ## What it does
 
@@ -126,9 +137,9 @@ npm run test:feeds
 npm run test:features
 ```
 
-Installable downloads live in [GitHub Releases](https://github.com/cabe9/youtube-ledger/releases/latest); generated ZIPs are not committed to the source tree.
+For normal Firefox installation, use [Mozilla Add-ons](https://addons.mozilla.org/addon/youtube-ledger/). Older release packages are available in [GitHub Releases](https://github.com/cabe9/youtube-ledger/releases); generated ZIPs are not committed to the source tree.
 
-`build.py` defaults to store packages, cleans `dist/chrome` and `dist/firefox`, and produces `youtube-ledger-{browser}-store-0.16.26.zip`. Experimental output goes under `dist/experimental/` with explicitly named `-experimental-` ZIPs. `package-check.py` scans both store archives for excluded code, UI, permissions and references, and checks that stale output files cannot leak into them. UI and recommendation checks use installed Google Chrome. The Chrome integration check uses Playwright's Chrome for Testing in a disposable profile, with an actual unpacked extension and controlled YouTube HTML/media fixtures. After building, `npm run test:group-images:firefox` tests file uploads with the actual extension on live YouTube in a disposable Firefox profile, including animated GIFs, still-image resizing, rejection of invalid/oversize files, and reload persistence. It uses WebDriver BiDi (Node 22+ and Firefox 140+); `FIREFOX_BIN` can select the Firefox executable.
+`build.py` defaults to store packages, cleans `dist/chrome` and `dist/firefox`, and produces `youtube-ledger-{browser}-store-{version}.zip`, using the version in `manifest.json`. Experimental output goes under `dist/experimental/` with explicitly named `-experimental-` ZIPs. `package-check.py` scans both store archives for excluded code, UI, permissions and references, and checks that stale output files cannot leak into them. UI and recommendation checks use installed Google Chrome. The Chrome integration check uses Playwright's Chrome for Testing in a disposable profile, with an actual unpacked extension and controlled YouTube HTML/media fixtures. After building, `npm run test:group-images:firefox` tests file uploads with the actual extension on live YouTube in a disposable Firefox profile, including animated GIFs, still-image resizing, rejection of invalid/oversize files, and reload persistence. It uses WebDriver BiDi (Node 22+ and Firefox 140+); `FIREFOX_BIN` can select the Firefox executable.
 
 Verified: aggregation, paused-tab exclusion, recommendation event storage, UI behavior, content-script injection, real media playback tracking, recommendation controls, purpose labels, pause, data persistence across a full Chrome restart, and worker messaging after restart. Live YouTube layouts and the user's exact theme still require real-world validation.
 
